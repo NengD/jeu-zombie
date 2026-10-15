@@ -1,0 +1,63 @@
+extends RefCounted
+## Textes partagés : liste des touches et guide du joueur.
+
+const TOUCHES := [
+	["Se déplacer", "Z Q S D"],
+	["Sprinter", "Maj"],
+	["Sauter", "Espace"],
+	["S'accroupir (plus discret)", "C ou Ctrl"],
+	["Se pencher à gauche / à droite", "A / E"],
+	["Frapper / tirer", "Clic gauche"],
+	["Viser (armes à feu)", "Clic droit"],
+	["Barre rapide (arme ou objet)", "1 à 5, molette"],
+	["Recharger", "R"],
+	["Se soigner", "H"],
+	["Fouiller / utiliser", "F"],
+	["Inventaire et fabrication", "Tab ou I"],
+	["Carte", "M"],
+	["Vue 1re / 3e personne", "V"],
+	["Lampe torche", "L"],
+	["Pause", "Échap"],
+	["Aide en jeu", "F1"],
+]
+
+const GUIDE := """[b]LES BASES[/b]
+• Fouille les meubles (armoires, casiers, frigos…) et les corps des zombies avec [b]F[/b].
+• Surveille ta faim et ta soif : si l'une tombe à zéro, tu perds de la santé.
+• La santé remonte doucement tant que tu es bien nourri et hydraté.
+• Attention au poids : au-delà de ta capacité, tu ne peux plus sprinter. Un sac à dos l'augmente.
+
+[b]COMBAT[/b]
+• Les armes à feu font beaucoup de bruit et attirent les zombies de loin. Les armes blanches sont discrètes.
+• Viser la tête inflige 2,5× plus de dégâts et ignore l'armure des zombies policiers et militaires.
+• Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
+• La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
+
+[b]BARRE RAPIDE[/b]
+• Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 (ou sélectionne-le puis clique sur l'emplacement).
+• Clic droit sur un emplacement pour le vider.
+• Une arme dans un emplacement se prend en main ; un consommable (bandage, eau…) s'utilise directement.
+
+[b]CONSTRUIRE SA BASE[/b]
+1. Fabrique un établi (Tab) : 4 planches + 6 clous + 2 ferrailles.
+2. Vide un bâtiment de tous ses zombies : le coin en haut à droite affiche « bâtiment sûr ».
+3. Dans l'inventaire, sélectionne l'établi puis « Utiliser » : un fantôme vert apparaît.
+   Clic gauche pour poser, molette ou R pour tourner, clic droit pour annuler.
+4. Près de l'établi, les recettes [établi] se débloquent : munitions, armes, vestes, sac à dos, caisse de stockage…
+5. Les barricades se posent n'importe où, par exemple dans une porte. Les zombies peuvent les casser.
+
+[b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
+• [b]Poste de police[/b] : pistolets, fusil à pompe, carabine, gilets pare-balles.
+• [b]Base militaire[/b] : fusil d'assaut, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
+• [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
+• [b]Supermarché[/b] : nourriture et boissons.
+• [b]Armurerie[/b] : armes et munitions.
+• [b]Quincaillerie[/b] : planches, clous, ferraille, haches.
+• [b]Fermes et station-service[/b] : matériaux, nourriture, cuir."""
+
+
+static func touches_texte() -> String:
+	var lines: PackedStringArray = []
+	for t in TOUCHES:
+		lines.append("%s : %s" % [t[1], t[0]])
+	return "\n".join(lines)

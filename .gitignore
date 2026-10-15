@@ -1,0 +1,10 @@
+# Cache de Godot (régénéré automatiquement)
+.godot/
+*.import
+# Exports / builds
+build/
+*.exe
+*.pck
+# Fichiers système
+.DS_Store
+Thumbs.db

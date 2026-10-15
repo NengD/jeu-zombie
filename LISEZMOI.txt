@@ -1,0 +1,70 @@
+JEU ZOMBIE — PROTOTYPE 1
+========================
+
+LANCER LE JEU
+• Double-clic sur « Lancer_le_jeu.bat » (dernière version du code), ou
+• ouvre le projet dans Godot et appuie sur F5.
+Le jeu démarre sur le menu principal : Jouer, Paramètres (touches, sensibilité,
+volume), Guide (astuces) et Quitter.
+   La carte est différente à chaque partie.
+   (Pour garder toujours la même : ouvre scenes/main.tscn, sélectionne « Main »
+   et mets un nombre dans « World Seed » dans l'Inspecteur.)
+
+COMMANDES (clavier AZERTY)
+ZQSD ............ se déplacer
+Maj ............. sprinter
+Espace .......... sauter
+C ou Ctrl ....... s'accroupir (plus discret)
+A / E ........... se pencher à gauche / à droite
+Clic gauche ..... frapper / tirer
+Clic droit ...... viser (armes à feu)
+1 à 5, molette .. barre rapide (arme en main / objet utilisé)
+R ............... recharger
+H ............... se soigner (bandage / trousse)
+F ............... fouiller un meuble ou un corps, utiliser un établi
+Tab ou I ........ inventaire et fabrication
+M ............... carte
+V ............... vue 1re / 3e personne (1re obligatoire dans les bâtiments)
+L ............... lampe torche
+Échap ........... pause
+F1 .............. aide en jeu
+
+BARRE RAPIDE
+Dans l'inventaire (Tab), glisse un objet sur un emplacement 1 à 5, ou
+sélectionne-le puis clique sur l'emplacement. Clic droit = vider l'emplacement.
+Une arme se prend en main, un consommable (bandage, eau...) s'utilise directement.
+
+CONSTRUIRE SA BASE
+1. Fabrique un établi (Tab) : 4 planches + 6 clous + 2 ferrailles.
+2. Vide un bâtiment de tous ses zombies (le coin en haut à droite affiche
+   « bâtiment sûr » quand il n'en reste plus).
+3. Dans l'inventaire, sélectionne l'établi puis « Utiliser » : un fantôme vert
+   apparaît. Clic gauche pour poser, molette ou R pour tourner, clic droit pour annuler.
+4. Près de l'établi, toutes les recettes [établi] se débloquent (munitions,
+   armes, vestes, sac à dos, caisse de stockage…).
+5. Les barricades se posent n'importe où (par exemple dans une porte).
+   Les zombies peuvent les casser.
+
+POINTS STRATÉGIQUES (voir la carte, touche M)
+Poste de police ....... pistolets, fusil à pompe, carabine, gilets pare-balles
+Base militaire ........ fusil d'assaut, gilet tactique, casque — très gardée !
+                        (portail à l'est… et une brèche quelque part au nord)
+Hôpital ............... soins
+Supermarché ........... nourriture et boissons
+Armurerie ............. armes et munitions
+Quincaillerie ......... planches, clous, ferraille, haches
+Fermes / station ...... matériaux, nourriture
+
+ORGANISATION DES FICHIERS
+scenes/player.tscn ...... le joueur (nœud « Modele » = apparence)
+scenes/zombie.tscn ...... le zombie (nœud « Modele » = apparence)
+scripts/autoload/items.gd  objets, recettes de craft, tables de loot
+scripts/world_gen.gd .... génération de la ville et de la campagne
+scripts/player.gd ....... joueur, combat, inventaire, construction
+scripts/zombie.gd ....... intelligence des zombies
+sons/ ................... effets sonores (remplaçables par de vrais sons .wav)
+
+REMPLACER PAR DES MODÈLES BLENDER (plus tard)
+Exporter le modèle en .glb, le glisser dans le projet, puis dans
+scenes/zombie.tscn (ou player.tscn) remplacer les formes sous « Modele »
+par le modèle importé. Tout le reste du jeu continue de fonctionner.
