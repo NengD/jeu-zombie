@@ -88,6 +88,7 @@ var reload_total := 1.0
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
 var accessoires := {}              # arme -> {emplacement: accessoire}
+var prog := Progression.new()      # niveaux, attributs, compétences, talents
 var hand_weapon: Node3D = null     # modèle de l'arme dans la main (vue 3e personne)
 var perso_ual := false             # modèle réaliste (animations UAL)
 var p_anim := ""
@@ -98,6 +99,8 @@ var shoot_pose_t := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	Game.player = self
+	prog.niveau_global.connect(func(n): Game.msg("NIVEAU %d ! +1 point d'attribut — touche K" % n); Game.play_ui("construire", -2.0, 0.0, 1.3))
+	prog.niveau_competence.connect(func(c, n): Game.msg("%s niveau %d : nouveau talent à débloquer — touche K" % [Progression.NOMS[c], n]); Game.play_ui("construire", -2.0, 0.0, 1.5))
 	collision_layer = Game.LAYER_PLAYER
 	collision_mask = Game.LAYER_WORLD | Game.LAYER_ZOMBIE
 	collision.shape = collision.shape.duplicate()
@@ -273,16 +276,16 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_stats(delta: float) -> void:
-	hunger = maxf(0.0, hunger - delta * 0.055)
-	thirst = maxf(0.0, thirst - delta * 0.085)
+	hunger = maxf(0.0, hunger - delta * 0.055 * prog.faim_mult())
+	thirst = maxf(0.0, thirst - delta * 0.085 * prog.soif_mult())
 	if sprinting:
-		stamina = maxf(0.0, stamina - delta * 16.0)
+		stamina = maxf(0.0, stamina - delta * 16.0 * (0.65 if prog.a("marathonien") else 1.0))
 	else:
-		stamina = minf(100.0, stamina + delta * (14.0 if velocity.length() < 0.5 else 9.0))
+		stamina = minf(prog.endurance_max(), stamina + delta * (14.0 if velocity.length() < 0.5 else 9.0) * prog.recup_endurance())
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
-	elif hunger > 50.0 and thirst > 50.0 and health < 100.0:
-		health = minf(100.0, health + 0.25 * delta)
+	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
+		health = minf(prog.sante_max(), health + 0.25 * delta)
 
 
 func _update_zone() -> void:
@@ -291,6 +294,12 @@ func _update_zone() -> void:
 		in_zone = z
 		if not z.is_empty() and z.name != "":
 			Game.msg("Lieu : " + z.name)
+		if not z.is_empty():
+			# découverte d'un bâtiment : XP d'exploration (plus pour les lieux importants)
+			var cle := "%d_%d" % [int(z.center.x), int(z.center.z)]
+			if not prog.lieux_vus.has(cle):
+				prog.lieux_vus[cle] = true
+				prog.gagner("exploration", 40 if z.name != "" else 8)
 
 
 func _move(delta: float, can_act: bool) -> void:
@@ -304,7 +313,7 @@ func _move(delta: float, can_act: bool) -> void:
 	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0
 	var speed := WALK
 	if sprinting:
-		speed = SPRINT
+		speed = SPRINT * (1.12 if prog.a("coureur") else 1.0)
 	elif crouching:
 		speed = CROUCH_SPEED
 	elif aiming:
@@ -431,7 +440,17 @@ func _update_lampes(fps: bool) -> void:
 
 ## Statistiques de l'arme avec ses accessoires.
 func arme_stats(id: String) -> Dictionary:
-	return Accessoires.stats(id, Items.info(id), accessoires.get(id, {}))
+	var w := Accessoires.stats(id, Items.info(id), accessoires.get(id, {}))
+	if w.get("type", "") == "gun":
+		if prog.a("main_sure"):
+			w.spread = float(w.spread) * 0.75
+		if prog.a("recharge_rapide"):
+			w.reload = float(w.reload) * 0.75
+		if prog.a("tireur"):
+			w.damage = float(w.damage) * 1.2
+		if prog.a("sang_froid"):
+			w.recoil = float(w.recoil) * 0.65
+	return w
 
 
 ## Pose un accessoire (pris dans l'inventaire) sur une arme. L'ancien retourne dans l'inventaire.
@@ -593,8 +612,10 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 
 
 func _melee(w: Dictionary) -> void:
-	var cost: float = w.stamina
-	var dmg: float = w.damage
+	var cost: float = w.stamina * (0.7 if prog.a("souffle") else 1.0)
+	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0)
+	if prog.a("critique") and randf() < 0.2:
+		dmg *= 2.0
 	if stamina < cost:
 		dmg *= 0.5
 	stamina = maxf(0.0, stamina - cost)
@@ -613,6 +634,7 @@ func _melee(w: Dictionary) -> void:
 	var dir := (aim - origin).normalized()
 	if _shoot_ray(origin, origin + dir * float(w.range), dmg):
 		Game.make_noise(global_position, 7.0)
+		prog.gagner("combat", 2)
 
 
 func _shoot_ray(from: Vector3, to: Vector3, dmg: float) -> bool:
@@ -659,7 +681,7 @@ func _finish_reload() -> void:
 func take_damage(amount: float, _from: Node = null) -> void:
 	if not alive:
 		return
-	_hurt(amount * (1.0 - armor_total()))
+	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0))
 	hurt_flash = 1.0
 	Game.play_ui("douleur", -2.0, 0.15)
 
@@ -901,15 +923,15 @@ func use_item(id: String) -> void:
 	var it := Items.info(id)
 	match it.get("type", ""):
 		"food", "drink":
-			hunger = minf(100.0, hunger + float(it.get("food", 0.0)))
-			thirst = minf(100.0, thirst + float(it.get("water", 0.0)))
+			hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
+			thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 			remove_item(id)
 			Game.msg("Consommé : " + Items.nom(id))
 		"heal":
-			if health >= 99.5:
+			if health >= prog.sante_max() - 0.5:
 				Game.msg("Ta santé est déjà au maximum.")
 				return
-			health = minf(100.0, health + float(it.heal))
+			health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
 			remove_item(id)
 			Game.msg("Soigné avec : " + Items.nom(id))
 		"armor":
@@ -939,11 +961,11 @@ func consume_entry(e: Dictionary, g: Grille) -> bool:
 		Game.msg("Ta santé est déjà au maximum.")
 		return false
 	if t == "food" or t == "drink":
-		hunger = minf(100.0, hunger + float(it.get("food", 0.0)))
-		thirst = minf(100.0, thirst + float(it.get("water", 0.0)))
+		hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
+		thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 		Game.msg("Consommé : " + Items.nom(e.id))
 	elif t == "heal":
-		health = minf(100.0, health + float(it.heal))
+		health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
 		Game.msg("Soigné avec : " + Items.nom(e.id))
 	else:
 		return false
@@ -1018,6 +1040,8 @@ func drop_item(id: String, n: int = 1) -> void:
 
 
 func near_bench() -> bool:
+	if prog.a("atelier"):
+		return true
 	for b in get_tree().get_nodes_in_group("workbench"):
 		if b.global_position.distance_to(global_position) < 3.5:
 			return true
@@ -1036,12 +1060,31 @@ func can_craft(r: Dictionary) -> bool:
 func craft(r: Dictionary) -> bool:
 	if not can_craft(r):
 		return false
+	var total := 0
 	for id in r.needs:
 		remove_item(id, int(r.needs[id]))
-	add_item(r.out, int(r.qty))
+		total += int(r.needs[id])
+	var qty := int(r.qty)
+	var munition: bool = Items.info(r.out).get("type", "") == "ammo"
+	if munition and prog.a("cartoucherie"):
+		qty = int(ceil(qty * 1.5))
+	if not munition and prog.a("maitre_artisan") and randf() < 0.5:
+		qty *= 2
+	add_item(r.out, qty)
+	if prog.a("econome") and randf() < 0.3:
+		var ids: Array = r.needs.keys()
+		var rendu: String = ids[randi() % ids.size()]
+		add_item(rendu, 1)
+		Game.msg("Économe : 1× %s récupéré." % Items.nom(rendu))
 	Game.make_noise(global_position, 6.0)
-	Game.msg("Fabriqué : %d× %s" % [r.qty, Items.nom(r.out)])
+	Game.msg("Fabriqué : %d× %s" % [qty, Items.nom(r.out)])
+	prog.gagner("fabrication", 12 + total * 3)
 	return true
+
+
+## Taille de l'inventaire de base selon les talents.
+func maj_poches() -> void:
+	poches.h = maxi(poches.h, prog.lignes_inventaire())
 
 
 # ================================================================ construction
@@ -1127,11 +1170,14 @@ func _confirm_placement() -> void:
 	else:
 		var p = Placeable.new()
 		p.setup(placing)
+		if prog.a("charpentier"):
+			p.health *= 1.6
 		obj = p
 	get_parent().add_child(obj)
 	obj.global_position = ghost_pos
 	obj.rotation.y = ghost_rot
 	remove_item(placing)
+	prog.gagner("fabrication", 10)
 	Game.play_ui("construire", -3.0)
 	Game.msg("Posé : " + Items.nom(placing))
 	Game.make_noise(global_position, 8.0)

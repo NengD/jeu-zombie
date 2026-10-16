@@ -90,7 +90,7 @@ static func sauver(main: Node) -> bool:
 		"pos": _v(p.global_position), "rot": p.rotation.y, "tete": p.head.rotation.x,
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
 		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "slot": p.slot,
-		"chargeurs": p.mags, "accessoires": p.accessoires, "tps": p.want_tps, "lampe": p.flashlight_on,
+		"chargeurs": p.mags, "accessoires": p.accessoires, "progression": p.prog.vers_dict(), "tps": p.want_tps, "lampe": p.flashlight_on,
 	}
 	# meubles du monde (identifiés par leur numéro de génération)
 	var cont := {}
@@ -164,10 +164,13 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 	p.hunger = float(j.get("faim", 100.0))
 	p.thirst = float(j.get("soif", 100.0))
 	p.stamina = float(j.get("endurance", 100.0))
+	if j.get("progression") is Dictionary:
+		p.prog.depuis_dict(j.progression)
 	var g := grille_depuis(j.get("poches"))
 	if g:
 		p.poches = g
 		p.poches.nom = "Sur toi"
+	p.maj_poches()
 	for s in p.equipped:
 		p.equipped[s] = entree_depuis(j.get("equipe", {}).get(s))
 	var barre: Array = j.get("barre", [])

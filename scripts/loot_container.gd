@@ -90,7 +90,10 @@ func ensure_contents() -> void:
 		return
 	var gs := _grid_size()
 	grille = Grille.creer(label, gs.x, gs.y)
-	var found := Items.roll_loot(table, rolls)
+	var r := rolls
+	if Game.player and not is_storage:
+		r += (1 if Game.player.prog.a("fouilleur") else 0) + (1 if Game.player.prog.a("vue_percante") else 0)
+	var found := Items.roll_loot(table, r)
 	for id in found:
 		if Items.grid(id).x > 0:
 			for i in int(found[id]):
@@ -116,6 +119,8 @@ func get_prompt() -> String:
 func interact(player: Node) -> void:
 	if not searched:
 		searched = true
+		if not is_storage and player.has_method("count"):
+			player.prog.gagner("exploration", 6)
 		if modele == null:
 			mat.albedo_color = mat.albedo_color.darkened(0.35)
 		Game.make_noise(global_position, 5.0)

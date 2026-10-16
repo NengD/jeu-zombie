@@ -74,6 +74,7 @@ func _setup_inputs() -> void:
 	_key("lampe", KEY_L)
 	_key("soigner", KEY_H)
 	_key("inspecter", KEY_T)
+	_key("competences", KEY_K)
 	_phys("sauvegarde_rapide", KEY_F5)
 	_phys("chargement_rapide", KEY_F9)
 	_phys("aide", KEY_F1)

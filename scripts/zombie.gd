@@ -228,6 +228,8 @@ func _think() -> void:
 		sight = 10.0 + (10.0 if p.flashlight_on else 0.0)
 	if p.crouching:
 		sight *= 0.55
+	if p.prog.a("discret"):
+		sight *= 0.7
 	if not p.in_zone.is_empty() and not is_same(p.in_zone, Game.find_zone(global_position + Vector3.UP)):
 		sight *= 0.6
 	var sees := false
@@ -390,7 +392,12 @@ func take_damage(amount: float, _from: Node = null) -> void:
 	take_hit(amount, global_position, global_position)
 
 
+const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50}
+
+
 func _die() -> void:
+	if Game.player and state != State.DEAD:
+		Game.player.prog.gagner("combat", XP_TYPE.get(kind, 20))
 	state = State.DEAD
 	remove_from_group("zombies")
 	add_to_group("corpses")
@@ -434,6 +441,7 @@ func interact(player: Node) -> void:
 	if grille == null:
 		searched = true
 		grille = Grille.creer("Corps", 4, 4)
+		player.prog.gagner("exploration", 4)
 		var found := Items.roll_loot("zombie_" + kind, 2, 0.35)
 		for id in found:
 			if Items.grid(id).x > 0:

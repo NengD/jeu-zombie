@@ -18,6 +18,7 @@ const TOUCHES := [
 	["Vue 1re / 3e personne", "V"],
 	["Lampe torche / lampe de l'arme", "L"],
 	["Inspecter l'arme (accessoires)", "T"],
+	["Personnage : niveaux et compétences", "K"],
 	["Pause", "Échap"],
 	["Sauvegarde rapide / chargement", "F5 / F9"],
 	["Aide en jeu", "F1"],
@@ -47,6 +48,11 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Viseur point rouge / lunette[/b] : visée plus précise (la lunette zoome). [b]Silencieux[/b] : tes tirs attirent beaucoup moins les zombies.
 • [b]Chargeur grande capacité[/b] : plus de balles par chargeur. [b]Lampe tactique[/b] : éclaire où tu vises (touche L). [b]Poignée[/b] : moins de recul.
 • On les trouve au poste de police, à l'armurerie et à la base militaire. Silencieux artisanal et poignée se fabriquent à l'établi.
+
+[b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
+• Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration).
+• Niveau global : +1 point d'attribut à placer en Endurance, Santé, Soif ou Faim.
+• Chaque niveau de compétence donne 1 point de talent : débloque des bonus (dégâts, recharge, soins, munitions, discrétion, poches plus grandes…).
 
 [b]BARRE RAPIDE[/b]
 • Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 de la barre rapide.

@@ -24,6 +24,13 @@ class Crosshair extends Control:
 
 
 var root: Control
+var lbl_niveau: Label
+var barre_xp: ProgressBar
+var lbl_gain: Label
+var gain_t := 0.0
+var gain_xp := 0
+var gain_comp := ""
+var prog_connecte := false
 var cross: Crosshair
 var bars := {}
 var lbl_weapon: Label
@@ -123,6 +130,24 @@ func _ready() -> void:
 	help_panel.visible = false
 	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
 	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
+	# niveau et XP (au-dessus de la barre rapide)
+	lbl_niveau = _label("", 15)
+	lbl_niveau.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(lbl_niveau)
+	barre_xp = ProgressBar.new()
+	barre_xp.show_percentage = false
+	barre_xp.custom_minimum_size = Vector2(0, 6)
+	var fx := StyleBoxFlat.new()
+	fx.bg_color = Color(0.95, 0.8, 0.35)
+	var bx := StyleBoxFlat.new()
+	bx.bg_color = Color(0, 0, 0, 0.5)
+	barre_xp.add_theme_stylebox_override("fill", fx)
+	barre_xp.add_theme_stylebox_override("background", bx)
+	root.add_child(barre_xp)
+	lbl_gain = _label("", 18)
+	lbl_gain.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_gain.add_theme_color_override("font_color", Color(0.95, 0.85, 0.45))
+	root.add_child(lbl_gain)
 	Game.notify.connect(_on_msg)
 	Game.hit_confirmed.connect(_on_hit)
 	Game.player_died.connect(_on_death)
@@ -200,11 +225,13 @@ func _process(delta: float) -> void:
 	cross.hit = maxf(0.0, cross.hit - delta * 4.0)
 	if p == null:
 		return
+	bars.sante.max_value = p.prog.sante_max()
+	bars.endurance.max_value = p.prog.endurance_max()
 	bars.sante.value = p.health
 	bars.faim.value = p.hunger
 	bars.soif.value = p.thirst
 	bars.endurance.value = p.stamina
-	flash.color.a = maxf(p.hurt_flash * 0.35, (1.0 - p.health / 100.0) * 0.18 if p.health < 35.0 else 0.0)
+	flash.color.a = maxf(p.hurt_flash * 0.35, (1.0 - p.health / p.prog.sante_max()) * 0.18 if p.health < 35.0 else 0.0)
 	var wid: String = p.current_weapon()
 	var w := Items.info(wid)
 	lbl_weapon.text = Items.nom(wid)
@@ -250,7 +277,47 @@ func _process(delta: float) -> void:
 	cross.queue_redraw()
 
 
+func _on_xp(c: String, q: int) -> void:
+	if c != gain_comp or gain_t <= 0.0:
+		gain_xp = 0
+	gain_comp = c
+	gain_xp += q
+	gain_t = 2.0
+
+
+func _maj_xp(delta: float, vs: Vector2) -> void:
+	var p = Game.player
+	if p == null:
+		return
+	if not prog_connecte:
+		p.prog.xp_gagnee.connect(_on_xp)
+		prog_connecte = true
+	var pr = p.prog
+	var alerte := ""
+	var pts_talents := 0
+	for c in pr.comp:
+		pts_talents += int(pr.comp[c].points)
+	if pr.points > 0 or pts_talents > 0:
+		alerte = "   •   points à dépenser : touche K"
+	lbl_niveau.text = "Niveau %d   (%d / %d XP)%s" % [pr.niveau, pr.xp, Progression.xp_niveau(pr.niveau), alerte]
+	barre_xp.max_value = Progression.xp_niveau(pr.niveau)
+	barre_xp.value = pr.xp
+	var w := 5 * 158.0
+	barre_xp.position = Vector2(vs.x / 2.0 - w / 2.0, vs.y - 74)
+	barre_xp.size = Vector2(w - 8, 6)
+	lbl_niveau.position = Vector2(vs.x / 2.0 - 400, vs.y - 100)
+	lbl_niveau.size = Vector2(800, 24)
+	gain_t -= delta
+	lbl_gain.visible = gain_t > 0.0
+	if gain_t > 0.0:
+		lbl_gain.text = "+%d XP  %s" % [gain_xp, Progression.NOMS.get(gain_comp, "")]
+		lbl_gain.modulate.a = clampf(gain_t, 0.0, 1.0)
+		lbl_gain.position = Vector2(vs.x / 2.0 - 200, vs.y - 128 - (2.0 - gain_t) * 10.0)
+		lbl_gain.size = Vector2(400, 24)
+
+
 func _layout(vs: Vector2) -> void:
+	_maj_xp(get_process_delta_time(), vs)
 	root.get_node("Jauges").position = Vector2(24, vs.y - 140)
 	lbl_weapon.position = Vector2(vs.x - 424, vs.y - 110)
 	lbl_weapon.size = Vector2(400, 30)

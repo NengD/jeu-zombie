@@ -27,6 +27,7 @@ M ............... carte
 V ............... vue 1re / 3e personne (1re obligatoire dans les bâtiments)
 L ............... lampe torche (ou lampe tactique de l'arme)
 T ............... inspecter l'arme / poser des accessoires
+K ............... personnage : niveaux, attributs, compétences
 Échap ........... pause
 F1 .............. aide en jeu
 
@@ -103,3 +104,17 @@ SAUVEGARDE
 - Sont enregistrés : la carte (même monde), ta position, ta santé, faim, soif, ton inventaire, sacs et gilets,
   barre rapide, munitions, accessoires, les meubles déjà fouillés, les objets que tu as posés (établis, caisses,
   barricades), les objets au sol, les zombies, le jour et l'heure.
+
+
+NIVEAUX ET COMPÉTENCES (touche K)
+---------------------------------
+- Niveau global : chaque action donne de l'XP ; à chaque niveau, 1 point d'attribut :
+  Endurance (+10 max, récupération plus rapide), Santé (+10 max), Soif et Faim (baissent moins vite).
+- 3 compétences avec leurs propres niveaux (jusqu'au niveau 10) :
+  Combat (tuer des zombies : 20 XP civil, 35 policier, 50 militaire ; frapper au corps à corps),
+  Fabrication (fabriquer, poser établis/caisses/barricades),
+  Exploration (fouiller meubles et corps, découvrir bâtiments et lieux importants).
+- Chaque niveau de compétence donne 1 point de talent pour débloquer un bonus de cette compétence
+  (Coup puissant, Main sûre, Recharge rapide, Tireur d'élite, Soigneur, Cartoucherie, Atelier portatif,
+  Fouilleur, Pas de loup, Coureur, Poches profondes…). Certains talents demandent un niveau minimum.
+- Le niveau et l'XP s'affichent au-dessus de la barre rapide. Tout est enregistré dans la sauvegarde.
