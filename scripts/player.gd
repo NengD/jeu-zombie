@@ -6,6 +6,7 @@ extends CharacterBody3D
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Placeable = preload("res://scripts/placeable.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
+const FpsArms = preload("res://scripts/fps_arms.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
@@ -81,6 +82,9 @@ var flashlight: SpotLight3D
 var viewmodel: Node3D
 var vm_holder: Node3D
 var muzzle_light: OmniLight3D
+var fps_arms: Node3D
+var vm_weapon: Node3D = null
+var reload_total := 1.0
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
 var p_anim := ""
@@ -143,6 +147,8 @@ func _build_rig() -> void:
 	vm_holder.position = Vector3(0.24, -0.2, -0.42)
 	vm_holder.scale = Vector3.ONE * 0.6
 	camera.add_child(vm_holder)
+	fps_arms = FpsArms.new()
+	camera.add_child(fps_arms)
 	viewmodel = Node3D.new()
 	vm_holder.add_child(viewmodel)
 	muzzle_light = OmniLight3D.new()
@@ -374,6 +380,23 @@ func _update_camera(delta: float) -> void:
 	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
 	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
 	viewmodel.rotation = Vector3(-sin(swing_t * PI) * 1.1 + vm_kick * 0.2, sin(swing_t * PI) * 0.5, 0)
+	# rechargement + bras en vue 1re personne
+	var cw := current_weapon()
+	var cwi := Items.info(cw)
+	var p_rel := -1.0
+	if reload_t > 0.0 and reload_total > 0.0:
+		p_rel = 1.0 - reload_t / reload_total
+	viewmodel.position = Vector3.ZERO
+	if p_rel >= 0.0 and vm_weapon:
+		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi))
+		viewmodel.rotation += pose.rot
+		viewmodel.position = pose.off
+	fps_arms.visible = fps
+	if fps:
+		var wxf = null
+		if vm_weapon and is_instance_valid(vm_weapon):
+			wxf = camera.global_transform.affine_inverse() * vm_weapon.global_transform
+		fps_arms.update(cw, cwi, wxf, p_rel, swing_t)
 	if pap == null:
 		hand.rotation.x = -sin(swing_t * PI) * 1.4
 	muzzle_t = maxf(0.0, muzzle_t - delta)
@@ -539,6 +562,7 @@ func _start_reload() -> void:
 		Game.msg("Pas de munitions : " + Items.nom(w.ammo))
 		return
 	reload_t = w.reload
+	reload_total = w.reload
 	Game.play_ui("recharge", -4.0)
 	Game.make_noise(global_position, 4.0)
 
@@ -586,12 +610,15 @@ func _refresh_weapon_model() -> void:
 		c.queue_free()
 	for c in hand.get_children():
 		c.queue_free()
+	vm_weapon = null
 	var id := current_weapon()
 	var w := Items.info(id)
 	var col: Color = w.get("color", Color.GRAY)
 	var length: float = w.get("len", 0.0)
 	if w.get("type", "") == "gun":
 		muzzle_light.position = Vector3(0, 0.05, -length - 0.1)
+	if id == "poings":
+		return  # les poings sont dessinés par les bras
 	# modèle 3D de l'arme (Blender) si disponible
 	var vm := ModeleUtil.arme(id)
 	if vm:
@@ -601,6 +628,7 @@ func _refresh_weapon_model() -> void:
 		vm.position = Vector3(0.02, 0.02, 0.18) if longue else Vector3.ZERO
 		vm.rotation.x = tilt_m
 		viewmodel.add_child(vm)
+		vm_weapon = vm
 		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 		var hm := ModeleUtil.arme(id)
 		hand.add_child(hm)
