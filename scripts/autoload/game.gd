@@ -71,6 +71,7 @@ func _setup_inputs() -> void:
 	_key("carte", KEY_M)
 	_key("lampe", KEY_L)
 	_key("soigner", KEY_H)
+	_key("inspecter", KEY_T)
 	_phys("aide", KEY_F1)
 	_phys("pause", KEY_ESCAPE)
 	_mouse("tirer", MOUSE_BUTTON_LEFT)
@@ -198,7 +199,7 @@ func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_d
 
 
 ## Son non spatialisé (actions du joueur)
-func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06) -> void:
+func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06, pitch := 1.0) -> void:
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:
@@ -206,7 +207,7 @@ func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06) -> void:
 	var a := AudioStreamPlayer.new()
 	a.stream = s
 	a.volume_db = vol_db
-	a.pitch_scale = randf_range(1.0 - pitch_var, 1.0 + pitch_var)
+	a.pitch_scale = pitch * randf_range(1.0 - pitch_var, 1.0 + pitch_var)
 	scene.add_child(a)
 	a.finished.connect(a.queue_free)
 	a.play()

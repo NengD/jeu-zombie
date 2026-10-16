@@ -16,7 +16,8 @@ const TOUCHES := [
 	["Inventaire et fabrication", "Tab ou I"],
 	["Carte", "M"],
 	["Vue 1re / 3e personne", "V"],
-	["Lampe torche", "L"],
+	["Lampe torche / lampe de l'arme", "L"],
+	["Inspecter l'arme (accessoires)", "T"],
 	["Pause", "Échap"],
 	["Aide en jeu", "F1"],
 ]
@@ -39,6 +40,12 @@ const GUIDE := """[b]LES BASES[/b]
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
+
+[b]ACCESSOIRES D'ARMES[/b]
+• Appuie sur [b]T[/b] pour inspecter ton arme à feu : fais-la tourner à la souris et pose ou retire ses accessoires.
+• [b]Viseur point rouge / lunette[/b] : visée plus précise (la lunette zoome). [b]Silencieux[/b] : tes tirs attirent beaucoup moins les zombies.
+• [b]Chargeur grande capacité[/b] : plus de balles par chargeur. [b]Lampe tactique[/b] : éclaire où tu vises (touche L). [b]Poignée[/b] : moins de recul.
+• On les trouve au poste de police, à l'armurerie et à la base militaire. Silencieux artisanal et poignée se fabriquent à l'établi.
 
 [b]BARRE RAPIDE[/b]
 • Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 de la barre rapide.

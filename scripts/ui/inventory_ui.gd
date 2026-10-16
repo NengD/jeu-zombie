@@ -231,6 +231,8 @@ func _ready() -> void:
 	tooltip_label.add_theme_font_size_override("font_size", 14)
 	tooltip_label.custom_minimum_size.x = 260
 	tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tooltip_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	tooltip.clip_contents = true
 	tooltip.add_child(tooltip_label)
 	tooltip.visible = false
 	add_child(tooltip)
@@ -308,7 +310,7 @@ func draw_entry(ci: CanvasItem, r: Rect2, e: Dictionary, small := false) -> void
 		ci.draw_string(font2, r.position + Vector2(r.size.x - 6 - 8 * t.length(), r.size.y - 4), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 	var w := Items.info(e.id)
 	if not small and w.get("type", "") == "gun" and Game.player:
-		var am := "%d/%d" % [int(Game.player.mags.get(e.id, 0)), int(w.mag)]
+		var am := "%d/%d" % [int(Game.player.mags.get(e.id, 0)), int(Game.player.arme_stats(e.id).mag)]
 		ci.draw_string_outline(font2, r.position + Vector2(4, 14), am, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
 		ci.draw_string(font2, r.position + Vector2(4, 14), am, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.9, 0.6))
 
@@ -328,6 +330,7 @@ func open(crate: Node) -> void:
 	storage = crate
 	show_craft = crate == null
 	panel.visible = true
+	tooltip.visible = false
 	Game.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
@@ -433,6 +436,10 @@ func _process(delta: float) -> void:
 	var vs := get_viewport().get_visible_rect().size
 	panel.position = ((vs - panel.size) / 2.0).floor()
 	if tooltip.visible:
+		# l'infobulle ne doit jamais grandir au point de cacher l'inventaire
+		if tooltip.size.x > 340.0 or tooltip.size.y > 500.0:
+			tooltip.size = Vector2.ZERO
+			tooltip.reset_size()
 		var mp := get_viewport().get_mouse_position()
 		tooltip.position = (mp + Vector2(18, 18)).min(vs - tooltip.size - Vector2(4, 4))
 	refresh_t -= delta
@@ -454,7 +461,9 @@ func on_hover(_src, e: Dictionary) -> void:
 		return
 	tooltip_label.text = Items.nom(e.id) + ("  ×%d" % e.n if int(e.get("n", 1)) > 1 else "") + "\n" + _desc(e.id)
 	tooltip.visible = true
+	tooltip.size = Vector2.ZERO
 	tooltip.reset_size()
+	tooltip.call_deferred("reset_size")
 
 
 func _desc(id: String) -> String:
@@ -476,6 +485,13 @@ func _desc(id: String) -> String:
 				d += "\nRangement : %d×%d cases." % [gs.x, gs.y]
 		"placeable":
 			d = "Objet de base à poser (clic droit → Placer)."
+		"accessoire":
+			var armes := []
+			for a in Accessoires.COMPAT:
+				for emp in Accessoires.COMPAT[a]:
+					if id in Accessoires.COMPAT[a][emp]:
+						armes.append(Items.nom(a))
+			d = "%s\nCompatible : %s.\nÀ poser dans la vue d'inspection (touche T)." % [it.get("desc", ""), ", ".join(armes)]
 		"ammo":
 			d = "Munitions."
 		_:
@@ -734,6 +750,11 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 		"melee", "gun":
 			if mine:
 				menu.add_item("Prendre en main", 0)
+			if t == "gun" and mine and Accessoires.COMPAT.has(e.id):
+				menu.add_item("Inspecter / accessoires", 5)
+		"accessoire":
+			if mine:
+				menu.add_item("Poser sur une arme…", 5)
 		"placeable":
 			if mine:
 				menu.add_item("Placer", 0)
@@ -775,6 +796,22 @@ func _on_menu(id: int) -> void:
 		4:
 			var i: int = p.hotbar.find("")
 			p.assign_hotbar(i if i >= 0 else 4, e.id)
+		5:
+			var insp := get_tree().get_first_node_in_group("inspection_ui")
+			if insp:
+				var cible: String = e.id
+				if Items.info(e.id).get("type", "") == "accessoire":
+					cible = ""
+					for a in Accessoires.COMPAT:
+						for emp in Accessoires.COMPAT[a]:
+							if e.id in Accessoires.COMPAT[a][emp] and p.count(a) > 0 and cible == "":
+								cible = a
+					if cible == "":
+						Game.msg("Aucune arme compatible dans ton inventaire.")
+						return
+				close()
+				insp.ouvrir(cible)
+			return
 	refresh()
 
 

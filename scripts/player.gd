@@ -87,6 +87,8 @@ var vm_weapon: Node3D = null
 var reload_total := 1.0
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
+var accessoires := {}              # arme -> {emplacement: accessoire}
+var hand_weapon: Node3D = null     # modèle de l'arme dans la main (vue 3e personne)
 var perso_ual := false             # modèle réaliste (animations UAL)
 var p_anim := ""
 var p_lock := 0.0
@@ -200,7 +202,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 if aiming else 1.0)
+		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM if aiming else 1.0)
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
 		return
@@ -383,7 +385,8 @@ func _update_camera(delta: float) -> void:
 	vm_holder.visible = fps
 	hand.visible = not fps
 	var is_gun: bool = Items.info(current_weapon()).get("type", "") == "gun"
-	camera.fov = lerpf(camera.fov, FOV_AIM if (aiming and is_gun) else FOV, delta * 10.0)
+	var fov_vise := FOV_AIM * float(arme_stats(current_weapon()).get("fov_visee", 1.0)) if is_gun else FOV_AIM
+	camera.fov = lerpf(camera.fov, fov_vise if (aiming and is_gun) else FOV, delta * 10.0)
 	# position de l'arme en vue 1re personne (balancement, visée, recul, coup)
 	var target_pos := Vector3(0.0, -0.1, -0.32) if (aiming and is_gun) else Vector3(0.24, -0.2, -0.42)
 	var bob := Vector3(sin(bob_t) * 0.012, absf(cos(bob_t)) * 0.012, 0) if is_on_floor() else Vector3.ZERO
@@ -403,6 +406,7 @@ func _update_camera(delta: float) -> void:
 		viewmodel.rotation += pose.rot
 		viewmodel.position = pose.off
 	fps_arms.visible = fps
+	_update_lampes(fps)
 	if fps:
 		var wxf = null
 		if vm_weapon and is_instance_valid(vm_weapon):
@@ -412,6 +416,60 @@ func _update_camera(delta: float) -> void:
 		hand.rotation.x = -sin(swing_t * PI) * 1.4
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	muzzle_light.light_energy = 6.0 if muzzle_t > 0.0 else 0.0
+
+
+## Lampe : celle montée sur l'arme si elle en a une, sinon la lampe torche.
+func _update_lampes(fps: bool) -> void:
+	var sur_arme: bool = arme_stats(current_weapon()).get("lampe", false)
+	flashlight.visible = flashlight_on and not sur_arme
+	for m in [vm_weapon, hand_weapon]:
+		if m and is_instance_valid(m):
+			var l: Node3D = m.find_child("Lumiere", true, false)
+			if l:
+				l.visible = flashlight_on and sur_arme and ((m == vm_weapon) == fps)
+
+
+## Statistiques de l'arme avec ses accessoires.
+func arme_stats(id: String) -> Dictionary:
+	return Accessoires.stats(id, Items.info(id), accessoires.get(id, {}))
+
+
+## Pose un accessoire (pris dans l'inventaire) sur une arme. L'ancien retourne dans l'inventaire.
+func poser_accessoire(arme: String, emplacement: String, acc: String) -> bool:
+	if not acc in Accessoires.compatibles(arme, emplacement) or count(acc) <= 0:
+		return false
+	remove_item(acc)
+	var a: Dictionary = accessoires.get(arme, {})
+	var ancien: String = a.get(emplacement, "")
+	a[emplacement] = acc
+	accessoires[arme] = a
+	if ancien != "":
+		add_item(ancien)
+	_apres_accessoire(arme)
+	Game.play_ui("recharge", -8.0, 0.1)
+	return true
+
+
+func retirer_accessoire(arme: String, emplacement: String) -> void:
+	var a: Dictionary = accessoires.get(arme, {})
+	if not a.has(emplacement):
+		return
+	var acc: String = a[emplacement]
+	a.erase(emplacement)
+	accessoires[arme] = a
+	add_item(acc)
+	_apres_accessoire(arme)
+	Game.play_ui("recharge", -8.0, 0.1)
+
+
+func _apres_accessoire(arme: String) -> void:
+	# chargeur plus petit : les cartouches en trop retournent dans l'inventaire
+	var w := arme_stats(arme)
+	if w.get("type", "") == "gun" and int(mags.get(arme, 0)) > int(w.mag):
+		add_item(w.ammo, int(mags[arme]) - int(w.mag))
+		mags[arme] = int(w.mag)
+	if arme == current_weapon():
+		_refresh_weapon_model()
 
 
 var _shadow_only_state := -1
@@ -477,7 +535,7 @@ func _update_combat(delta: float, can_act: bool) -> void:
 	if not can_act or placing != "" or cooldown > 0.0:
 		return
 	var id := current_weapon()
-	var w := Items.info(id)
+	var w := arme_stats(id)
 	var held := Input.is_action_pressed("tirer")
 	var wants: bool = fire_queued > 0.0 or (held and (w.get("auto", false) or w.type == "melee"))
 	if not wants:
@@ -514,7 +572,7 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
 	var moving := Vector2(velocity.x, velocity.z).length() > 1.0
-	var spread_deg: float = w.spread * (0.45 if aiming else 1.0) * (1.6 if moving else 1.0) * (0.8 if crouching else 1.0)
+	var spread_deg: float = w.spread * (float(w.get("dispersion_visee", 0.45)) if aiming else 1.0) * (1.6 if moving else 1.0) * (0.8 if crouching else 1.0)
 	var spread := deg_to_rad(spread_deg)
 	var right := camera.global_basis.x.normalized()
 	var up := camera.global_basis.y.normalized()
@@ -527,7 +585,10 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	vm_kick = 1.0
 	muzzle_t = 0.05
 	shoot_pose_t = 1.5
-	Game.play_ui(w.get("sound", "tir_pistolet"), -3.0, 0.05)
+	if w.get("silencieux", false):
+		Game.play_ui(w.get("sound", "tir_pistolet"), -16.0, 0.05, 1.6)
+	else:
+		Game.play_ui(w.get("sound", "tir_pistolet"), -3.0, 0.05)
 	Game.make_noise(global_position, float(w.noise))
 
 
@@ -570,7 +631,7 @@ func _shoot_ray(from: Vector3, to: Vector3, dmg: float) -> bool:
 
 func _start_reload() -> void:
 	var id := current_weapon()
-	var w := Items.info(id)
+	var w := arme_stats(id)
 	if w.get("type", "") != "gun" or reload_t > 0.0:
 		return
 	if int(mags.get(id, 0)) >= int(w.mag):
@@ -586,7 +647,7 @@ func _start_reload() -> void:
 
 func _finish_reload() -> void:
 	var id := current_weapon()
-	var w := Items.info(id)
+	var w := arme_stats(id)
 	if w.get("type", "") != "gun":
 		return
 	var need := int(w.mag) - int(mags.get(id, 0))
@@ -628,6 +689,7 @@ func _refresh_weapon_model() -> void:
 	for c in hand.get_children():
 		c.queue_free()
 	vm_weapon = null
+	hand_weapon = null
 	var id := current_weapon()
 	var w := Items.info(id)
 	var col: Color = w.get("color", Color.GRAY)
@@ -649,6 +711,10 @@ func _refresh_weapon_model() -> void:
 		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 		var hm := ModeleUtil.arme(id)
 		hand.add_child(hm)
+		var accs: Dictionary = accessoires.get(id, {})
+		Accessoires.habiller(vm, id, accs, true)
+		Accessoires.habiller(hm, id, accs, true)
+		hand_weapon = hm
 		if perso_ual and w.type != "gun":
 			hm.rotation.x = deg_to_rad(80)   # manche dans le poing, tête de l'arme vers le haut
 		return

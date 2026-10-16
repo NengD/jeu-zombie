@@ -25,7 +25,8 @@ F ............... fouiller un meuble ou un corps, utiliser un établi
 Tab ou I ........ inventaire et fabrication
 M ............... carte
 V ............... vue 1re / 3e personne (1re obligatoire dans les bâtiments)
-L ............... lampe torche
+L ............... lampe torche (ou lampe tactique de l'arme)
+T ............... inspecter l'arme / poser des accessoires
 Échap ........... pause
 F1 .............. aide en jeu
 
@@ -77,3 +78,15 @@ REMPLACER PAR DES MODÈLES BLENDER (plus tard)
 Exporter le modèle en .glb, le glisser dans le projet, puis dans
 scenes/zombie.tscn (ou player.tscn) remplacer les formes sous « Modele »
 par le modèle importé. Tout le reste du jeu continue de fonctionner.
+
+
+ACCESSOIRES D'ARMES
+-------------------
+Touche T (ou clic droit sur une arme dans l'inventaire → « Inspecter / accessoires ») :
+l'arme s'affiche en 3D, tu la fais tourner à la souris et tu poses ou retires ses accessoires.
+- Viseur point rouge / lunette x4 : visée plus précise (la lunette zoome).
+- Silencieux (ou silencieux artisanal, fabriqué à l'établi) : tes tirs attirent beaucoup moins les zombies.
+- Chargeur grande capacité : +60 % de balles par chargeur.
+- Lampe tactique : éclaire là où tu vises (touche L).
+- Poignée avant (aussi fabricable) : moins de recul, meilleure précision.
+On les trouve surtout au poste de police, à l'armurerie et à la base militaire.
