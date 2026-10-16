@@ -507,9 +507,9 @@ func _desc(id: String) -> String:
 			d = "Objet de base à poser (clic droit → Placer)."
 		"accessoire":
 			var armes := []
-			for a in Accessoires.COMPAT:
-				for emp in Accessoires.COMPAT[a]:
-					if id in Accessoires.COMPAT[a][emp]:
+			for a in Accessoires.table():
+				for emp in Accessoires.table()[a]:
+					if id in Accessoires.table()[a][emp]:
 						armes.append(Items.nom(a))
 			d = "%s\nCompatible : %s.\nÀ poser dans la vue d'inspection (touche T)." % [it.get("desc", ""), ", ".join(armes)]
 		"ammo":
@@ -770,7 +770,7 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 		"melee", "gun":
 			if mine:
 				menu.add_item("Prendre en main", 0)
-			if t == "gun" and mine and Accessoires.COMPAT.has(e.id):
+			if t == "gun" and mine and Accessoires.table().has(e.id):
 				menu.add_item("Inspecter / accessoires", 5)
 		"accessoire":
 			if mine:
@@ -822,9 +822,9 @@ func _on_menu(id: int) -> void:
 				var cible: String = e.id
 				if Items.info(e.id).get("type", "") == "accessoire":
 					cible = ""
-					for a in Accessoires.COMPAT:
-						for emp in Accessoires.COMPAT[a]:
-							if e.id in Accessoires.COMPAT[a][emp] and p.count(a) > 0 and cible == "":
+					for a in Accessoires.table():
+						for emp in Accessoires.table()[a]:
+							if e.id in Accessoires.table()[a][emp] and p.count(a) > 0 and cible == "":
 								cible = a
 					if cible == "":
 						Game.msg("Aucune arme compatible dans ton inventaire.")

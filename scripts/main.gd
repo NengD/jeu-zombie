@@ -157,7 +157,9 @@ func _process(delta: float) -> void:
 			z.queue_free()
 			continue
 		roamers += 1
-	var max_z := 60 if Game.is_night() else 35
+	# début de partie plus doux (pas d'arme à feu au départ) : la pression monte au fil des jours
+	var jour := clampi(Game.day, 1, 3)
+	var max_z: int = [0, 22, 28, 35][jour] if not Game.is_night() else [0, 38, 48, 60][jour]
 	var budget := 12 if first_fill else 3
 	first_fill = false
 	while roamers < max_z and budget > 0:
@@ -189,11 +191,12 @@ func _spawn_roamer() -> bool:
 		# variété : coureurs (surtout la nuit), gros, rampants
 		var r := randf()
 		var kind := "civil"
-		if r < (0.22 if Game.is_night() else 0.12):
+		var premier_jour := Game.day <= 1
+		if r < (0.22 if Game.is_night() else 0.12) * (0.5 if premier_jour else 1.0):
 			kind = "coureur"
-		elif r < 0.3:
+		elif r < (0.22 if premier_jour else 0.3) and r >= 0.14:
 			kind = "gros"
-		elif r < 0.38:
+		elif r < 0.38 and r >= 0.3:
 			kind = "rampant"
 		spawn_zombie(p, kind, false, 15.0)
 		return true

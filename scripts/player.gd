@@ -8,6 +8,7 @@ const Placeable = preload("res://scripts/placeable.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
 const FpsArms = preload("res://scripts/fps_arms.gd")
 const Effets = preload("res://scripts/effets.gd")
+const Grenade = preload("res://scripts/grenade.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
@@ -145,6 +146,7 @@ func _ready() -> void:
 	# équipement de départ
 	equipped.dos = nouvelle_entree("sac_toile")
 	add_item("couteau", 1)
+	add_item("hachette", 1)
 	add_item("conserve", 2)
 	add_item("eau", 2)
 	add_item("bandage", 2)
@@ -568,13 +570,14 @@ func _update_camera(delta: float) -> void:
 	var fov_vise := FOV_AIM * float(arme_stats(cw).get("fov_visee", 1.0)) if is_gun else FOV_AIM
 	camera.fov = lerpf(FOV, fov_vise, k_ads)
 	# --- lunette : image grossie rendue seulement quand on vise
-	var lunette := optique == "lunette" and fps and ads > 0.6
+	var a_lunette := Accessoires.est_lunette(optique)
+	var lunette := a_lunette and fps and ads > 0.6
 	scope_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if lunette else SubViewport.UPDATE_DISABLED
 	oculaire_mat.set_shader_parameter("actif", 1.0 if lunette else 0.0)
 	if lunette:
 		scope_cam.global_transform = camera.global_transform
-		scope_cam.fov = camera.fov / 4.5
-	camera.near = 0.012 if (optique == "lunette" and ads > 0.2) else 0.05
+		scope_cam.fov = camera.fov / maxf(float(arme_stats(cw).get("zoom", 4.0)), 1.5)
+	camera.near = 0.012 if (a_lunette and ads > 0.2) else 0.05
 	# --- position de l'arme : hanche, sprint, visée alignée sur le viseur
 	var hs := Vector2(velocity.x, velocity.z).length()
 	sprint_k = move_toward(sprint_k, 1.0 if (sprinting and hs > 3.0 and is_on_floor() and reload_t <= 0.0) else 0.0, delta * 5.0)
@@ -623,8 +626,12 @@ func _update_camera(delta: float) -> void:
 	_maj_achevement(delta)
 	var pm := _pose_melee()
 	var pa := _pose_achevement()
-	pm[0] = Vector3(pm[0]) + Vector3(pa[0])
-	pm[1] = Vector3(pm[1]) + Vector3(pa[1])
+	lancer_t = maxf(0.0, lancer_t - delta)
+	var pl := _pose_lancer()
+	pm[0] = Vector3(pm[0]) + Vector3(pa[0]) + Vector3(pl[0])
+	pm[1] = Vector3(pm[1]) + Vector3(pa[1]) + Vector3(pl[1])
+	if vm_weapon and is_instance_valid(vm_weapon) and cwi.get("type", "") == "lancer":
+		vm_weapon.visible = not (lancer_t > 0.0 and lancer_t < LANCER_DUREE * 0.45)
 	var rot: Vector3 = pm[0]
 	# parade : l'arme se met en travers devant soi
 	var est_melee: bool = cwi.get("type", "") == "melee" or cw == "poings"
@@ -640,13 +647,24 @@ func _update_camera(delta: float) -> void:
 	rot += Vector3(0.09, -0.16, 0.32) * arc
 	var pos := bob + souffle + rec_pos + Vector3(-sway.x * 0.02, sway.y * 0.015, 0.0) * k_sway + Vector3(pm[1])
 	pos += Vector3(-0.16, 0.1, 0.02) * kb
-	# coup de pompe après le tir du fusil à pompe
+	# réarmement manuel après le tir (culasse à verrou, levier de sous-garde)
 	if pompe_t > 0.0:
 		pompe_t = maxf(0.0, pompe_t - delta)
-		var kp := sin((1.0 - pompe_t / 0.4) * PI)
-		pos += Vector3(0.0, -0.01, 0.03) * kp
-		rot += Vector3(0.06, 0.0, 0.05) * kp
-	fps_arms.pompe = sin((1.0 - pompe_t / 0.4) * PI) if pompe_t > 0.0 else 0.0
+		var pc := 1.0 - pompe_t / CYCLE_DUREE
+		var kp := sin(pc * PI)
+		if cwi.get("levier", false):
+			# levier : l'arme bascule légèrement pendant que la main droite actionne le levier
+			pos += Vector3(0.0, -0.025, 0.03) * kp
+			rot += Vector3(-0.12, 0.0, 0.08) * kp
+		else:
+			pos += Vector3(-0.01, -0.01, 0.02) * kp
+			rot += Vector3(0.05, 0.06, 0.12) * kp
+		if not cycle_ejecte and pc > 0.5:
+			cycle_ejecte = true
+			_ejecter(cw, false)
+		fps_arms.pompe = pc
+	else:
+		fps_arms.pompe = 0.0
 	pos += Vector3(0.0, -0.18, 0.06) * sortie
 	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
 	# rechargement + bras en vue 1re personne
@@ -658,11 +676,15 @@ func _update_camera(delta: float) -> void:
 		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi, fps_arms.geo), reload_vide, reload_cart)
 		rot += pose.rot
 		pos += pose.off
+		_chargeur_visible(pose.get("mag_arme", true))
+	else:
+		_chargeur_visible(true)
 	viewmodel.rotation = rot
 	viewmodel.position = pos
 	fps_arms.visible = fps
 	_maj_main_gauche_tps(delta, cw, cwi, is_gun)
 	_update_lampes(fps)
+	_maj_laser(fps, cw)
 	if fps:
 		var wxf = null
 		if vm_weapon and is_instance_valid(vm_weapon):
@@ -694,7 +716,7 @@ func _maj_main_gauche_tps(delta: float, cw: String, cwi: Dictionary, is_gun: boo
 	ik_main_g.set("active", inf > 0.001)
 	if not actif:
 		return
-	var pts := FpsArms.hand_points(cw, cwi, Accessoires.points(cw, hand_weapon))
+	var pts := FpsArms.hand_points(cw, cwi, _geo_prise(cw, hand_weapon))
 	var b := hand_weapon.global_basis.orthonormalized()
 	var sc := hand_weapon.global_basis.get_scale().x
 	var lp: Vector3 = pts.L if pts.L != null else pts.R
@@ -704,17 +726,17 @@ func _maj_main_gauche_tps(delta: float, cw: String, cwi: Dictionary, is_gun: boo
 
 
 ## Point de visée sur le modèle de l'arme (repère du modèle) et distance à l'œil.
-## Point rouge : centre du verre ; lunette : oculaire ; sinon : hausse (dessus de la carcasse).
+## Point rouge / holographique : centre du verre ; lunette : oculaire ; sinon : hausse (ou dessus de la carcasse).
 func _point_visee(id: String, optique: String) -> Dictionary:
 	var pts := Accessoires.points(id, vm_weapon)
-	var v: Vector3 = pts.get("viseur", Vector3(0, 0.05, 0))
 	var longue: bool = float(Items.info(id).get("len", 0.3)) >= 0.4
-	match optique:
-		"point_rouge":
-			return {"pt": v + Vector3(0, 0.03, -0.021), "dist": 0.17 if longue else 0.24}
-		"lunette":
-			return {"pt": v + Vector3(0, 0.03, 0.1365), "dist": 0.042}
-	return {"pt": v + Vector3(0, 0.006, 0.0), "dist": 0.2 if longue else 0.3}
+	if optique != "":
+		var d := Accessoires.infos(optique)
+		var v: Vector3 = pts.get("viseur", Vector3(0, 0.05, 0))
+		if Accessoires.est_lunette(optique):
+			return {"pt": v + Vector3(d.get("visee", Vector3.ZERO)), "dist": 0.042}
+		return {"pt": v + Vector3(d.get("visee", Vector3.ZERO)), "dist": 0.17 if longue else 0.24}
+	return {"pt": pts.get("hausse", Vector3(0, 0.05, 0)), "dist": 0.2 if longue else 0.3}
 
 
 ## Zombie à terre ou rampant juste devant soi (même si le regard passe au-dessus).
@@ -824,6 +846,10 @@ func _appliquer_sang() -> void:
 var pompe_t := 0.0
 
 
+const CYCLE_DUREE := 0.62
+var cycle_ejecte := true
+
+
 func _effets_tir(id: String, w: Dictionary) -> void:
 	var fps := tps_blend < 0.5
 	var modele: Node3D = vm_weapon if fps else hand_weapon
@@ -832,30 +858,30 @@ func _effets_tir(id: String, w: Dictionary) -> void:
 	var pts := Accessoires.points(id, modele)
 	var bouche: Vector3 = pts.get("bouche", Vector3(0, 0.03, -0.3))
 	var silencieux: bool = w.get("silencieux", false)
-	if silencieux:
-		bouche.z -= 0.17
+	var acc_bouche: String = accessoires.get(id, {}).get("bouche", "")
+	if acc_bouche != "":
+		bouche = Vector3(pts.get("canon", bouche)) + Vector3(0, 0, -float(Accessoires.infos(acc_bouche).get("longueur", 0.15)))
+	var info := Items.info(id)
 	var taille := 0.26 if float(w.get("len", 0.3)) >= 0.4 else 0.18
-	if id in ["fusil_pompe", "fusil_artisanal"]:
+	if info.get("famille", "") == "pompe":
 		taille = 0.36
+	elif info.get("famille", "") in ["sniper", "mitrailleuse"]:
+		taille = 0.32
 	if not silencieux:
 		Effets.flamme(modele, bouche, taille, 2 if fps else 1)
 		Effets.eclair(get_parent(), modele.global_transform * bouche, Game.is_night() or not in_zone.is_empty())
 	var g_bouche: Vector3 = modele.global_transform * bouche
 	var avant := -modele.global_basis.z.normalized()
 	Effets.fumee(get_parent(), g_bouche + avant * 0.05, avant, 3 if silencieux else 6)
-	# douille
-	if id == "revolver" or id == "fusil_artisanal":
+	# douille / cartouche : tout de suite (semi-automatiques), au réarmement (verrou, levier), au rechargement (cassant)
+	if info.get("cassant", false):
 		return
-	if id == "fusil_pompe":
-		pompe_t = 0.0
-		get_tree().create_timer(0.3).timeout.connect(func():
-			if not is_instance_valid(self) or current_weapon() != "fusil_pompe":
-				return
-			pompe_t = 0.4
-			Game.play_ui("pompe", -5.0, 0.05)
-			_ejecter(id, true))
+	if info.get("verrou", false) or info.get("levier", false):
+		pompe_t = CYCLE_DUREE
+		cycle_ejecte = false
+		get_tree().create_timer(0.12).timeout.connect(func(): if is_instance_valid(self): Game.play_ui("culasse", -5.0, 0.06, 0.9))
 		return
-	_ejecter(id, false)
+	_ejecter(id, info.get("famille", "") == "pompe")
 
 
 func _ejecter(id: String, cartouche: bool) -> void:
@@ -865,9 +891,11 @@ func _ejecter(id: String, cartouche: bool) -> void:
 		return
 	var pts := Accessoires.points(id, modele)
 	var v: Vector3 = pts.get("viseur", Vector3(0, 0.05, 0))
-	var fenetre := v + Vector3(0.02, -0.03, 0.03)
-	if cartouche:
-		fenetre = Vector3(0.02, v.y - 0.04, -0.05)
+	var fenetre := Vector3(0.02, v.y - 0.03, v.z + 0.03)
+	if pts.has("chargeur"):
+		fenetre.z = pts.chargeur.z + 0.02
+	elif pts.has("culasse"):
+		fenetre = Vector3(0.02, pts.culasse.y - 0.01, pts.culasse.z)
 	var b := modele.global_basis.orthonormalized()
 	var pos: Vector3 = modele.global_transform * fenetre
 	var vit := b.x * randf_range(2.0, 3.0) + b.y * randf_range(1.2, 2.0) + b.z * randf_range(0.2, 0.8) + velocity
@@ -891,8 +919,12 @@ func _reload_evenements(p: float) -> void:
 				Game.play_ui("cartouche", -7.0, 0.12)
 			"pompe":
 				Game.play_ui("pompe", -3.0, 0.05)
-			"barillet":
-				Game.play_ui("culasse", -8.0, 0.1, 1.3)
+			"ouvrir":
+				Game.play_ui("culasse", -6.0, 0.1, 0.8)
+				# fusil cassant : les étuis vides sont éjectés à l'ouverture
+				var id := current_weapon()
+				for i in maxi(1, int(arme_stats(id).mag) - int(mags.get(id, 0))):
+					_ejecter(id, true)
 
 
 ## Le chargeur vide tombe au sol (objet physique qui disparaît après un moment).
@@ -909,23 +941,76 @@ func _lacher_chargeur() -> void:
 	bs.size = Vector3(0.03, 0.12, 0.06)
 	cs.shape = bs
 	rb.add_child(cs)
-	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = bs.size
-	mi.mesh = bm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.1, 0.1, 0.1)
-	m.metallic = 0.5
-	m.roughness = 0.5
-	mi.material_override = m
-	rb.add_child(mi)
+	# vrai chargeur de l'arme (taille réelle)
+	var source := ModeleUtil.arme(current_weapon())
+	var ch: Node3D = source.get_node_or_null("Chargeur") if source else null
+	if ch:
+		source.remove_child(ch)
+		var a := AABB()
+		var premier := true
+		for mi in ch.find_children("*", "MeshInstance3D", true, false):
+			var b2: AABB = (mi as MeshInstance3D).transform * (mi as MeshInstance3D).get_aabb()
+			a = b2 if premier else a.merge(b2)
+			premier = false
+		ch.position = -a.get_center()
+		bs.size = a.size.max(Vector3.ONE * 0.02)
+		rb.add_child(ch)
+	else:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = bs.size
+		mi.mesh = bm
+		rb.add_child(mi)
+	if source:
+		source.queue_free()
 	get_parent().add_child(rb)
 	rb.global_position = depart
-	rb.global_basis = camera.global_basis
+	rb.global_basis = vm_weapon.global_basis.orthonormalized()
 	rb.linear_velocity = velocity * 0.8 + Vector3(0, -1.0, 0)
 	rb.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4))
 	get_tree().create_timer(25.0).timeout.connect(rb.queue_free)
 	get_tree().create_timer(0.45).timeout.connect(func(): if is_instance_valid(rb): Game.play_3d("chargeur_sol", rb.global_position, -8.0, 0.15, 12.0))
+
+
+## Point du laser (module PEQ-15) projeté là où pointe le canon.
+var point_laser: MeshInstance3D = null
+
+
+func _maj_laser(fps: bool, cw: String) -> void:
+	var actif: bool = arme_stats(cw).get("laser", false) and reload_t <= 0.0 and alive
+	var modele: Node3D = vm_weapon if fps else hand_weapon
+	var em: Node3D = null
+	if actif and modele and is_instance_valid(modele):
+		em = modele.find_child("Emetteur", true, false)
+	if em == null:
+		if point_laser:
+			point_laser.visible = false
+		return
+	if point_laser == null:
+		point_laser = MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.012
+		sm.height = 0.024
+		point_laser.mesh = sm
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1, 0.05, 0.02)
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.emission_enabled = true
+		m.emission = Color(1, 0.05, 0.02)
+		point_laser.material_override = m
+		point_laser.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		point_laser.top_level = true
+		add_child(point_laser)
+	# depuis la vue 1re personne, le laser part de l'œil dans l'axe du canon (l'arme est réduite à l'écran)
+	var from: Vector3 = em.global_position if not fps else camera.global_position
+	var dir: Vector3 = -modele.global_basis.z.normalized()
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 80.0, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	point_laser.visible = not hit.is_empty()
+	if not hit.is_empty():
+		point_laser.global_position = hit.position + hit.normal * 0.01
+		var d := from.distance_to(hit.position)
+		point_laser.scale = Vector3.ONE * clampf(d * 0.06, 0.4, 3.0)
 
 
 ## Lampe : celle montée sur l'arme si elle en a une, sinon la lampe torche.
@@ -1063,6 +1148,8 @@ func _update_combat(delta: float, can_act: bool) -> void:
 	fire_queued = 0.0
 	if w.type == "gun":
 		_fire_gun(id, w)
+	elif w.type == "lancer":
+		_lancer(id, w)
 	else:
 		_melee(w)
 
@@ -1096,7 +1183,7 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
 	var moving := Vector2(velocity.x, velocity.z).length() > 1.0
-	var spread_deg: float = w.spread * (float(w.get("dispersion_visee", 0.45)) if aiming else 1.0) * (1.6 if moving else 1.0) * (0.8 if crouching else 1.0)
+	var spread_deg: float = w.spread * (float(w.get("dispersion_visee", 0.45)) if aiming else float(w.get("dispersion_hanche", 1.0))) * (1.6 if moving else 1.0) * (0.8 if crouching else 1.0)
 	var spread := deg_to_rad(spread_deg)
 	var right := camera.global_basis.x.normalized()
 	var up := camera.global_basis.y.normalized()
@@ -1104,7 +1191,7 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	for i in int(w.pellets):
 		var dir := (aim - origin).normalized()
 		dir = dir.rotated(right, randf_range(-spread, spread)).rotated(up, randf_range(-spread, spread))
-		if _shoot_ray(origin, origin + dir * float(w.range), float(w.damage)):
+		if _shoot_ray(origin, origin + dir * float(w.range), float(w.damage), int(w.get("perforant", 0))):
 			touche = true
 	if touche:
 		prog.gagner("combat", 2)   # XP de combat aussi avec les armes à feu
@@ -1118,11 +1205,54 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	muzzle_t = 0.05
 	shoot_pose_t = 1.5
 	_effets_tir(id, w)
+	var hauteur: float = float(w.get("pitch", 1.0))
 	if w.get("silencieux", false):
-		Game.play_ui(w.get("sound", "tir_pistolet"), -16.0, 0.05, 1.6)
+		Game.play_ui(w.get("sound", "tir_pistolet"), -16.0, 0.05, 1.6 * hauteur)
 	else:
-		Game.play_ui(w.get("sound", "tir_pistolet"), -3.0, 0.05)
+		Game.play_ui(w.get("sound", "tir_pistolet"), -3.0 + (3.0 if hauteur < 0.8 else 0.0), 0.05, hauteur)
 	Game.make_noise(global_position, float(w.noise))
+
+
+## Grenade : on la dégoupille, le bras part en arrière puis la lance.
+var lancer_t := 0.0
+const LANCER_DUREE := 0.55
+
+
+func _lancer(id: String, _w: Dictionary) -> void:
+	if count(id) <= 0:
+		return
+	cooldown = 1.0
+	lancer_t = LANCER_DUREE
+	Game.play_ui("goupille", -4.0, 0.05)
+	if perso_ual:
+		_p_anim("frappe2", 1.3, 0.6)
+	get_tree().create_timer(0.3).timeout.connect(_relacher_grenade.bind(id))
+
+
+func _relacher_grenade(id: String) -> void:
+	if not alive or count(id) <= 0 or current_weapon() != id:
+		return
+	remove_item(id, 1)
+	var g: RigidBody3D = Grenade.new()
+	g.preparer(id)
+	get_parent().add_child(g)
+	var dir := -camera.global_basis.z
+	g.global_position = camera.global_position + dir * 0.45 + camera.global_basis.x * 0.12 - camera.global_basis.y * 0.05
+	g.linear_velocity = dir * (15.0 if not crouching else 10.0) + Vector3.UP * 2.5 + velocity
+	g.angular_velocity = Vector3(randf_range(-8, 8), randf_range(-8, 8), randf_range(-8, 8))
+	Game.play_ui("vent_leger", -8.0, 0.1)
+	Game.make_noise(global_position, 5.0)
+	if count(id) <= 0:
+		_refresh_weapon_model()
+
+
+## Pose du bras pendant le lancer : [rotation, position] (élan en arrière, puis le bras part vers l'avant).
+func _pose_lancer() -> Array:
+	if lancer_t <= 0.0:
+		return [Vector3.ZERO, Vector3.ZERO]
+	var p := 1.0 - lancer_t / LANCER_DUREE
+	return [FpsArms._cles([[0.0, Vector3.ZERO], [0.45, Vector3(-0.9, 0.2, 0.3)], [0.65, Vector3(0.7, -0.1, -0.2)], [1.0, Vector3.ZERO]], p),
+		FpsArms._cles([[0.0, Vector3.ZERO], [0.45, Vector3(0.05, 0.18, 0.2)], [0.65, Vector3(-0.08, 0.05, -0.35)], [0.8, Vector3(-0.05, -0.15, -0.2)], [1.0, Vector3.ZERO]], p)]
 
 
 func _melee(w: Dictionary) -> void:
@@ -1212,25 +1342,36 @@ func _pose_melee() -> Array:
 		FpsArms._cles([[0.0, Vector3.ZERO], [0.3, Vector3(0.12, 0.05, 0.04)], [0.52, Vector3(-0.22, 0.0, -0.1)], [0.62, Vector3(-0.24, -0.02, -0.08)], [1.0, Vector3.ZERO]], p)]
 
 
-func _shoot_ray(from: Vector3, to: Vector3, dmg: float) -> bool:
-	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [get_rid()])
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	if hit.is_empty():
-		return false
-	var col: Object = hit.collider
-	if col.has_method("take_hit"):
-		col.take_hit(dmg, hit.position, global_position)
-		Game.spawn_blood(hit.position, get_parent())
-		var arme_feu: bool = Items.info(current_weapon()).get("type", "") == "gun"
-		Effets.gerbe_sang(get_parent(), hit.position, (to - from).normalized(), 1.0 if arme_feu else 0.6)
-		if not arme_feu and current_weapon() != "poings":
-			_salir_arme(current_weapon(), 0.17)
-		Game.play_3d("impact", hit.position, -4.0, 0.2, 30.0)
-		return true
-	# impact dans le décor (balles seulement, pas les coups de mêlée)
-	if Items.info(current_weapon()).get("type", "") == "gun":
-		Effets.impact(get_parent(), hit.position, hit.normal, col is LootContainer)
-	return false
+## Tir d'une balle (ou coup de mêlée). perforant : nombre de zombies supplémentaires traversés.
+func _shoot_ray(from: Vector3, to: Vector3, dmg: float, perforant := 0) -> bool:
+	var exclus: Array[RID] = [get_rid()]
+	var depart := from
+	var touche := false
+	var arme_feu: bool = Items.info(current_weapon()).get("type", "") == "gun"
+	for i in perforant + 1:
+		var q := PhysicsRayQueryParameters3D.create(depart, to, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, exclus)
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		if hit.is_empty():
+			return touche
+		var col: Object = hit.collider
+		if col.has_method("take_hit"):
+			col.take_hit(dmg * pow(0.75, i), hit.position, global_position)
+			Game.spawn_blood(hit.position, get_parent())
+			Effets.gerbe_sang(get_parent(), hit.position, (to - from).normalized(), 1.0 if arme_feu else 0.6)
+			if not arme_feu and current_weapon() != "poings":
+				_salir_arme(current_weapon(), 0.17)
+			Game.play_3d("impact", hit.position, -4.0, 0.2, 30.0)
+			touche = true
+			if not arme_feu:
+				return true
+			exclus.append(hit.rid)
+			depart = hit.position
+			continue
+		# impact dans le décor (balles seulement, pas les coups de mêlée)
+		if arme_feu:
+			Effets.impact(get_parent(), hit.position, hit.normal, col is LootContainer)
+		return touche
+	return touche
 
 
 func _start_reload() -> void:
@@ -1321,6 +1462,11 @@ func _refresh_weapon_model() -> void:
 		c.queue_free()
 	vm_weapon = null
 	hand_weapon = null
+	for n in [fps_arms.mag_reel, fps_arms.cart_reel]:
+		if n and is_instance_valid(n):
+			n.queue_free()
+	fps_arms.mag_reel = null
+	fps_arms.cart_reel = null
 	draw_t = 1.0
 	reload_t = 0.0
 	var id := current_weapon()
@@ -1350,7 +1496,9 @@ func _refresh_weapon_model() -> void:
 		# arme et accessoires de la vue 1re personne : invisibles pour la caméra de la lunette
 		for g in vm.find_children("*", "GeometryInstance3D", true, false):
 			(g as GeometryInstance3D).layers = 2
-		fps_arms.geo = Accessoires.points(id, vm) if w.type == "gun" else {}
+		fps_arms.geo = _geo_prise(id, vm) if w.type == "gun" else {}
+		if w.type == "gun":
+			_preparer_chargeur(id, vm)
 		_appliquer_sang.call_deferred()
 		var oc := vm.find_child("Oculaire", true, false)
 		if oc:
@@ -1381,6 +1529,48 @@ func _refresh_weapon_model() -> void:
 		var pos: Vector3 = Vector3(p[0]).rotated(Vector3.RIGHT, tilt)
 		_vm_box(viewmodel, pos, p[1], p[2], false, tilt)
 		_vm_box(hand, pos, p[1], p[2], true, tilt)
+
+
+func _chargeur_visible(v: bool) -> void:
+	for m in [vm_weapon, hand_weapon]:
+		if m and is_instance_valid(m):
+			var ch: Node3D = m.get_node_or_null("Chargeur")
+			if ch and ch.visible != v:
+				ch.visible = v
+
+
+## Points de prise pour les bras : ceux du modèle, avec la poignée verticale si elle est montée.
+func _geo_prise(id: String, modele: Node3D) -> Dictionary:
+	var g := Accessoires.points(id, modele).duplicate()
+	if accessoires.get(id, {}).has("poignee") and g.has("poignee"):
+		g["L"] = Vector3(g.poignee) + Vector3(0, -0.035, 0.0)
+		g["prise_l"] = "verticale"
+	return g
+
+
+## Copies du vrai chargeur et d'une cartouche de l'arme, tenues par la main gauche au rechargement.
+func _preparer_chargeur(id: String, vm: Node3D) -> void:
+	var ch: Node3D = vm.get_node_or_null("Chargeur")
+	if ch:
+		var copie: Node3D = ch.duplicate()
+		copie.visible = false
+		fps_arms.add_child(copie)
+		fps_arms.mag_reel = copie
+	var cart := str(Items.info(str(Items.info(id).get("ammo", ""))).get("modele", ""))
+	if cart != "":
+		var c := ModeleUtil.charger("res://modeles/armes/%s.scn" % cart)
+		if c:
+			var pivot := Node3D.new()
+			pivot.add_child(c)
+			c.rotation.x = -PI / 2.0
+			pivot.visible = false
+			fps_arms.add_child(pivot)
+			fps_arms.cart_reel = pivot
+	for n in [fps_arms.mag_reel, fps_arms.cart_reel]:
+		if n:
+			for g in n.find_children("*", "GeometryInstance3D", true, false):
+				(g as GeometryInstance3D).layers = 2
+				(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _vm_box(parent: Node3D, pos: Vector3, size: Vector3, col: Color, shadows: bool, tilt := 0.0) -> void:

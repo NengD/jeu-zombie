@@ -119,7 +119,7 @@ func fermer() -> void:
 
 func _armes_possedees() -> Array:
 	var out := []
-	for a in Accessoires.COMPAT:
+	for a in Accessoires.table():
 		if Game.player.count(a) > 0:
 			out.append(a)
 	return out
@@ -167,8 +167,8 @@ func _marqueurs() -> void:
 		l.modulate = Color(0.95, 0.85, 0.45) if accs.has(emp) else Color(0.75, 0.78, 0.8)
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.no_depth_test = true
-		var pos: Vector3 = pts.get(emp, Vector3.ZERO)
-		var dec := Vector3(0, 0.06, 0) if emp in ["viseur"] else (Vector3(0, -0.08, 0) if emp in ["rail", "poignee", "chargeur"] else Vector3(0, 0.04, -0.05))
+		var pos: Vector3 = pts.get("chargeur_bas" if emp == "chargeur" else emp, Vector3.ZERO)
+		var dec := Vector3(0, 0.06, 0) if emp in ["viseur", "rail"] else (Vector3(0, -0.08, 0) if emp in ["poignee", "chargeur"] else Vector3(0, 0.04, -0.05))
 		l.position = pos + dec * dist_base / maxf(modele.scale.x, 0.01) * 0.6
 		modele.add_child(l)
 

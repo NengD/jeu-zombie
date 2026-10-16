@@ -192,22 +192,26 @@ func _equipement() -> void:
 		if info.has("slot"):
 			p.equipped[info.slot] = p.nouvelle_entree(s)
 	p.maj_poches()
-	var armes := ["machette", "hache", "batte_cloutee", "couteau"]
+	var armes := ["m4a1", "glock19", "benelli_m4", "rgd5", "machette"]
 	for id in armes:
-		p.add_item(id)
-	for m in [["trousse", 3], ["bandage", 6], ["eau", 3], ["ration", 3]]:
+		p.add_item(id, 4 if id == "rgd5" else 1)
+	p.accessoires["m4a1"] = {"viseur": "viseur_holo", "bouche": "silencieux", "chargeur": "chargeur_etendu", "rail": "laser", "poignee": "poignee"}
+	p.accessoires["glock19"] = {"viseur": "point_rouge", "bouche": "silencieux_9mm"}
+	for m in [["mun_556", 240], ["mun_9mm", 120], ["mun_12", 48], ["trousse", 3], ["bandage", 6], ["eau", 3], ["ration", 3]]:
 		p.add_item(m[0], m[1])
-	for i in 4:
+	for i in 5:
 		p.hotbar[i] = armes[i]
+	for id in ["m4a1", "glock19", "benelli_m4"]:
+		p.mags[id] = int(p.arme_stats(id).mag)
 	p.slot = -1
 	p._select_slot(0)
-	Game.msg("Équipement complet : armes de mêlée, gilet, casque, sac militaire.")
+	Game.msg("Équipement complet : M4A1 équipé (holographique, silencieux, laser, poignée), Glock 19, Benelli M4, grenades, gilet, casque, sac militaire.")
 
 
 ## Cinq coffres posés devant le joueur, un par catégorie, avec un exemplaire de chaque objet.
 func _coffres() -> void:
 	var p = Game.player
-	var cats := [["Coffre : armes", ["gun", "melee"]], ["Coffre : munitions et accessoires", ["ammo", "accessoire"]],
+	var cats := [["Coffre : armes", ["gun", "melee", "lancer"]], ["Coffre : munitions et accessoires", ["ammo", "accessoire"]],
 		["Coffre : équipement", ["armor"]], ["Coffre : soins et nourriture", ["heal", "food", "drink"]],
 		["Coffre : matériaux et constructions", ["material", "placeable"]]]
 	var fwd: Vector3 = -p.global_basis.z
@@ -217,7 +221,7 @@ func _coffres() -> void:
 	for k in cats.size():
 		var c = LootContainer.new()
 		c.setup(cats[k][0], "", Vector3(1.2, 0.8, 0.8), Color(0.7, 0.3, 0.15))
-		c.make_storage(12, 12)
+		c.make_storage(16, 16)
 		for id in Items.DB:
 			if not (str(Items.info(id).get("type", "")) in cats[k][1]):
 				continue

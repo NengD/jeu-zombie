@@ -18,8 +18,8 @@ const ECHELLE := 0.85
 
 # Prises mesurées sur les modèles 3D (vues de profil) : poignée (R), garde-main (L, dessous),
 # inclinaison de la poignée vers l'arrière (degrés).
-## Exemple : "pistolet": {"R": Vector3(0, -0.006, 0.014), "incl": 18.0, "L": Vector3(0, 0.05, -0.24)}
-const PRISES := {}
+# Prises en main : lues dans le modèle de l'arme (métadonnées écrites par outils/godot/normaliser_du.gd) :
+# origine = main droite, L = main gauche, incl = inclinaison de la poignée, prise_l = garde / verticale / appui.
 
 # ---------------------------------------------------------------- géométrie de la main (droite)
 # Repère de la main : doigts tendus vers -Z, paume vers -Y, pouce du côté -X. Origine = centre de la paume.
@@ -34,13 +34,12 @@ const POUCE_BASE := Vector3(-0.026, -0.010, 0.014)
 const POUCE_DIR := Vector3(-0.68, -0.2, -0.7)
 const POUCE_LONG := [0.042, 0.031, 0.025]
 # direction du pouce selon la prise (sinon POUCE_DIR) : le long du garde-main, le long de la carcasse…
-const POUCE_POSE := {"garde": Vector3(-0.95, -0.12, -0.28), "poignee": Vector3(-0.45, -0.22, -0.86), "detente": Vector3(-0.45, -0.22, -0.86),
+const POUCE_POSE := {"verticale": Vector3(-0.45, -0.22, -0.86), "garde": Vector3(-0.95, -0.12, -0.28), "poignee": Vector3(-0.45, -0.22, -0.86), "detente": Vector3(-0.45, -0.22, -0.86),
 	"appui": Vector3(-0.55, -0.2, -0.8), "chargeur": Vector3(-0.8, -0.2, -0.55)}
 const POUCE_RAYON := 0.0115
 const POIGNET := Vector3(0.0, 0.003, 0.052)
 
 const TWO_HANDED_MELEE := ["batte", "batte_cloutee", "hache", "masse"]
-const SHELL_FED: Array = []   # armes rechargées cartouche par cartouche (ids)
 
 # Poses : angles de flexion (degrés) [1re, 2e, 3e phalange] pour index, majeur, annulaire, auriculaire, puis pouce.
 const POSES := {
@@ -52,6 +51,7 @@ const POSES := {
 	"manche": [[82, 96, 68], [86, 98, 70], [88, 100, 70], [90, 100, 72], [48, 42, 30]],
 	"poing": [[96, 108, 72], [98, 110, 74], [100, 110, 74], [102, 110, 74], [56, 52, 36]],
 	"chargeur": [[48, 54, 38], [54, 58, 40], [58, 62, 42], [62, 66, 44], [28, 26, 18]],
+	"verticale": [[70, 84, 58], [76, 90, 62], [80, 92, 64], [82, 94, 66], [38, 30, 18]],
 	"pince": [[42, 56, 48], [86, 98, 70], [90, 100, 70], [92, 100, 72], [36, 34, 30]],
 }
 
@@ -71,6 +71,12 @@ static func _prise(nom: String, gauche: bool) -> Array:
 			if gauche:
 				return [Basis(Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 1, 0)), Vector3(-0.024, 0.012, 0.0)]
 			return [Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3(0.024, 0.012, 0.0)]
+		"verticale":
+			# main gauche sur une poignée verticale : paume sur le côté gauche, doigts autour de l'avant
+			return [Basis(Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)), Vector3(-0.024, -0.03, 0.012)]
+		"culasse":
+			# main droite qui saisit le levier d'armement / la culasse (côté droit)
+			return [Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)), Vector3(0.03, 0.0, 0.02)]
 		"chargeur", "pince":
 			return [Basis(Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)), Vector3(-0.034, -0.01, 0.0)]
 	return [Basis.IDENTITY, Vector3.ZERO]
@@ -84,7 +90,9 @@ var mat_ongle: StandardMaterial3D
 var mat_manche: StandardMaterial3D
 var temps := 0.0
 var geo := {}         # points mesurés sur le modèle de l'arme tenue (fournis par le joueur)
-var pompe := 0.0      # 0..1 : main gauche qui tire la pompe du fusil à pompe
+var pompe := 0.0      # 0..1 : réarmement (culasse à verrou) après le tir
+var mag_reel: Node3D = null    # copie du vrai chargeur de l'arme (tenue en main pendant le rechargement)
+var cart_reel: Node3D = null   # cartouche de l'arme (rechargement une à une)
 var echelle := ECHELLE  # taille des mains : celle de l'arme tenue (les armes sont réduites en vue 1re personne)
 
 
@@ -331,37 +339,29 @@ func _arm(side: String, shoulder: Vector3, hand_xf: Transform3D, pole: Vector3, 
 static func hand_points(id: String, w: Dictionary, geo := {}) -> Dictionary:
 	var t: String = w.get("type", "")
 	var length: float = w.get("len", 0.3)
-	var res := {"R": Vector3(0, -0.035, 0.02), "L": null}
+	var res := {"R": Vector3.ZERO, "L": null}
 	if t == "gun":
-		if length < 0.4:
-			res.L = Vector3(-0.03, -0.06, 0.025)          # main d'appui sous la poignée
-			res["culasse"] = Vector3(0.0, 0.035, 0.03)    # arrière de la glissière
+		var longue := length >= 0.4
+		if geo.has("L"):
+			res.L = geo.L
+		elif longue:
+			res.L = Vector3(0, -0.035, -length * 0.4)
 		else:
-			res.L = Vector3(0, -0.035, -length * 0.4)     # garde-main
-			res["culasse"] = Vector3(-0.035, 0.03, -0.1)  # levier d'armement
-		res["well"] = Vector3(0, -0.08, -minf(length * 0.08, 0.06))
-		if PRISES.has(id):
-			res.R = PRISES[id].R
-			if PRISES[id].has("L"):
-				res.L = PRISES[id].L
-			else:
-				res.L = Vector3(PRISES[id].R) + Vector3(0.0, -0.012, -0.004)
-		if not geo.is_empty():
-			var ch: Vector3 = geo.get("chargeur", Vector3.ZERO)
-			var vi: Vector3 = geo.get("viseur", Vector3.ZERO)
-			if length >= 0.4:
-				if not (PRISES.has(id) and PRISES[id].has("L")):
-					var rail: Vector3 = geo.get("rail", Vector3.ZERO)
-					res.L = Vector3(0.0, rail.y - 0.012, rail.z + 0.04)
-				res["well"] = Vector3(0.0, ch.y + 0.1, ch.z)
-				res["culasse"] = Vector3(-0.03, vi.y - 0.03, vi.z + 0.05)
-			else:
-				res["well"] = Vector3(0.0, ch.y + 0.01, ch.z)
-				res["culasse"] = Vector3(0.0, vi.y - 0.005, vi.z + 0.06)
+			res.L = Vector3(0.0, -0.012, -0.004)     # main d'appui sous la poignée
+		res["prise_l"] = str(geo.get("prise_l", "garde" if longue else "appui"))
+		res["incl"] = float(geo.get("incl", 18.0))
+		# bas du chargeur (la main le saisit là) et levier d'armement
+		res["well"] = geo.get("chargeur_bas", Vector3(0, -0.08, -minf(length * 0.08, 0.06)))
+		var cu: Vector3 = geo.get("culasse", Vector3(0.0, 0.035, 0.03) if not longue else Vector3(-0.035, 0.03, -0.1))
+		res["culasse"] = Vector3(cu.x - 0.025 if longue else cu.x, cu.y, cu.z + (0.03 if not longue else 0.0))
+		res["culasse_d"] = Vector3(cu.x + 0.03, cu.y, cu.z)
+		res["mag_dec"] = geo.get("chargeur", res.well) - res.well
 	elif t == "melee":
 		res.R = Vector3(0, 0, 0)
 		if id in TWO_HANDED_MELEE:
 			res.L = Vector3(0, 0, 0.11)
+	elif t == "lancer":
+		res.R = Vector3.ZERO
 	return res
 
 
@@ -379,21 +379,22 @@ static func _cles(cles: Array, p: float):
 
 
 static func arme_a_cartouches(id: String) -> bool:
-	return id in SHELL_FED
+	return Items.a_cartouches(id)
 
 
 ## Évènements sonores du rechargement : [[progression, nom], ...]
 static func evenements(id: String, vide: bool, n_cart: int) -> Array:
-	if id in SHELL_FED:
+	var info := Items.info(id)
+	if Items.a_cartouches(id):
 		var ev := []
 		var cyc := 0.7 / maxf(1, n_cart)
+		if info.get("cassant", false):
+			ev.append([0.05, "ouvrir"])
+		elif info.get("verrou", false) or info.get("levier", false):
+			ev.append([0.05, "culasse"])
 		for i in n_cart:
 			ev.append([0.12 + cyc * (i + 0.5), "cartouche"])
-		if id == "revolver":
-			ev.push_front([0.06, "barillet"])
-			ev.append([0.88, "barillet"])
-		else:
-			ev.append([0.9, "pompe"])
+		ev.append([0.9, "culasse"])
 		return ev
 	if vide:
 		return [[0.12, "chargeur_sort"], [0.15, "lacher"], [0.61, "chargeur_in"], [0.79, "culasse"]]
@@ -403,14 +404,22 @@ static func evenements(id: String, vide: bool, n_cart: int) -> Array:
 ## Pose de rechargement : {rot, off (arme), L (point de la main gauche, repère arme), mag (chargeur en main), shell}
 static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vide := false, n_cart := 3) -> Dictionary:
 	p = clampf(p, 0.0, 1.0)
-	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "shell": false, "prise": "garde" if float(w.get("len", 0.3)) >= 0.4 else "appui"}
+	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "mag_arme": true, "shell": false, "prise": pts.get("prise_l", "garde" if float(w.get("len", 0.3)) >= 0.4 else "appui")}
 	var grip_l: Vector3 = pts.L if pts.L != null else Vector3(-0.03, -0.06, 0.02)
 	var longue: bool = float(w.get("len", 0.3)) >= 0.4
-	if id in SHELL_FED:
-		var revolver := id == "revolver"
-		var port := Vector3(0.0, -0.01, -0.06) if not revolver else Vector3(0.0, 0.02, -0.03)
+	if Items.a_cartouches(id):
+		var info := Items.info(id)
+		var manuelle: bool = info.get("verrou", false) or info.get("levier", false)
+		var cassant: bool = info.get("cassant", false)
+		var port := Vector3(0.0, -0.01, -0.06)
+		if manuelle:
+			port = Vector3(pts.culasse_d) + Vector3(-0.03, 0.0, -0.04)
+		elif cassant:
+			port = Vector3(0.0, 0.03, -0.1)
 		var below := port + Vector3(-0.05, -0.2, 0.08)
-		var incl := Vector3(0.25, 0.3, -0.6) if not revolver else Vector3(0.35, 0.4, -0.9)
+		var incl := Vector3(0.25, 0.3, -0.6)
+		if cassant:
+			incl = Vector3(0.55, 0.2, -0.3)   # canons basculés vers le bas pour les ouvrir
 		out.rot = _cles([[0.0, Vector3.ZERO], [0.1, incl], [0.82, incl], [0.95, Vector3.ZERO]], p)
 		var ob := Vector3(-0.28, 0.12, 0.06)
 		out.off = _cles([[0.0, Vector3.ZERO], [0.1, ob], [0.82, ob], [0.95, Vector3.ZERO]], p)
@@ -426,11 +435,6 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 		else:
 			var q2 := (p - 0.82) / 0.18
 			out.L = below.lerp(grip_l, smoothstep(0.0, 1.0, minf(q2 * 1.6, 1.0)))
-			if not revolver and q2 > 0.5:
-				# pompe : la main tire le garde-main vers l'arrière puis le repousse
-				var pq := (q2 - 0.5) / 0.5
-				out.L = grip_l + Vector3(0, 0, 0.08 * sin(pq * PI))
-				out.off.z += 0.02 * sin(pq * PI)
 		return out
 	# ------------------------------------------------ armes à chargeur
 	var well: Vector3 = pts.get("well", Vector3(0, -0.08, -0.04))
@@ -442,7 +446,8 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 	var o1 := Vector3(-0.32, 0.15, 0.1) if longue else Vector3(-0.24, 0.12, 0.05)
 	if not vide:
 		out.L = _cles([[0.0, grip_l], [0.12, well], [0.2, sous], [0.34, poche], [0.44, poche], [0.58, sous], [0.65, bosse], [0.7, well], [0.88, grip_l]], p)
-		out.mag = (p > 0.14 and p < 0.34) or (p > 0.44 and p < 0.68)
+		out.mag = (p > 0.12 and p < 0.34) or (p > 0.44 and p < 0.7)
+		out.mag_arme = not (p > 0.12 and p < 0.7)
 		if p > 0.07 and p < 0.76:
 			out.prise = "chargeur"
 		out.rot = _cles([[0.0, Vector3.ZERO], [0.12, r1], [0.66, r1], [0.69, r1 + Vector3(0.06, 0, 0)], [0.74, r1], [0.92, Vector3.ZERO]], p)
@@ -454,7 +459,8 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 	var r2 := Vector3(0.15, 0.1, -0.4) if longue else Vector3(0.2, -0.1, -0.35)
 	var o2 := Vector3(-0.22, 0.12, 0.06)
 	out.L = _cles([[0.0, grip_l], [0.1, well], [0.16, well + Vector3(0, -0.03, 0)], [0.3, poche], [0.38, poche], [0.53, sous], [0.6, bosse], [0.63, well], [0.72, culasse], [0.78, tire], [0.82, culasse], [0.97, grip_l]], p)
-	out.mag = p > 0.38 and p < 0.62
+	out.mag = p > 0.38 and p < 0.63
+	out.mag_arme = p < 0.12 or p >= 0.63
 	if p > 0.06 and p < 0.66:
 		out.prise = "chargeur"
 	elif p >= 0.66 and p < 0.88:
@@ -470,6 +476,10 @@ func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float,
 	temps += get_process_delta_time()
 	mag.visible = false
 	shell.visible = false
+	if mag_reel and is_instance_valid(mag_reel):
+		mag_reel.visible = false
+	if cart_reel and is_instance_valid(cart_reel):
+		cart_reel.visible = false
 	if weapon_xf == null:
 		echelle = 0.8
 		# garde de boxe ; coup de poing (droite ou gauche) avec rotation du poing
@@ -494,35 +504,53 @@ func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float,
 	var bw := xf.basis.orthonormalized()
 	echelle = clampf(xf.basis.get_scale().x, 0.5, 0.95)
 	var pts := hand_points(id, w, geo)
+	var info := Items.info(id)
 	var is_gun: bool = w.get("type", "") == "gun"
 	var short_gun: bool = is_gun and float(w.get("len", 0.3)) < 0.4
 	var prise_r := "poignee" if is_gun else "manche"
-	var prise_l := ("appui" if short_gun else "garde") if is_gun else "manche"
+	var prise_l: String = str(pts.get("prise_l", "appui" if short_gun else "garde")) if is_gun else "manche"
 	var lp = pts.L
 	if reload_p >= 0.0 and is_gun:
 		var pose := reload_pose(id, w, reload_p, pts, vide, n_cart)
 		lp = pose.L
 		prise_l = pose.get("prise", prise_l)
 		if pose.mag and lp != null:
-			mag.visible = true
-			mag.transform = Transform3D(bw, xf * (lp + Vector3(0, 0.06, -0.02)))
+			# le vrai chargeur de l'arme, tenu par le bas
+			var m3: Node3D = mag_reel if mag_reel and is_instance_valid(mag_reel) else mag
+			m3.visible = true
+			if m3 == mag:
+				m3.transform = Transform3D(bw, xf * (lp + Vector3(0, 0.06, -0.02)))
+			else:
+				m3.transform = Transform3D(xf.basis, xf * (Vector3(lp) + Vector3(pts.mag_dec)))
 		if pose.shell and lp != null:
-			shell.visible = true
-			shell.transform = Transform3D(bw * Basis(Vector3.RIGHT, PI / 2.0), xf * (lp + Vector3(0, 0.04, 0)))
+			if cart_reel and is_instance_valid(cart_reel):
+				cart_reel.visible = true
+				cart_reel.transform = Transform3D(xf.basis * Basis(Vector3.RIGHT, -0.5), xf * (lp + Vector3(0, 0.02, -0.01)))
+			else:
+				shell.visible = true
+				shell.transform = Transform3D(bw * Basis(Vector3.RIGHT, PI / 2.0), xf * (lp + Vector3(0, 0.04, 0)))
 	# main droite
 	var gr := _prise(prise_r, false)
-	var incl := Basis(Vector3.RIGHT, -deg_to_rad(float(PRISES.get(id, {}).get("incl", 15.0)))) if is_gun else Basis.IDENTITY
+	var incl := Basis(Vector3.RIGHT, -deg_to_rad(float(pts.get("incl", 15.0)))) if is_gun else Basis.IDENTITY
 	var hand_r := Transform3D(bw * incl * gr[0], xf * (pts.R + incl * Vector3(gr[1])))
 	var pose_r := prise_r
 	if is_gun and tir > 0.0:
 		pose_r = "detente" if tir > 0.35 else "poignee"
+	if is_gun and pompe > 0.0 and info.get("verrou", false) and reload_p < 0.0:
+		# réarmement de la culasse à verrou : la main droite saisit le levier, le tire en arrière puis le repousse
+		var gc := _prise("culasse", false)
+		var cu: Vector3 = pts.culasse_d
+		var k := smoothstep(0.0, 0.22, pompe) * (1.0 - smoothstep(0.78, 1.0, pompe))
+		var tire := sin(clampf((pompe - 0.22) / 0.56, 0.0, 1.0) * PI) * 0.085
+		var cible := Transform3D(bw * gc[0], xf * (cu + Vector3(gc[1]) + Vector3(0, 0.01 * sin(pompe * PI), tire)))
+		hand_r = hand_r.interpolate_with(cible, k)
+		if k > 0.5:
+			pose_r = "pince"
 	_arm("R", SHOULDER_R, hand_r, POLE_R, true, pose_r, 1.0)
-	# main gauche (coup de pompe : la main recule avec le garde-main)
-	if lp != null and pompe > 0.0 and id == "fusil_pompe":
-		lp = Vector3(lp) + Vector3(0, 0, 0.09 * pompe)
+	# main gauche
 	if lp != null:
 		var gl := _prise(prise_l, true)
-		var il := incl if prise_l == "appui" else Basis.IDENTITY
+		var il := incl if prise_l == "appui" else (Basis(Vector3.RIGHT, -0.15) if prise_l == "verticale" else Basis.IDENTITY)
 		var hand_l := Transform3D(bw * il * gl[0], xf * (Vector3(lp) + il * Vector3(gl[1])))
 		_arm("L", SHOULDER_L, hand_l, POLE_L, true, prise_l, 1.0)
 	else:

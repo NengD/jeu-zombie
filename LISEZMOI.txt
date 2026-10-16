@@ -56,8 +56,8 @@ CONSTRUIRE SA BASE
    Les zombies peuvent les casser.
 
 POINTS STRATÉGIQUES (voir la carte, touche M)
-Poste de police ....... matraques, munitions, gilets pare-balles
-Base militaire ........ munitions, rations, gilet tactique, casque — très gardée !
+Poste de police ....... pistolets, MP5K, Benelli, munitions, gilets pare-balles
+Base militaire ........ fusils d'assaut et de précision, grenades, gilet tactique, casque — très gardée !
                         (portail à l'est… et une brèche quelque part au nord)
 Hôpital ............... soins
 Supermarché ........... nourriture et boissons
@@ -78,7 +78,8 @@ MODE ADMIN (pour tester)
 - N : voler (Espace monte, Ctrl/C descend, Maj = très rapide). Option pour
   traverser les murs.
 - F2 : panneau admin
-  · Équipement complet (armes de mêlée, gilet, casque, sac militaire, soins)
+  · Équipement complet (M4A1 avec accessoires, Glock 19, Benelli M4, grenades, gilet,
+    casque, sac militaire, munitions, soins)
   · Coffres de tous les objets (5 coffres posés devant toi, un par catégorie)
   · N'importe quel objet en double-cliquant dans la liste
   · Téléportation vers chaque lieu de la carte
@@ -122,7 +123,7 @@ SANG
 
 EFFETS DE TIR
 - Flamme au bout du canon et éclair qui illumine les murs (surtout la nuit), fumée, douilles éjectées qui rebondissent au sol
-  (cartouche rouge éjectée au coup de pompe du fusil à pompe), impacts sur les
+  (cartouches éjectées par le Benelli, étuis du TOZ à l'ouverture), impacts sur les
   murs (trous, poussière, étincelles sur le métal).
 
 ZOMBIES
@@ -143,7 +144,7 @@ ARMES : VISÉE ET RECHARGEMENT
 - L'arme bouge de façon naturelle : inertie quand on tourne, balancement en
   marchant, arme baissée en sprint, recul, sortie de l'arme quand on la change.
 - Rechargement réaliste : chargeur retiré et remplacé ; à vide, le chargeur
-  tombe au sol et on réarme. Fusil à pompe et revolver : une cartouche à la fois.
+  tombe au sol et on réarme. Fusils à pompe, Mosin, Marlin : une cartouche à la fois.
 
 AMBIANCE
 - Sons d'ambiance selon l'endroit et l'heure (oiseaux, grillons la nuit, ville,
@@ -176,12 +177,33 @@ scenes/zombie.tscn (ou player.tscn) remplacer les formes sous « Modele »
 par le modèle importé. Tout le reste du jeu continue de fonctionner.
 
 
-ARMES À FEU ET ACCESSOIRES
---------------------------
-Toutes les armes à feu et tous les accessoires ont été retirés (version 17) :
-de nouveaux modèles 3D vont les remplacer. Le code du tir, du rechargement,
-de la visée et des accessoires est conservé pour les accueillir.
-Les munitions restent dans le jeu pour les futures armes.
+ARMES À FEU ET ACCESSOIRES (version 18)
+---------------------------------------
+Modèles « low-poly » de D_U (Sketchfab, licence CC BY 4.0 — voir CREDITS.txt).
+- 25 armes réelles, chacune avec son calibre :
+  Pistolets : Glock 19, Shadow Systems MR920 (9 mm), Colt M45A1 (.45), Desert Eagle (.50 AE)
+  Pistolets-mitrailleurs : HK MP5K (9 mm), HK MP7A1 (4.6 mm)
+  Fusils à pompe : Benelli M4 (semi-automatique), TOZ-34 (deux canons)
+  Fusils d'assaut 5.56 : Colt M4A1, Colt M5 SCW, URG-I SOCOM, Z-M LR-300, SIG MCX
+  AK : AK-74, AK-74M Zenitco (5.45), Mini Draco (7.62×39)
+  Fusils 7.62 : UAR-10, SIG MCX Spear, Spear Assaulter
+  Précision : C14 Timberwolf (.338), L96A1 (7.62), Gepárd M6 Lynx (12.7 mm), Mosin-Nagant (7.62×54R)
+  Marlin 1895 à levier (.45-70), mitrailleuse HK MG5 (7.62, bande de 100)
+- Fusils à verrou (C14, L96, Mosin) : la main va chercher le levier et réarme après chaque tir.
+  Marlin : on actionne le levier. Balles perforantes : elles traversent plusieurs zombies.
+- Rechargement : le vrai chargeur de l'arme sort du puits, passe dans la main gauche ; à vide il
+  tombe au sol. Pompes, Mosin, Marlin : une cartouche à la fois (la vraie cartouche du calibre).
+- Accessoires (touche T) : 7 viseurs (point rouge, holographiques, Aimpoint, PK pour AK),
+  4 lunettes (×4, ×6, ×8, ×12, image grossie dans la lunette), silencieux et freins de bouche
+  selon le calibre (le cache-flammes d'origine est retiré), module laser-lampe PEQ-15 (point laser,
+  lampe touche L), poignée verticale (la main gauche la tient), chargeur grande capacité.
+- Grenade RGD-5 : dans la barre rapide, clic gauche pour la dégoupiller et la lancer (3,5 s).
+  Les murs protègent du souffle.
+- Zombies policiers et militaires : certains ont une arme dans l'étui ou dans le dos ; elle tombe
+  au sol à leur mort (avec quelques munitions).
+- Début de partie : tu commences avec un couteau et une hachette ; moins de zombies le premier
+  jour, puis la pression monte. Les armes à feu se trouvent surtout à la police, à l'armurerie,
+  à la base militaire et dans les fermes (fusils de chasse).
 
 
 SAUVEGARDE

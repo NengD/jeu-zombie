@@ -269,4 +269,19 @@ for nom, dur, f0, f1, g in [("vent_leger", 0.25, 2500, 800, 0.5), ("vent_lourd",
     sauver(nom, out * g, 0.7)
 sauver("parade", placer(0.5, (0.0, clic((600, 1300, 2600, 4100), 0.06, 0.3, 1.0)), (0.0, passe_bas(bruit(int(SR * 0.2)), 900) * env(int(SR * 0.2), 0.001, 0.05))), 0.9)
 
+# ---------------------------------------------------------------- explosifs
+n = int(SR * 2.6)
+x = t(2.6)
+grave = passe_bas(bruit(n), 180) * np.exp(-x / 0.55) * 3.0
+coup = passe_bas(bruit(n), 2500) * np.exp(-x / 0.06) * 1.2
+gronde = np.sin(2 * np.pi * 42 * x) * np.exp(-x / 0.35) * 0.8
+debris = np.zeros(n)
+r = np.random.default_rng(77)
+for k in range(30):
+    i = int(SR * r.uniform(0.25, 1.9))
+    m = int(SR * 0.04)
+    debris[i:i + m] += passe_haut(bruit(m), 1500)[: n - i] * np.exp(-np.arange(m) / (SR * 0.01)) * r.uniform(0.05, 0.2)
+sauver("explosion", grave + coup + gronde + debris, 0.98)
+sauver("goupille", placer(0.5, (0.0, clic((2600, 4100, 6200), 0.015, 0.06, 1.0)), (0.12, glisse(0.12, 1800, 3200, 0.15)), (0.3, clic((3400, 5200), 0.01, 0.05, 0.7))), 0.8)
+
 print("sons générés dans", OUT)

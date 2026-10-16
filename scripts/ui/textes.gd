@@ -44,7 +44,12 @@ const GUIDE := """[b]LES BASES[/b]
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
 
 [b]ARMES À FEU[/b]
-• Les armes à feu et leurs accessoires ont été retirés : de nouveaux modèles 3D vont les remplacer. En attendant, place aux armes de mêlée !
+• 25 armes réelles : pistolets (Glock 19, MR920, M45A1, Desert Eagle), pistolets-mitrailleurs (MP5K, MP7), fusils à pompe (Benelli M4, TOZ-34), fusils d'assaut (M4A1, M5, URG-I, LR-300, MCX, AK-74, AK-74M, Draco), fusils 7.62 (UAR-10, Spear), fusils de précision (C14, L96, Gepárd, Mosin), Marlin à levier et mitrailleuse MG5.
+• Chaque arme a son calibre (9 mm, .45, 5.56, 5.45, 7.62…). Les fusils à verrou se réarment à la main après chaque tir ; les balles des fusils de précision traversent plusieurs zombies.
+• [b]T[/b] : inspecter l'arme et poser ses accessoires (viseurs point rouge et holographiques, lunettes ×4 à ×12, silencieux, freins de bouche, module laser-lampe, poignée verticale, chargeur grande capacité).
+• Grenade RGD-5 : mets-la dans la barre rapide, clic gauche pour la dégoupiller et la lancer.
+• Certains zombies policiers et militaires portent une arme : elle tombe au sol à leur mort.
+• Modèles 3D des armes : D_U (Sketchfab), licence CC BY 4.0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration).
@@ -65,8 +70,8 @@ const GUIDE := """[b]LES BASES[/b]
 5. Les barricades se posent n'importe où, par exemple dans une porte. Les zombies peuvent les casser.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
-• [b]Poste de police[/b] : matraques, munitions, gilets pare-balles.
-• [b]Base militaire[/b] : munitions, rations, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
+• [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
+• [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
 • [b]Supermarché[/b] : nourriture et boissons.
 • [b]Armurerie[/b] : armes et munitions.
@@ -94,7 +99,7 @@ const GUIDE := """[b]LES BASES[/b]
 
 [b]VISÉE ET RECHARGEMENT[/b]
 • En visant, on regarde vraiment dans le viseur : hausse et guidon, verre du point rouge, ou lunette grossissante avec réticule.
-• Rechargement réaliste : chargeur changé ; à vide, il tombe au sol et on réarme. Fusil à pompe et revolver : une cartouche à la fois.
+• Rechargement réaliste : le vrai chargeur sort de l'arme ; à vide, il tombe au sol et on réarme. Fusils à pompe, Mosin et Marlin : une cartouche à la fois.
 
 [b]BÂTIMENTS ET PORTES[/b]
 • Toutes les portes s'ouvrent et se ferment avec F. Les zombies ne savent pas les ouvrir : ils tapent dedans jusqu'à les enfoncer.

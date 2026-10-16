@@ -60,6 +60,15 @@ const ANIMS_UAL := {"idle": "z_idle", "marche": "z_marche", "course": "course", 
 
 const ModeleUtil = preload("res://scripts/modele_util.gd")
 const Effets = preload("res://scripts/effets.gd")
+const LootContainer = preload("res://scripts/loot_container.gd")
+## Armes portées par certains zombies (visibles sur eux, elles tombent au sol à leur mort) : [id, poids]
+const ARMES_ZOMBIES := {
+	"militaire": [["m4a1", 4.0], ["ak74", 3.0], ["urgi", 2.0], ["lr300", 2.0], ["mcx", 2.0], ["m5_scw", 2.0], ["ak74m", 1.0], ["uar10", 1.0], ["mcx_spear", 1.0], ["mg5", 0.4]],
+	"police": [["glock19", 5.0], ["mr920", 2.0], ["m45a1", 2.0], ["mp5k", 1.5], ["benelli_m4", 1.5]],
+}
+const CHANCE_ARME := {"militaire": 0.45, "police": 0.4}
+var arme_portee := ""
+var arme_noeud: Node3D = null
 const MODELES := {"civil": "zombie_civil", "police": "zombie_policier", "militaire": "zombie_militaire", "patient": "zombie_patient"}
 const TEINTES_CIVIL := [Color(0.45, 0.38, 0.3), Color(0.32, 0.36, 0.42), Color(0.5, 0.2, 0.18), Color(0.3, 0.38, 0.28), Color(0.55, 0.52, 0.45), Color(0.25, 0.25, 0.28)]
 
@@ -166,6 +175,7 @@ func _apply_look() -> void:
 			ModeleUtil.teinter(m, "Manche", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 		ap = ModeleUtil.anim_player(m)
 		squelette = ModeleUtil.squelette(m)
+		_armer()
 		if ap:
 			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
 			ap.playback_default_blend_time = 0.2
@@ -203,6 +213,70 @@ func _apply_look() -> void:
 		helmet.material_override = hm
 		helmet.position = Vector3(0, 1.68, 0)
 		modele.add_child(helmet)
+
+
+## Arme en bandoulière dans le dos (fusils) ou dans l'étui à la hanche (pistolets).
+func _armer() -> void:
+	if squelette == null or est_boss or not CHANCE_ARME.has(kind) or randf() > float(CHANCE_ARME[kind]):
+		return
+	var liste: Array = ARMES_ZOMBIES[kind]
+	var total := 0.0
+	for e in liste:
+		total += float(e[1])
+	var tirage := randf() * total
+	for e in liste:
+		tirage -= float(e[1])
+		if tirage <= 0.0:
+			arme_portee = e[0]
+			break
+	var m := ModeleUtil.arme(arme_portee)
+	if m == null:
+		arme_portee = ""
+		return
+	var longue: bool = float(Items.info(arme_portee).get("len", 0.3)) >= 0.4
+	var ba := BoneAttachment3D.new()
+	ba.bone_name = "spine_03" if longue else "pelvis"
+	squelette.add_child(ba)
+	ba.add_child(m)
+	if longue:
+		# en travers du dos, canon vers le haut, dessus de l'arme tourné vers l'extérieur
+		m.transform = Transform3D(_base_arme(Vector3(0.45, 0.89, 0.0), Vector3(0, 0, -1)), Vector3(-0.1, -0.3, -0.17))
+	else:
+		# dans l'étui à la hanche droite, canon vers le bas
+		m.transform = Transform3D(_base_arme(Vector3(0, -1, 0.15), Vector3(0, 0, 1)), Vector3(-0.19, 0.0, 0.02))
+	ModeleUtil.distance_visible(m, 70.0)
+	arme_noeud = m
+
+
+static func _base_arme(canon: Vector3, dessus: Vector3) -> Basis:
+	var z := -canon.normalized()
+	var y := (dessus - z * dessus.dot(z)).normalized()
+	return Basis(y.cross(z), y, z)
+
+
+## À la mort : l'arme portée tombe au sol à côté du corps (on peut la ramasser avec quelques munitions).
+func _lacher_arme() -> void:
+	if arme_noeud == null or not is_instance_valid(arme_noeud) or arme_portee == "":
+		return
+	var pile = LootContainer.new()
+	pile.setup("Arme au sol", "", Vector3(0.7, 0.12, 0.7), Color(0.3, 0.3, 0.3))
+	pile.make_storage(6, 4)
+	pile.add_to_group("tas_sol")
+	get_parent().add_child(pile)
+	pile.global_position = global_position + global_basis.x * 0.7
+	pile.rotation.y = randf() * TAU
+	pile.grille.ajouter_entree({"id": arme_portee, "n": 1, "x": 0, "y": 0, "r": false, "contenu": null})
+	var mun := str(Items.info(arme_portee).get("ammo", ""))
+	if mun != "" and randf() < 0.7:
+		pile.grille.ajouter(mun, randi_range(4, int(Items.info(arme_portee).get("mag", 10))))
+	pile.mesh_i.visible = false
+	arme_noeud.get_parent().remove_child(arme_noeud)
+	pile.add_child(arme_noeud)
+	arme_noeud.transform = Transform3D(Basis(Vector3(0, 0, 1), PI / 2.0), Vector3(0, 0.035, 0))
+	ModeleUtil.distance_visible(arme_noeud, 60.0)
+	arme_noeud = null
+	arme_portee = ""
+	Game.play_3d("chargeur_sol", pile.global_position, -4.0, 0.15, 15.0)
 
 
 # ================================================================ boucle
@@ -586,6 +660,7 @@ func _die() -> void:
 	charge_t = 0.0
 	slam_t = -1.0
 	get_tree().create_timer(0.9).timeout.connect(func(): if is_instance_valid(self): Effets.flaque(get_parent(), global_position))
+	get_tree().create_timer(0.5).timeout.connect(func(): if is_instance_valid(self): _lacher_arme())
 	state = State.DEAD
 	remove_from_group("zombies")
 	add_to_group("corpses")

@@ -12,7 +12,17 @@ Modèles 3D (personnages, zombies, armes) : créés pour le jeu avec Blender (ou
 Sons : générés pour le jeu.
 Moteur : Godot Engine (https://godotengine.org), licence MIT.
 
-Modèles 3D d'armes téléchargés (tous gratuits, licence CC0 — domaine public) :
+Armes à feu, accessoires, grenade RGD-5, hachette, couteaux KM2000 et M9 :
+— modèles « low-poly » de D_U (https://sketchfab.com/D_U), licence Creative Commons Attribution 4.0
+   (https://creativecommons.org/licenses/by/4.0/). Modèles utilisés : low-poly G19 Gen 5 MOS, Shadow Systems MR920,
+   Colt M45A1, Desert Eagle XIX, HK MP5K, HK MP7 A1, Benelli M4, TOZ-34, Colt M4A1, Colt M5 SCW, URG-I SOCOM,
+   Z-M LR-300 ML, SIG Sauer MCX Legacy, AK-74, AK-74M Zenitco, Mini Draco AK, UAR-10, SIG MCX Spear,
+   SIG MCX Spear Assaulter, C14 Timberwolf, L96 A1 Precision Marksman, Gepard M6 Lynx, Mosin Nagant 1891/30,
+   Marlin 1895 GBL/SBL, HK MG5, Collimator Set, Muzzle Device Set, RGD-5, Axe, KM2000, M9 Bayonet.
+   Modifications : mise à l'échelle, pièces séparées (chargeur, cache-flammes), accessoires retirés des armes
+   et réutilisés séparément (outil : outils/godot/normaliser_du.gd).
+
+Modèles 3D d'armes blanches téléchargés (tous gratuits, licence CC0 — domaine public) :
 — Machette, hache, pied-de-biche, masse, clé à tuyau : Poly Haven (https://polyhaven.com)
 — Couteau : « Survival Pack » de Quaternius ; batte cloutée : « Zombie Apocalypse Kit » de Quaternius
    (récupérés via la collection https://github.com/Papyszoo/CC0-Public-Domain-Models)

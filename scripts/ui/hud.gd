@@ -245,6 +245,8 @@ func _process(delta: float) -> void:
 			lbl_ammo.text = "Rechargement…"
 		else:
 			lbl_ammo.text = "%d / %d" % [int(p.mags.get(wid, 0)), p.count(w.ammo)]
+	elif w.get("type", "") == "lancer":
+		lbl_ammo.text = "× %d" % p.count(wid)
 	else:
 		lbl_ammo.text = ""
 	for i in 5:
@@ -252,7 +254,7 @@ func _process(delta: float) -> void:
 		var txt := "—"
 		if id != "":
 			txt = Items.nom(id)
-			if not Items.is_weapon(id):
+			if not Items.is_weapon(id) or Items.info(id).get("type", "") == "lancer":
 				txt += " ×%d" % p.count(id)
 		hot_labels[i].text = "%d  %s" % [i + 1, txt]
 		var tex: Texture2D = Items.icon(id) if id != "" else null
