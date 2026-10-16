@@ -18,3 +18,17 @@ Modèles 3D d'armes téléchargés (tous gratuits, licence CC0 — domaine publi
 — Pistolet, revolver, fusil à pompe, carabine : « Ultimate Gun Pack » de Quaternius (https://quaternius.com)
 — Couteau : « Survival Pack » de Quaternius ; batte cloutée : « Zombie Apocalypse Kit » de Quaternius
    (récupérés via la collection https://github.com/Papyszoo/CC0-Public-Domain-Models)
+
+Personnages (survivant et zombies) :
+— Mannequins et animations « Universal Animation Library » 1 et 2 de Quaternius (CC0, https://quaternius.com)
+— Coiffures et sourcils « Universal Base Characters » de Quaternius (CC0)
+   Vêtements, peau, visages, sang et saleté dessinés pour le jeu (modeles/persos/perso.gdshader,
+   outil : outils/godot/generer_persos.gd).
+
+Décor (tous CC0 — domaine public) :
+— Meubles, mobilier urbain, bornes, poubelles, barils, rochers, buissons : Poly Haven (https://polyhaven.com)
+— Casiers, classeurs, bureaux, caisses, glissières, cônes, bancs, palettes, cartons : « The Base Mesh » (https://thebasemesh.com)
+— Voitures : « Cars » de Quaternius (https://quaternius.com)
+   (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_props.gd)
+— Textures (asphalte, briques, enduit, béton, parquet, herbe, écorce, feuillage…) et arbres :
+   générés pour le jeu (outils/textures/generer_textures.py, outils/godot/generer_arbres.gd).

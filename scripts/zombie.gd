@@ -37,6 +37,9 @@ var groan_t := 0.0
 var ap: AnimationPlayer = null      # animations du modèle Blender (si présent)
 var anim_lock := 0.0                # durée pendant laquelle une animation ponctuelle joue
 var cur_anim := ""
+var anim_noms := {}                 # nom générique -> nom dans le modèle
+const ANIMS_UAL := {"idle": "z_idle", "marche": "z_marche", "course": "course", "attaque": "z_attaque",
+		"touche": "touche", "mort": "mort"}
 
 const ModeleUtil = preload("res://scripts/modele_util.gd")
 const MODELES := {"civil": "zombie_civil", "police": "zombie_policier", "militaire": "zombie_militaire", "patient": "zombie_patient"}
@@ -78,13 +81,19 @@ func _ready() -> void:
 
 
 func _apply_look() -> void:
-	var m := ModeleUtil.charger("res://modeles/%s.glb" % MODELES.get(kind, "zombie_civil"))
+	var m: Node3D = null
+	if Perso.disponible():
+		# personnage réaliste (mannequin UAL habillé par perso.gdshader)
+		m = Perso.creer(Perso.apparence(kind))
+		anim_noms = ANIMS_UAL
+	else:
+		m = ModeleUtil.charger("res://modeles/%s.glb" % MODELES.get(kind, "zombie_civil"))
 	if m:
 		for c in modele.get_children():
 			c.queue_free()
 		modele.add_child(m)
 		ModeleUtil.distance_visible(m, 160.0)
-		if kind == "civil":
+		if kind == "civil" and anim_noms.is_empty():
 			ModeleUtil.teinter(m, "Haut", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 			ModeleUtil.teinter(m, "Manche", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 		ap = ModeleUtil.anim_player(m)
@@ -440,6 +449,7 @@ func on_closed() -> void:
 
 # ================================================================ animations
 func _anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
+	nom = anim_noms.get(nom, nom)
 	if ap == null or not ap.has_animation(nom):
 		return
 	if verrou > 0.0:
@@ -459,8 +469,8 @@ func _update_anim(delta: float) -> void:
 		return
 	var hs := Vector2(velocity.x, velocity.z).length()
 	if hs > 2.0:
-		_anim("course", clampf(hs / 3.0, 0.6, 1.8))
+		_anim("course", clampf(hs / (3.1 if anim_noms else 3.0), 0.6, 1.8))
 	elif hs > 0.15:
-		_anim("marche", clampf(hs / 0.65, 0.5, 2.2))
+		_anim("marche", clampf(hs / (0.95 if anim_noms else 0.65), 0.5, 2.2))
 	else:
 		_anim("idle")

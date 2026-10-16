@@ -87,6 +87,7 @@ var vm_weapon: Node3D = null
 var reload_total := 1.0
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
+var perso_ual := false             # modèle réaliste (animations UAL)
 var p_anim := ""
 var p_lock := 0.0
 var shoot_pose_t := 0.0
@@ -159,8 +160,13 @@ func _build_rig() -> void:
 	hand = Node3D.new()
 	hand.position = Vector3(0.3, 1.15, -0.35)
 	modele.add_child(hand)
-	# modèle Blender du survivant (si présent)
-	var m := ModeleUtil.charger("res://modeles/survivant.glb")
+	# modèle du survivant : personnage réaliste (mannequin UAL) sinon modèle Blender
+	var m: Node3D = null
+	if Perso.disponible():
+		m = Perso.creer(Perso.apparence("survivant"))
+		perso_ual = true
+	else:
+		m = ModeleUtil.charger("res://modeles/survivant.glb")
 	if m:
 		for c in modele.get_children():
 			if c != hand:
@@ -171,7 +177,12 @@ func _build_rig() -> void:
 			ModeleUtil.boucler(pap, ["idle", "marche", "course", "accroupi", "accroupi_marche", "visee"])
 			pap.playback_default_blend_time = 0.15
 		var sk := ModeleUtil.squelette(m)
-		if sk and sk.find_bone("main.R") >= 0:
+		var prise: Node3D = m.find_child("Prise", true, false)
+		if perso_ual and prise:
+			modele.remove_child(hand)
+			prise.add_child(hand)
+			hand.transform = Transform3D.IDENTITY
+		elif sk and sk.find_bone("main.R") >= 0:
 			var ba := BoneAttachment3D.new()
 			ba.bone_name = "main.R"
 			sk.add_child(ba)
@@ -528,7 +539,13 @@ func _melee(w: Dictionary) -> void:
 	stamina = maxf(0.0, stamina - cost)
 	cooldown = w.rate
 	swing_t = 1.0
-	_p_anim("frappe", 1.3, 0.45)
+	if perso_ual:
+		if current_weapon() == "poings":
+			_p_anim("coup_poing" if randf() < 0.5 else "coup_poing2", 1.5, 0.4)
+		else:
+			_p_anim("frappe", 1.6, 0.5)
+	else:
+		_p_anim("frappe", 1.3, 0.45)
 	Game.play_ui("coup", -6.0, 0.15)
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(float(w.range) + 1.0)
@@ -632,6 +649,8 @@ func _refresh_weapon_model() -> void:
 		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 		var hm := ModeleUtil.arme(id)
 		hand.add_child(hm)
+		if perso_ual and w.type != "gun":
+			hm.rotation.x = deg_to_rad(80)   # manche dans le poing, tête de l'arme vers le haut
 		return
 	var parts: Array = []
 	if id == "poings":
@@ -1075,6 +1094,28 @@ func _update_player_anim(delta: float) -> void:
 		return
 	var hs := Vector2(velocity.x, velocity.z).length()
 	var is_gun: bool = Items.info(current_weapon()).get("type", "") == "gun"
+	if perso_ual:
+		# vitesses naturelles des animations UAL : marche 0,94 m/s, jogging 2,4, sprint 3,1, accroupi 0,77
+		if crouching:
+			if hs > 0.3:
+				_p_anim("accroupi_marche", clampf(hs / 0.77, 0.6, 2.2))
+			else:
+				_p_anim("accroupi")
+		elif hs > 4.6:
+			_p_anim("course", clampf(hs / 3.1, 0.8, 2.2))
+		elif hs > 1.9:
+			_p_anim("jogging", clampf(hs / 2.4, 0.7, 1.8))
+		elif hs > 0.3:
+			_p_anim("marche", clampf(hs / 0.94, 0.6, 2.2))
+		elif is_gun and reload_t > 0.0 and reload_total > 0.0:
+			_p_anim("recharge", pap.get_animation("recharge").length / reload_total if pap.has_animation("recharge") else 1.0)
+		elif is_gun and (aiming or shoot_pose_t > 0.0):
+			_p_anim("visee")
+		elif is_gun:
+			_p_anim("arme_idle")
+		else:
+			_p_anim("idle")
+		return
 	if crouching:
 		if hs > 0.3:
 			_p_anim("accroupi_marche", clampf(hs / 1.6, 0.6, 1.6))

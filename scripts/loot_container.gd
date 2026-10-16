@@ -11,6 +11,7 @@ var grille: Grille = null
 var mesh_i: MeshInstance3D
 var mat: StandardMaterial3D
 var box_size := Vector3.ONE
+var modele: Node3D = null
 
 
 func setup(p_label: String, p_table: String, size: Vector3, col: Color, p_rolls := 2) -> void:
@@ -37,6 +38,31 @@ func setup(p_label: String, p_table: String, size: Vector3, col: Color, p_rolls 
 	mesh_i.material_override = mat
 	mesh_i.visibility_range_end = 140.0
 	add_child(mesh_i)
+
+
+## Remplace la boîte par un modèle 3D (meuble réaliste), tourné de « angle » autour de Y.
+func set_modele(id: String, angle: float) -> void:
+	var n := Decor.ajuste(id, Vector3(box_size.x, box_size.y, box_size.z) if is_zero_approx(fmod(angle, PI)) else Vector3(box_size.z, box_size.y, box_size.x))
+	if n == null:
+		return
+	n.rotation.y = angle
+	add_child(n)
+	Decor.distance(n, 70.0)
+	mesh_i.visible = false
+	modele = n
+
+
+## Habille la boîte d'une texture du décor (appareils sans modèle 3D : réfrigérateur…).
+func set_texture(nom: String) -> void:
+	var p := "res://textures/%s_albedo.jpg" % nom
+	if not ResourceLoader.exists(p):
+		return
+	mat.albedo_texture = load(p)
+	mat.uv1_triplanar = true
+	mat.metallic = 0.3
+	if ResourceLoader.exists("res://textures/%s_normal.png" % nom):
+		mat.normal_enabled = true
+		mat.normal_texture = load("res://textures/%s_normal.png" % nom)
 
 
 ## Transforme en rangement du joueur (caisse, tas au sol).
@@ -89,7 +115,8 @@ func get_prompt() -> String:
 func interact(player: Node) -> void:
 	if not searched:
 		searched = true
-		mat.albedo_color = mat.albedo_color.darkened(0.35)
+		if modele == null:
+			mat.albedo_color = mat.albedo_color.darkened(0.35)
 		Game.make_noise(global_position, 5.0)
 		Game.play_ui("fouille", -4.0)
 	ensure_contents()
