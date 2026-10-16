@@ -19,6 +19,7 @@ const TOUCHES := [
 	["Lampe torche / lampe de l'arme", "L"],
 	["Inspecter l'arme (accessoires)", "T"],
 	["Pause", "Échap"],
+	["Sauvegarde rapide / chargement", "F5 / F9"],
 	["Aide en jeu", "F1"],
 ]
 

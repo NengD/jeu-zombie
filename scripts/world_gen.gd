@@ -75,6 +75,7 @@ var mat: StandardMaterial3D
 var mats := {}        # nom -> matériau
 var cur_mat := "uni"  # matériau utilisé par _box() quand aucun n'est précisé
 var decor: Node3D     # objets de décor (modèles 3D)
+var conteneurs: Array = []   # meubles fouillables, dans l'ordre de génération
 var reserved: Array = []   # Rect2 occupés (pour placer les arbres)
 var guards: Array = []     # zombies à placer : {pos, kind, radius}
 var trees: Array = []      # Vector3
@@ -648,6 +649,8 @@ func _furnish(zone: Dictionary, kind: String, count: int, placed: Array) -> void
 
 func _container(pos: Vector3, size: Vector3, col: Color, label: String, table: String, rolls := -1) -> LootContainer:
 	var c = LootContainer.new()
+	c.uid = conteneurs.size()
+	conteneurs.append(c)
 	if rolls < 0:
 		rolls = 1 + (1 if size.x * size.y * size.z > 1.0 else 0) + (1 if rng.randf() < 0.35 else 0)
 	c.setup(label, table, size, col, rolls)

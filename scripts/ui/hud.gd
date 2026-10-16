@@ -121,8 +121,8 @@ func _ready() -> void:
 	root.add_child(msg_box)
 	help_panel = _panel(_help_text(), Vector2(620, 0))
 	help_panel.visible = false
-	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Commandes (F1)", _toggle_help], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
-	death_panel = _menu_panel("TU ES MORT", [["Recommencer", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
+	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
+	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
 	Game.notify.connect(_on_msg)
 	Game.hit_confirmed.connect(_on_hit)
 	Game.player_died.connect(_on_death)
@@ -317,6 +317,24 @@ func _resume() -> void:
 	pause_panel.visible = false
 	help_panel.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _sauver() -> void:
+	var m := get_tree().current_scene
+	if m and m.has_method("sauvegarder"):
+		m.sauvegarder()
+
+
+func _sauver_menu() -> void:
+	_sauver()
+	Game.go_to_menu()
+
+
+func _charger() -> void:
+	if Sauvegarde.existe():
+		Game.charger_partie()
+	else:
+		Game.msg("Aucune sauvegarde.")
 
 
 func _restart() -> void:

@@ -60,7 +60,18 @@ void fragment() {
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 30)
 	main_box.add_child(spacer)
-	var play := _big_button("Jouer", _play)
+	var play: Button
+	if Sauvegarde.existe():
+		play = _big_button("Continuer", func(): Game.partie_a_charger = Sauvegarde.lire(); _play())
+		var info := Label.new()
+		info.text = Sauvegarde.resume()
+		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		info.add_theme_font_size_override("font_size", 16)
+		info.add_theme_color_override("font_color", Color(0.65, 0.65, 0.6))
+		main_box.add_child(info)
+		_big_button("Nouvelle partie", func(): Game.partie_a_charger = {}; _play())
+	else:
+		play = _big_button("Jouer", func(): Game.partie_a_charger = {}; _play())
 	_big_button("Paramètres", func(): _show(settings_panel))
 	_big_button("Guide", func(): _show(guide_panel))
 	_big_button("Quitter", func(): get_tree().quit())

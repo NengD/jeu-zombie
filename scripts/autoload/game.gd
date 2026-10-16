@@ -21,6 +21,8 @@ var map_half := 420.0
 var city_half := 161.0
 var ui_open := false
 var time_hours := 8.0
+var graine_monde := 0
+var partie_a_charger: Dictionary = {}   # rempli par « Continuer » : partie à reprendre
 var day := 1
 var blood_mat: StandardMaterial3D
 
@@ -72,6 +74,8 @@ func _setup_inputs() -> void:
 	_key("lampe", KEY_L)
 	_key("soigner", KEY_H)
 	_key("inspecter", KEY_T)
+	_phys("sauvegarde_rapide", KEY_F5)
+	_phys("chargement_rapide", KEY_F9)
 	_phys("aide", KEY_F1)
 	_phys("pause", KEY_ESCAPE)
 	_mouse("tirer", MOUSE_BUTTON_LEFT)
@@ -128,6 +132,14 @@ func save_settings() -> void:
 
 func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
+
+
+## Reprend la partie sauvegardée.
+func charger_partie() -> void:
+	partie_a_charger = Sauvegarde.lire()
+	get_tree().paused = false
+	ui_open = false
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func go_to_menu() -> void:

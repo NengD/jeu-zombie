@@ -90,3 +90,16 @@ l'arme s'affiche en 3D, tu la fais tourner à la souris et tu poses ou retires s
 - Lampe tactique : éclaire là où tu vises (touche L).
 - Poignée avant (aussi fabricable) : moins de recul, meilleure précision.
 On les trouve surtout au poste de police, à l'armurerie et à la base militaire.
+
+
+SAUVEGARDE
+----------
+- F5 : sauvegarde rapide.  F9 : charger la sauvegarde.
+- Menu pause (Échap) : « Sauvegarder », « Charger la sauvegarde », « Sauvegarder et menu principal ».
+- Sauvegarde automatique toutes les 5 minutes.
+- Au menu principal, « Continuer » reprend la partie sauvegardée ; « Nouvelle partie » en commence une autre
+  (l'ancienne sauvegarde est remplacée à la prochaine sauvegarde).
+- Si tu meurs, tu peux recharger ta dernière sauvegarde.
+- Sont enregistrés : la carte (même monde), ta position, ta santé, faim, soif, ton inventaire, sacs et gilets,
+  barre rapide, munitions, accessoires, les meubles déjà fouillés, les objets que tu as posés (établis, caisses,
+  barricades), les objets au sol, les zombies, le jour et l'heure.

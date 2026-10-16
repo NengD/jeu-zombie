@@ -22,7 +22,12 @@ var first_fill := true
 
 func _ready() -> void:
 	Game.reset()
+	var charge: Dictionary = Game.partie_a_charger
+	Game.partie_a_charger = {}
 	var s := world_seed if world_seed != 0 else randi()
+	if not charge.is_empty():
+		s = int(charge.get("graine", s))
+	Game.graine_monde = s
 	world = WorldGen.new()
 	world.name = "Monde"
 	add_child(world)
@@ -33,8 +38,13 @@ func _ready() -> void:
 	zombies_root = Node3D.new()
 	zombies_root.name = "Zombies"
 	add_child(zombies_root)
-	for g in world.guards:
-		spawn_zombie(g.pos, g.kind, true, g.radius)
+	if charge.is_empty():
+		for g in world.guards:
+			spawn_zombie(g.pos, g.kind, true, g.radius)
+	else:
+		Sauvegarde.appliquer_monde(self, charge)
+		Sauvegarde.appliquer_zombies(self, charge)
+		first_fill = false
 	player = PLAYER_SCENE.instantiate()
 	add_child(player)
 	player.global_position = spawn + Vector3.UP * 0.1
@@ -45,7 +55,31 @@ func _ready() -> void:
 	add_child(InspectionUI.new())
 	add_child(MapUI.new())
 	_ambience()
-	Game.msg("Bienvenue. Trouve de quoi survivre. [F1] pour l'aide.")
+	if charge.is_empty():
+		Game.msg("Bienvenue. Trouve de quoi survivre. [F1] pour l'aide.")
+	else:
+		Sauvegarde.appliquer_joueur(self, charge)
+		Game.msg("Partie chargée — jour %d." % Game.day)
+
+
+## Sauvegarde la partie (menu pause, F5, et automatiquement toutes les 5 minutes).
+func sauvegarder(auto := false) -> void:
+	if player == null or not player.alive:
+		return
+	if Sauvegarde.sauver(self):
+		Game.msg("Sauvegarde automatique." if auto else "Partie sauvegardée.")
+	else:
+		Game.msg("Impossible de sauvegarder.")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("sauvegarde_rapide"):
+		sauvegarder()
+	elif event.is_action_pressed("chargement_rapide"):
+		if Sauvegarde.existe():
+			Game.charger_partie()
+		else:
+			Game.msg("Aucune sauvegarde.")
 
 
 func spawn_zombie(pos: Vector3, kind: String, persistent: bool, radius: float) -> Node:
@@ -56,7 +90,15 @@ func spawn_zombie(pos: Vector3, kind: String, persistent: bool, radius: float) -
 	return z
 
 
+var auto_t := 300.0
+
+
 func _process(delta: float) -> void:
+	auto_t -= delta
+	if auto_t <= 0.0:
+		auto_t = 300.0
+		if not Game.ui_open:
+			sauvegarder(true)
 	spawn_t -= delta
 	if spawn_t > 0.0 or player == null or not player.alive:
 		return

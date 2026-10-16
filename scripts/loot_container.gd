@@ -12,6 +12,7 @@ var mesh_i: MeshInstance3D
 var mat: StandardMaterial3D
 var box_size := Vector3.ONE
 var modele: Node3D = null
+var uid := -1          # numéro du meuble dans le monde généré (pour la sauvegarde)
 
 
 func setup(p_label: String, p_table: String, size: Vector3, col: Color, p_rolls := 2) -> void:
