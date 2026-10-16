@@ -192,20 +192,16 @@ func _equipement() -> void:
 		if info.has("slot"):
 			p.equipped[info.slot] = p.nouvelle_entree(s)
 	p.maj_poches()
-	for id in ["fusil_assaut", "pistolet", "fusil_pompe", "machette"]:
+	var armes := ["machette", "hache", "batte_cloutee", "couteau"]
+	for id in armes:
 		p.add_item(id)
-	p.accessoires["fusil_assaut"] = {"viseur": "lunette", "bouche": "silencieux", "chargeur": "chargeur_etendu", "rail": "lampe_tactique", "poignee": "poignee"}
-	p.accessoires["pistolet"] = {"viseur": "point_rouge", "rail": "lampe_tactique"}
-	for m in [["mun_556", 240], ["mun_9mm", 120], ["mun_12", 60], ["trousse", 3], ["bandage", 6], ["eau", 3], ["ration", 3]]:
+	for m in [["trousse", 3], ["bandage", 6], ["eau", 3], ["ration", 3]]:
 		p.add_item(m[0], m[1])
 	for i in 4:
-		p.hotbar[i] = ["fusil_assaut", "pistolet", "fusil_pompe", "machette"][i]
-	p.mags["fusil_assaut"] = int(p.arme_stats("fusil_assaut").mag)
-	p.mags["pistolet"] = int(p.arme_stats("pistolet").mag)
-	p.mags["fusil_pompe"] = int(p.arme_stats("fusil_pompe").mag)
+		p.hotbar[i] = armes[i]
 	p.slot = -1
 	p._select_slot(0)
-	Game.msg("Équipement complet : fusil d'assaut équipé de tous les accessoires, gilet, casque, sac militaire.")
+	Game.msg("Équipement complet : armes de mêlée, gilet, casque, sac militaire.")
 
 
 ## Cinq coffres posés devant le joueur, un par catégorie, avec un exemplaire de chaque objet.

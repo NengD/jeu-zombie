@@ -194,16 +194,19 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 		p.equipped[s] = entree_depuis(j.get("equipe", {}).get(s))
 	var barre: Array = j.get("barre", [])
 	for i in mini(5, barre.size()):
-		p.hotbar[i] = str(barre[i])
+		p.hotbar[i] = str(barre[i]) if Items.DB.has(str(barre[i])) else ""
 	p.mags = {}
 	for k in j.get("chargeurs", {}):
 		p.mags[k] = int(j.chargeurs[k])
 	p.accessoires = {}
 	var acc: Dictionary = j.get("accessoires", {})
 	for a in acc:
+		if not Items.DB.has(str(a)):
+			continue
 		p.accessoires[a] = {}
 		for emp in acc[a]:
-			p.accessoires[a][emp] = str(acc[a][emp])
+			if Items.DB.has(str(acc[a][emp])):
+				p.accessoires[a][emp] = str(acc[a][emp])
 	p.want_tps = bool(j.get("tps", false))
 	p.flashlight_on = bool(j.get("lampe", false))
 	p.slot = -1

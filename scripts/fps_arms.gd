@@ -18,14 +18,8 @@ const ECHELLE := 0.85
 
 # Prises mesurées sur les modèles 3D (vues de profil) : poignée (R), garde-main (L, dessous),
 # inclinaison de la poignée vers l'arrière (degrés).
-const PRISES := {
-	"pistolet": {"R": Vector3(0, -0.006, 0.014), "incl": 18.0},
-	"revolver": {"R": Vector3(0, -0.006, 0.032), "incl": 25.0},
-	"fusil_pompe": {"R": Vector3(0, 0.006, 0.07), "incl": 38.0, "L": Vector3(0, 0.006, -0.34)},
-	"fusil_artisanal": {"R": Vector3(0, -0.008, 0.047), "incl": 20.0, "L": Vector3(0, -0.006, -0.25)},
-	"carabine": {"R": Vector3(0, -0.006, 0.032), "incl": 22.0, "L": Vector3(0, 0.05, -0.24)},
-	"fusil_assaut": {"R": Vector3(0, -0.002, 0.01), "incl": 18.0, "L": Vector3(0, 0.086, -0.31)},
-}
+## Exemple : "pistolet": {"R": Vector3(0, -0.006, 0.014), "incl": 18.0, "L": Vector3(0, 0.05, -0.24)}
+const PRISES := {}
 
 # ---------------------------------------------------------------- géométrie de la main (droite)
 # Repère de la main : doigts tendus vers -Z, paume vers -Y, pouce du côté -X. Origine = centre de la paume.
@@ -46,7 +40,7 @@ const POUCE_RAYON := 0.0115
 const POIGNET := Vector3(0.0, 0.003, 0.052)
 
 const TWO_HANDED_MELEE := ["batte", "batte_cloutee", "hache", "masse"]
-const SHELL_FED := ["fusil_pompe", "fusil_artisanal", "revolver"]
+const SHELL_FED: Array = []   # armes rechargées cartouche par cartouche (ids)
 
 # Poses : angles de flexion (degrés) [1re, 2e, 3e phalange] pour index, majeur, annulaire, auriculaire, puis pouce.
 const POSES := {

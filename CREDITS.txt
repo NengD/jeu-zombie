@@ -13,9 +13,7 @@ Sons : générés pour le jeu.
 Moteur : Godot Engine (https://godotengine.org), licence MIT.
 
 Modèles 3D d'armes téléchargés (tous gratuits, licence CC0 — domaine public) :
-— AK-47 : « Free Classic Weapons Pack » de Stein Games (https://stein-indie.itch.io/classic-weapons-pack)
 — Machette, hache, pied-de-biche, masse, clé à tuyau : Poly Haven (https://polyhaven.com)
-— Pistolet, revolver, fusil à pompe, carabine : « Ultimate Gun Pack » de Quaternius (https://quaternius.com)
 — Couteau : « Survival Pack » de Quaternius ; batte cloutée : « Zombie Apocalypse Kit » de Quaternius
    (récupérés via la collection https://github.com/Papyszoo/CC0-Public-Domain-Models)
 

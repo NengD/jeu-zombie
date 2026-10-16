@@ -37,13 +37,9 @@ const DB := {
 	"masse": {"name": "Masse", "type": "melee", "damage": 80.0, "rate": 1.4, "range": 2.2, "stamina": 28.0, "len": 0.9, "color": Color(0.3, 0.3, 0.3), "weight": 4.0},
 	"cle_tuyau": {"name": "Clé à tuyau", "type": "melee", "damage": 30.0, "rate": 0.6, "range": 1.7, "stamina": 9.0, "len": 0.4, "color": Color(0.5, 0.15, 0.1), "weight": 1.2},
 	"matraque": {"name": "Matraque", "type": "melee", "damage": 30.0, "rate": 0.55, "range": 1.9, "stamina": 9.0, "len": 0.55, "color": Color(0.1, 0.1, 0.1), "weight": 0.6},
-	# --- armes à feu
-	"pistolet": {"name": "Pistolet 9 mm", "type": "gun", "sound": "tir_pistolet", "damage": 34.0, "rate": 0.22, "mag": 15, "ammo": "mun_9mm", "spread": 1.2, "noise": 45.0, "reload": 1.4, "auto": false, "pellets": 1, "range": 90.0, "recoil": 0.025, "len": 0.22, "color": Color(0.15, 0.15, 0.15), "weight": 0.9},
-	"revolver": {"name": "Revolver", "type": "gun", "sound": "tir_pistolet", "damage": 60.0, "rate": 0.5, "mag": 6, "ammo": "mun_9mm", "spread": 0.8, "noise": 55.0, "reload": 2.2, "auto": false, "pellets": 1, "range": 90.0, "recoil": 0.05, "len": 0.28, "color": Color(0.35, 0.35, 0.38), "weight": 1.1},
-	"fusil_pompe": {"name": "Fusil à pompe", "type": "gun", "sound": "tir_pompe", "damage": 17.0, "rate": 0.9, "mag": 6, "ammo": "mun_12", "spread": 5.0, "noise": 75.0, "reload": 2.6, "auto": false, "pellets": 8, "range": 40.0, "recoil": 0.08, "len": 0.75, "color": Color(0.25, 0.18, 0.12), "weight": 3.2},
-	"fusil_artisanal": {"name": "Fusil artisanal", "type": "gun", "sound": "tir_pompe", "damage": 15.0, "rate": 1.0, "mag": 1, "ammo": "mun_12", "spread": 7.0, "noise": 75.0, "reload": 2.0, "auto": false, "pellets": 8, "range": 30.0, "recoil": 0.09, "len": 0.7, "color": Color(0.4, 0.35, 0.3), "weight": 2.5},
-	"carabine": {"name": "Carabine de police", "type": "gun", "sound": "tir_fusil", "damage": 42.0, "rate": 0.2, "mag": 20, "ammo": "mun_556", "spread": 0.6, "noise": 80.0, "reload": 2.2, "auto": false, "pellets": 1, "range": 150.0, "recoil": 0.03, "len": 0.8, "color": Color(0.12, 0.12, 0.12), "weight": 3.0},
-	"fusil_assaut": {"name": "Fusil d'assaut", "type": "gun", "sound": "tir_fusil", "damage": 36.0, "rate": 0.095, "mag": 30, "ammo": "mun_556", "spread": 1.4, "noise": 85.0, "reload": 2.4, "auto": true, "pellets": 1, "range": 150.0, "recoil": 0.022, "len": 0.85, "color": Color(0.22, 0.25, 0.18), "weight": 3.6},
+	# --- armes à feu : aucune pour l'instant (les nouveaux modèles 3D vont être ajoutés).
+	# Modèle d'entrée : "id": {"name": …, "type": "gun", "sound": "tir_pistolet", "damage", "rate", "mag", "ammo": "mun_9mm",
+	#   "spread", "noise", "reload", "auto", "pellets", "range", "recoil", "len", "color", "weight"}
 	# --- vêtements / armures
 	"veste_cuir": {"name": "Veste en cuir", "type": "armor", "slot": "torse", "armor": 0.1, "weight": 1.2},
 	"veste_renforcee": {"name": "Veste renforcée", "type": "armor", "slot": "torse", "armor": 0.22, "weight": 2.0},
@@ -59,26 +55,17 @@ const DB := {
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
 	"barricade": {"name": "Barricade (à placer)", "type": "placeable", "weight": 4.0},
 	"caisse_stockage": {"name": "Caisse de stockage (à placer)", "type": "placeable", "weight": 4.0},
-	# accessoires d'armes (se posent dans la vue d'inspection : touche T)
-	"point_rouge": {"name": "Viseur point rouge", "type": "accessoire", "desc": "Viseur : visée bien plus précise."},
-	"lunette": {"name": "Lunette x4", "type": "accessoire", "desc": "Viseur pour carabine et fusil d'assaut : zoom et précision à longue distance."},
-	"silencieux": {"name": "Silencieux", "type": "accessoire", "desc": "Bouche du canon : tirs beaucoup moins bruyants (attire moins les zombies)."},
-	"silencieux_artisanal": {"name": "Silencieux artisanal", "type": "accessoire", "desc": "Bouche du canon : réduit le bruit, un peu moins précis."},
-	"chargeur_etendu": {"name": "Chargeur grande capacité", "type": "accessoire", "desc": "Chargeur : +60 % de munitions, rechargement un peu plus long."},
-	"lampe_tactique": {"name": "Lampe tactique", "type": "accessoire", "desc": "Rail : éclaire là où tu vises (touche L)."},
-	"poignee": {"name": "Poignée avant", "type": "accessoire", "desc": "Poignée : moins de recul, meilleure précision."},
+	# accessoires d'armes (vue d'inspection : touche T) : aucun pour l'instant
 }
 
 # Taille dans l'inventaire (largeur, hauteur en cases). Par défaut 1×1.
 const SIZES := {
 	"eau": [1, 2], "ration": [1, 2], "trousse": [2, 2], "alcool": [1, 2], "planche": [1, 3], "cuir": [2, 1],
 	"couteau": [1, 2], "matraque": [1, 3], "machette": [1, 3], "machette_art": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4], "pied_de_biche": [1, 3], "masse": [1, 4], "cle_tuyau": [1, 2],
-	"pistolet": [2, 1], "revolver": [2, 1], "fusil_artisanal": [3, 1], "fusil_pompe": [4, 1], "carabine": [4, 1], "fusil_assaut": [4, 2],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
 	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2],
-	"lunette": [2, 1], "silencieux": [2, 1], "silencieux_artisanal": [2, 1], "chargeur_etendu": [1, 2],
 }
 
 # Quantité maximale par case (piles). Par défaut 1.
@@ -113,34 +100,31 @@ const RECIPES := [
 	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "bench": true},
 	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "bench": true},
 	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "bench": true},
-	{"out": "fusil_artisanal", "qty": 1, "needs": {"ferraille": 5, "planche": 2, "ruban": 2}, "bench": true},
 	{"out": "mun_9mm", "qty": 10, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
 	{"out": "mun_12", "qty": 5, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
 	{"out": "mun_556", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "bench": true},
-	{"out": "silencieux_artisanal", "qty": 1, "needs": {"ferraille": 2, "ruban": 2, "tissu": 2}, "bench": true},
-	{"out": "poignee", "qty": 1, "needs": {"planche": 1, "ferraille": 1, "ruban": 1}, "bench": true},
 ]
 
 # Tables de loot : [id, poids, min, max]
 const LOOT := {
-	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["couteau", 3, 1, 1], ["batte", 2, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["pied_de_biche", 1, 1, 1], ["cle_tuyau", 1, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["revolver", 0.4, 1, 1]],
+	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["couteau", 3, 1, 1], ["batte", 2, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["pied_de_biche", 1, 1, 1], ["cle_tuyau", 1, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8]],
 	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1]],
 	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["pied_de_biche", 3, 1, 1], ["masse", 1.5, 1, 1], ["cle_tuyau", 3, 1, 1]],
 	"hopital": [["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
-	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_12", 10, 4, 10], ["poudre", 8, 1, 3], ["pistolet", 3, 1, 1], ["revolver", 2, 1, 1], ["fusil_pompe", 2, 1, 1], ["couteau", 4, 1, 1], ["machette", 3, 1, 1], ["point_rouge", 2, 1, 1], ["lampe_tactique", 2, 1, 1], ["poignee", 1.5, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["silencieux", 0.8, 1, 1]],
-	"police": [["mun_9mm", 12, 6, 18], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["pistolet", 5, 1, 1], ["matraque", 5, 1, 1], ["fusil_pompe", 3, 1, 1], ["carabine", 1.5, 1, 1], ["gilet_police", 3, 1, 1], ["casque_police", 3, 1, 1], ["bandage", 5, 1, 2], ["barre", 4, 1, 2], ["lampe_tactique", 3, 1, 1], ["point_rouge", 1.5, 1, 1], ["chargeur_etendu", 1.5, 1, 1]],
-	"militaire": [["mun_556", 12, 10, 30], ["mun_9mm", 6, 10, 20], ["ration", 10, 1, 2], ["eau", 6, 1, 2], ["trousse", 4, 1, 1], ["fusil_assaut", 2.5, 1, 1], ["gilet_militaire", 2, 1, 1], ["casque_militaire", 3, 1, 1], ["sac_militaire", 2, 1, 1], ["poudre", 4, 1, 3], ["machette", 2, 1, 1], ["point_rouge", 2, 1, 1], ["poignee", 2, 1, 1], ["chargeur_etendu", 2, 1, 1], ["lunette", 1, 1, 1], ["silencieux", 1, 1, 1]],
-	"armurerie_mil": [["fusil_assaut", 6, 1, 1], ["mun_556", 12, 20, 45], ["gilet_militaire", 5, 1, 1], ["casque_militaire", 5, 1, 1], ["carabine", 2, 1, 1], ["poudre", 5, 2, 4], ["lunette", 3, 1, 1], ["silencieux", 3, 1, 1], ["poignee", 3, 1, 1], ["point_rouge", 3, 1, 1], ["chargeur_etendu", 3, 1, 1], ["lampe_tactique", 2, 1, 1]],
+	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_12", 10, 4, 10], ["poudre", 8, 1, 3], ["couteau", 4, 1, 1], ["machette", 3, 1, 1]],
+	"police": [["mun_9mm", 12, 6, 18], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["matraque", 5, 1, 1], ["gilet_police", 3, 1, 1], ["casque_police", 3, 1, 1], ["bandage", 5, 1, 2], ["barre", 4, 1, 2]],
+	"militaire": [["mun_556", 12, 10, 30], ["mun_9mm", 6, 10, 20], ["ration", 10, 1, 2], ["eau", 6, 1, 2], ["trousse", 4, 1, 1], ["gilet_militaire", 2, 1, 1], ["casque_militaire", 3, 1, 1], ["sac_militaire", 2, 1, 1], ["poudre", 4, 1, 3], ["machette", 2, 1, 1]],
+	"armurerie_mil": [["mun_556", 12, 20, 45], ["gilet_militaire", 5, 1, 1], ["casque_militaire", 5, 1, 1], ["poudre", 5, 2, 4]],
 	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["cle_tuyau", 2, 1, 1], ["pied_de_biche", 1.5, 1, 1]],
-	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["fusil_pompe", 0.8, 1, 1]],
+	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6]],
 	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["ruban", 4, 1, 1], ["masse", 1.5, 1, 1], ["pied_de_biche", 2, 1, 1]],
-	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["pistolet", 2, 1, 1], ["fusil_pompe", 1.5, 1, 1], ["sac_a_dos", 2, 1, 1], ["point_rouge", 1.5, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["poudre", 4, 1, 3]],
-	"boss": [["fusil_assaut", 6, 1, 1], ["mun_556", 10, 30, 60], ["lunette", 5, 1, 1], ["silencieux", 5, 1, 1], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["lampe_tactique", 4, 1, 1], ["carabine", 3, 1, 1]],
+	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3]],
+	"boss": [["mun_556", 10, 30, 60], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3]],
 	"zombie_civil": [["barre", 4, 1, 1], ["tissu", 6, 1, 2], ["bandage", 2, 1, 1], ["antidouleur", 1, 1, 1], ["mun_9mm", 1, 2, 5]],
-	"zombie_police": [["mun_9mm", 10, 4, 12], ["matraque", 3, 1, 1], ["pistolet", 1.5, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
-	"zombie_boss": [["mun_556", 10, 20, 40], ["trousse", 6, 1, 2], ["fusil_assaut", 3, 1, 1], ["gilet_militaire", 3, 1, 1], ["lunette", 3, 1, 1], ["silencieux", 3, 1, 1], ["ration", 6, 1, 3]],
-	"zombie_militaire": [["mun_556", 10, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1], ["fusil_assaut", 0.4, 1, 1]],
+	"zombie_police": [["mun_9mm", 10, 4, 12], ["matraque", 3, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
+	"zombie_boss": [["mun_556", 10, 20, 40], ["trousse", 6, 1, 2], ["gilet_militaire", 3, 1, 1], ["ration", 6, 1, 3]],
+	"zombie_militaire": [["mun_556", 10, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1]],
 }
 
 

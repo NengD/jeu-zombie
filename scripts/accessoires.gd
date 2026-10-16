@@ -9,25 +9,14 @@ const NOMS_EMPLACEMENTS := {"viseur": "Viseur", "bouche": "Bouche du canon", "ch
 		"rail": "Rail (lampe)", "poignee": "Poignée"}
 
 ## Accessoires compatibles pour chaque arme, par emplacement.
-const COMPAT := {
-	"pistolet": {"viseur": ["point_rouge"], "bouche": ["silencieux", "silencieux_artisanal"], "chargeur": ["chargeur_etendu"], "rail": ["lampe_tactique"]},
-	"revolver": {"viseur": ["point_rouge"]},
-	"fusil_pompe": {"viseur": ["point_rouge"], "rail": ["lampe_tactique"], "poignee": ["poignee"]},
-	"fusil_artisanal": {"rail": ["lampe_tactique"]},
-	"carabine": {"viseur": ["point_rouge", "lunette"], "bouche": ["silencieux", "silencieux_artisanal"], "chargeur": ["chargeur_etendu"], "rail": ["lampe_tactique"], "poignee": ["poignee"]},
-	"fusil_assaut": {"viseur": ["point_rouge", "lunette"], "bouche": ["silencieux", "silencieux_artisanal"], "chargeur": ["chargeur_etendu"], "rail": ["lampe_tactique"], "poignee": ["poignee"]},
-}
+## Accessoires compatibles pour chaque arme, par emplacement : {"arme": {"viseur": ["id_accessoire"], …}}
+## Vide pour l'instant (les nouvelles armes et accessoires vont être ajoutés).
+const COMPAT := {}
 
 ## Effets : multiplicateurs (précision = dispersion, bruit, dégâts, recul, capacité, champ de vision en visée).
-const EFFETS := {
-	"point_rouge": {"dispersion_visee": 0.6, "fov_visee": 0.92},
-	"lunette": {"dispersion_visee": 0.3, "fov_visee": 0.86, "dispersion": 1.15},
-	"silencieux": {"bruit": 0.3, "degats": 0.93},
-	"silencieux_artisanal": {"bruit": 0.55, "degats": 0.9, "dispersion": 1.1},
-	"chargeur_etendu": {"capacite": 1.6, "rechargement": 1.15},
-	"lampe_tactique": {"lampe": true},
-	"poignee": {"recul": 0.55, "dispersion": 0.8},
-}
+## Effets possibles d'un accessoire : dispersion_visee, fov_visee, dispersion, bruit, degats, recul,
+## capacite, rechargement (multiplicateurs) et lampe (true). Exemple : "silencieux": {"bruit": 0.3, "degats": 0.93}
+const EFFETS := {}
 
 
 static func compatibles(arme: String, emplacement: String) -> Array:
@@ -80,13 +69,7 @@ static var _points := {}
 
 ## Corrections mesurées sur les vues de profil des modèles : dessus de la carcasse (viseur),
 ## bas du chargeur (et son inclinaison, en degrés, positive = bas du chargeur vers l'avant).
-const POINTS_FIXES := {
-	"fusil_assaut": {"viseur": Vector3(0, 0.124, -0.07), "chargeur": Vector3(0, -0.058, -0.236), "incl_chargeur": 46.0},
-	"carabine": {"viseur": Vector3(0, 0.12, -0.03), "chargeur": Vector3(0, -0.136, -0.13), "incl_chargeur": 8.0},
-	"pistolet": {"viseur": Vector3(0, 0.085, -0.03), "chargeur": Vector3(0, -0.061, 0.022), "incl_chargeur": -18.0, "rail": Vector3(0, 0.034, -0.075)},
-	"revolver": {"viseur": Vector3(0, 0.072, -0.03)},
-	"fusil_pompe": {"viseur": Vector3(0, 0.086, -0.02)},
-}
+const POINTS_FIXES := {}
 
 
 ## Points de montage calculés sur la géométrie de l'arme (repère de l'arme : canon vers -Z, origine = poignée).
@@ -231,88 +214,7 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 	var noir := _mat(Color(0.06, 0.06, 0.065), 0.5, 0.45)
 	var mat_noir := _mat(Color(0.1, 0.1, 0.1), 0.2, 0.8)
 	match id:
-		"point_rouge":
-			_boite(n, Vector3(0.024, 0.012, 0.05), Vector3(0, 0.006, 0), noir)
-			var noir_creux := noir.duplicate()
-			noir_creux.cull_mode = BaseMaterial3D.CULL_DISABLED
-			_cyl(n, 0.017, 0.045, Vector3(0, 0.03, 0), noir_creux, true, -1.0, true)
-			# verre traité (légèrement teinté) : on voit à travers, le point rouge est projeté au centre
-			var verre := _mat(Color(0.55, 0.75, 0.7, 0.16), 0.0, 0.02)
-			verre.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			verre.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			_cyl(n, 0.0155, 0.001, Vector3(0, 0.03, -0.021), verre)
-			var point := _mat(Color(1, 0.1, 0.05))
-			point.emission_enabled = true
-			point.emission = Color(1, 0.1, 0.05)
-			point.emission_energy_multiplier = 4.0
-			var s := MeshInstance3D.new()
-			var sm := SphereMesh.new()
-			sm.radius = 0.0012
-			sm.height = 0.0024
-			s.mesh = sm
-			s.material_override = point
-			s.position = Vector3(0, 0.03, -0.019)
-			n.add_child(s)
-		"lunette":
-			# lunette basse : colliers serrés autour du tube, embases courtes posées sur le rail
-			var h := 0.03
-			for z in [-0.05, 0.05]:
-				_cyl(n, 0.0178, 0.01, Vector3(0, h, z), noir)
-				_boite(n, Vector3(0.014, h - 0.012, 0.01), Vector3(0, (h - 0.012) / 2.0, z), noir)
-			_boite(n, Vector3(0.016, 0.004, 0.125), Vector3(0, 0.002, 0), noir)
-			_cyl(n, 0.015, 0.2, Vector3(0, h, 0), noir)
-			_cyl(n, 0.015, 0.05, Vector3(0, h, -0.12), noir, true, 0.023)
-			_cyl(n, 0.018, 0.04, Vector3(0, h, 0.115), noir, true, 0.015)
-			_cyl(n, 0.008, 0.009, Vector3(0, h + 0.019, 0), noir, false)
-			var tour := _cyl(n, 0.008, 0.009, Vector3(0.019, h, 0), noir, false)
-			tour.rotation.z = PI / 2.0
-			var verre := _mat(Color(0.15, 0.25, 0.35), 0.8, 0.05)
-			_cyl(n, 0.021, 0.003, Vector3(0, h, -0.146), verre)
-			# oculaire (côté œil) : reçoit l'image grossie quand on vise
-			var oc := MeshInstance3D.new()
-			oc.name = "Oculaire"
-			var qm := QuadMesh.new()
-			qm.size = Vector2(0.038, 0.038)
-			oc.mesh = qm
-			oc.position = Vector3(0, 0.03, 0.1365)
-			var om := _mat(Color(0.05, 0.08, 0.1), 0.6, 0.05)
-			oc.material_override = om
-			n.add_child(oc)
-		"silencieux":
-			_cyl(n, 0.017, 0.17, Vector3(0, 0, -0.085), noir)
-			_cyl(n, 0.019, 0.012, Vector3(0, 0, -0.006), noir)
-		"silencieux_artisanal":
-			var ruban := _mat(Color(0.55, 0.55, 0.58), 0.1, 0.7)
-			_cyl(n, 0.024, 0.16, Vector3(0, 0, -0.08), _mat(Color(0.35, 0.33, 0.3), 0.6, 0.6))
-			for z in [-0.02, -0.08, -0.14]:
-				_cyl(n, 0.026, 0.02, Vector3(0, 0, z), ruban)
-		"chargeur_etendu":
-			# rallonge sous le chargeur d'origine (le haut touche le bas du chargeur)
-			_boite(n, Vector3(0.026, 0.045, 0.05), Vector3(0, -0.0215, 0.0), noir)
-			_boite(n, Vector3(0.03, 0.01, 0.056), Vector3(0, -0.047, 0.0), noir)
-		"lampe_tactique":
-			_boite(n, Vector3(0.02, 0.012, 0.03), Vector3(0, -0.006, 0), noir)
-			_cyl(n, 0.016, 0.1, Vector3(0, -0.026, -0.02), noir)
-			_cyl(n, 0.019, 0.025, Vector3(0, -0.026, -0.075), noir)
-			var lentille := _mat(Color(1, 0.97, 0.85))
-			lentille.emission_enabled = true
-			lentille.emission = Color(1, 0.95, 0.8)
-			lentille.emission_energy_multiplier = 1.5
-			_cyl(n, 0.016, 0.002, Vector3(0, -0.026, -0.088), lentille)
-			if lumiere:
-				var sl := SpotLight3D.new()
-				sl.name = "Lumiere"
-				sl.spot_range = 30.0
-				sl.spot_angle = 22.0
-				sl.light_energy = 3.5
-				sl.light_color = Color(1.0, 0.96, 0.88)
-				sl.shadow_enabled = true
-				sl.position = Vector3(0, -0.026, -0.1)
-				sl.visible = false
-				n.add_child(sl)
-		"poignee":
-			_boite(n, Vector3(0.02, 0.012, 0.035), Vector3(0, -0.006, 0), noir)
-			_cyl(n, 0.014, 0.09, Vector3(0, -0.055, 0), mat_noir, false, 0.016)
+		# modèles des accessoires : à ajouter avec les nouveaux modèles 3D
 		_:
 			return null
 	return n

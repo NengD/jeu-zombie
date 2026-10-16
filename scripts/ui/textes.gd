@@ -37,17 +37,14 @@ const GUIDE := """[b]LES BASES[/b]
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
 
 [b]INVENTAIRE[/b]
-• Chaque objet occupe des cases : une conserve 1×1, un pistolet 2×1, un fusil d'assaut 4×2…
+• Chaque objet occupe des cases : une conserve 1×1, une batte 1×4, un sac 3×3…
 • Glisse-dépose les objets entre tes poches, ton sac et les meubles fouillés. [b]R[/b] pendant le glissement pour tourner un objet.
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
 
-[b]ACCESSOIRES D'ARMES[/b]
-• Appuie sur [b]T[/b] pour inspecter ton arme à feu : fais-la tourner à la souris et pose ou retire ses accessoires.
-• [b]Viseur point rouge / lunette[/b] : visée plus précise (la lunette zoome). [b]Silencieux[/b] : tes tirs attirent beaucoup moins les zombies.
-• [b]Chargeur grande capacité[/b] : plus de balles par chargeur. [b]Lampe tactique[/b] : éclaire où tu vises (touche L). [b]Poignée[/b] : moins de recul.
-• On les trouve au poste de police, à l'armurerie et à la base militaire. Silencieux artisanal et poignée se fabriquent à l'établi.
+[b]ARMES À FEU[/b]
+• Les armes à feu et leurs accessoires ont été retirés : de nouveaux modèles 3D vont les remplacer. En attendant, place aux armes de mêlée !
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration).
@@ -68,8 +65,8 @@ const GUIDE := """[b]LES BASES[/b]
 5. Les barricades se posent n'importe où, par exemple dans une porte. Les zombies peuvent les casser.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
-• [b]Poste de police[/b] : pistolets, fusil à pompe, carabine, gilets pare-balles.
-• [b]Base militaire[/b] : fusil d'assaut, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
+• [b]Poste de police[/b] : matraques, munitions, gilets pare-balles.
+• [b]Base militaire[/b] : munitions, rations, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
 • [b]Supermarché[/b] : nourriture et boissons.
 • [b]Armurerie[/b] : armes et munitions.
