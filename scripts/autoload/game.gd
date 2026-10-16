@@ -17,6 +17,18 @@ var player: CharacterBody3D = null
 var zones: Array = []      # bâtiments : {aabb, doors, kind, name}
 var pois: Array = []       # points d'intérêt pour la carte : {name, pos, color}
 var map_rects: Array = []  # rectangles de la carte : {rect, color}
+var relief = null          # relief de la campagne (scripts/relief.gd)
+var carte_relief: Texture2D = null
+var grotte_rect := Rect2()   # emprise de la grotte (ambiance, écho)
+
+
+## Hauteur du sol à l'extérieur (0 en ville et sur les routes).
+func hauteur(x: float, z: float) -> float:
+	return relief.hauteur(x, z) if relief else 0.0
+
+
+func dans_eau(pos: Vector3) -> bool:
+	return relief != null and relief.dans_eau(pos.x, pos.z) and pos.y < -0.8
 var map_half := 700.0
 var city_half := 161.0
 var ui_open := false
@@ -45,6 +57,7 @@ func reset() -> void:
 	zones.clear()
 	pois.clear()
 	map_rects.clear()
+	relief = null
 	ui_open = false
 	time_hours = 8.0
 	day = 1

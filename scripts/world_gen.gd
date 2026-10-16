@@ -7,6 +7,8 @@ extends Node3D
 
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Porte = preload("res://scripts/porte.gd")
+const Relief = preload("res://scripts/relief.gd")
+const Neon = preload("res://scripts/neon.gd")
 
 const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
@@ -86,6 +88,9 @@ var trees: Array = []      # Vector3
 var spawn_point := Vector3.ZERO
 var spawn_zone: Dictionary = {}
 var half := 0.0
+var relief = null            # relief de la campagne (collines, lacs, rivière)
+var routes: Array = []       # [{r: Rect2, x: bool (le long de x)}]
+var plats: Array = []        # zones à garder plates (villages, fermes) sans bloquer les constructions
 
 
 func build(seed_value: int) -> Vector3:
@@ -104,6 +109,7 @@ func build(seed_value: int) -> Vector3:
 	_city()
 	_countryside()
 	_military_base(Vector3(-255, 0, -250))
+	_relief()
 	_trees()
 	_vegetation()
 	_commit()
@@ -234,23 +240,11 @@ func _commit() -> void:
 
 # ================================================================ sol
 func _ground() -> void:
-	var size := Game.map_half * 2.0 + 300.0
-	var mi := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(size, size)
-	mi.mesh = pm
-	var gm: StandardMaterial3D = mats["herbe"].duplicate()
-	gm.vertex_color_use_as_albedo = false
-	gm.albedo_color = Color(0.85, 0.85, 0.8)
-	gm.uv1_scale = Vector3(size / 3.0, size / 3.0, 1.0)
-	mi.material_override = gm
-	add_child(mi)
+	# le sol lui-même (relief) est construit plus tard, une fois tous les lieux placés
 	var body := StaticBody3D.new()
 	body.collision_layer = Game.LAYER_WORLD
-	var cs := CollisionShape3D.new()
-	cs.shape = WorldBoundaryShape3D.new()
-	body.add_child(cs)
 	add_child(body)
+	reserved.append(Rect2(-half - 10, -half - 10, 2 * half + 20, 2 * half + 20))
 	# limites invisibles de la carte
 	var m := Game.map_half
 	for e in [[Vector3(m, 5, 0), Vector3(1, 10, 2 * m)], [Vector3(-m, 5, 0), Vector3(1, 10, 2 * m)], [Vector3(0, 5, m), Vector3(2 * m, 10, 1)], [Vector3(0, 5, -m), Vector3(2 * m, 10, 1)]]:
@@ -286,6 +280,7 @@ func _road(a: Vector2, b: Vector2, width: float, col := C_ASPHALT, lines := true
 		else:
 			_flat(pr, 0.02, col)
 	_reserve(r, Color(0.12, 0.12, 0.12) if col == C_ASPHALT else Color(0.35, 0.28, 0.18))
+	routes.append({"r": r, "x": along_x})
 	if lines:
 		var d := 0.0
 		while d < length - 4.0:
@@ -559,6 +554,7 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 		if k > 0:
 			nf = maxi(2, int(nf * 0.7))
 		_furnish(zone, kind, nf, placed)
+		_plafonnier(Vector3(c.x + rng.randf_range(-w, w) * 0.15, base + haut_etage - (0.3 if k < n - 1 else 0.05), c.z + rng.randf_range(-d, d) * 0.15), kind, label != "")
 		if k > 0:
 			var rk := {"hopital": "patient", "police": "police", "militaire": "militaire", "armurerie_mil": "militaire"}
 			_residents(zone, 0.45, 2, rk.get(kind, "civil"))
@@ -1169,6 +1165,15 @@ func _countryside() -> void:
 	var hx := -half + 4 * BLOCK   # autoroute nord-sud
 	var hz := -half + 3 * BLOCK   # autoroute est-ouest
 	var m := Game.map_half
+	# tracé de la rivière (au nord de la ville), réservé avant tout le reste
+	relief = Relief.new()
+	relief.riv_p1 = rng.randf() * TAU
+	relief.riv_p2 = rng.randf() * TAU
+	var xr := -m - 150.0
+	while xr < m + 150.0:
+		var zr: float = relief.riviere_z(xr)
+		reserved.append(Rect2(xr - 4.0, zr - 15.0, 8.0, 30.0))
+		xr += 8.0
 	_road(Vector2(hx, half + 5), Vector2(hx, m), 11.0)
 	_road(Vector2(hx, -m), Vector2(hx, -half - 5), 11.0)
 	_road(Vector2(half + 5, hz), Vector2(m, hz), 11.0)
@@ -1239,6 +1244,7 @@ func _farm(c: Vector3, hx: float, hz: float, label: String) -> void:
 	_residents(house, 0.7, 2)
 	_residents(barn, 0.8, 3)
 	_poi(label, c, Color(0.85, 0.6, 0.35))
+	plats.append(Rect2(c.x - 60, c.z - 50, 120, 110))
 	# champs et clôtures
 	for i in 4:
 		var dir := signf(c.z)
@@ -1354,6 +1360,8 @@ func _trees() -> void:
 			var r := Rect2(p.x - 2.5, p.z - 2.5, 5, 5)
 			if _overlaps(r):
 				continue
+			if relief and (relief.dans_eau(p.x, p.z) or relief.pente(p.x, p.z) > 0.3):
+				continue
 		final.append(p)
 	trees = final
 	var body := StaticBody3D.new()
@@ -1368,7 +1376,10 @@ func _trees() -> void:
 		var p: Vector3 = trees[i]
 		var s := rng.randf_range(0.8, 1.3)
 		var en_ville := absf(p.x) < half + 10 and absf(p.z) < half + 10
-		var id: String = feuillus[rng.randi() % feuillus.size()] if (en_ville or rng.randf() < 0.65) else sapins[rng.randi() % sapins.size()]
+		p.y = relief.hauteur(p.x, p.z) - 0.1 if relief else 0.0
+		# plus de sapins sur les hauteurs
+		var p_sapin := 0.35 + smoothstep(6.0, 22.0, p.y) * 0.5
+		var id: String = feuillus[rng.randi() % feuillus.size()] if (en_ville or rng.randf() > p_sapin) else sapins[rng.randi() % sapins.size()]
 		var cle := "%s|%d|%d" % [id, floori(p.x / 128.0), floori(p.z / 128.0)]
 		if not groupes.has(cle):
 			groupes[cle] = []
@@ -1408,6 +1419,10 @@ func _vegetation() -> void:
 			continue
 		if _overlaps(Rect2(p.x - 2, p.z - 2, 4, 4)):
 			continue
+		if relief:
+			if relief.dans_eau(p.x, p.z):
+				continue
+			p.y = relief.hauteur(p.x, p.z) - 0.05
 		var c: Array = choix[rng.randi() % choix.size()]
 		_prop(c[0], p, rng.randf() * TAU, c[1], rng.randf_range(0.7, 1.3), 220.0)
 	# buissons dans les parcs et le long des maisons
@@ -1435,6 +1450,7 @@ func _village(c: Vector3, route: float, nom: String, est_ouest := false) -> void
 	_road(Vector2(t1.x, t1.z), Vector2(t2.x, t2.z), 7.0)
 	_poi(nom, c, Color(0.9, 0.7, 0.45))
 	Game.map_rects.append({"rect": Rect2(c.x - 100, c.z - 100, 200, 200), "color": Color(0.3, 0.33, 0.22, 0.35)})
+	plats.append(Rect2(c.x - 95, c.z - 95, 190, 190))
 	var maisons := 0
 	var speciaux := [["Église", "eglise"], ["Épicerie", "magasin"], ["Mairie", "bureau"], ["Bar du village", "magasin"]]
 	var rues := [[debut + axe * sg * 25.0, axe * sg, absf(c_axe - route) + lg / 2.0 - 30.0], [t1 + trans * 5.0, trans, 130.0]]
@@ -1553,6 +1569,7 @@ func _grotte(c: Vector3, route_x: float) -> void:
 	var tx1 := x1 + tl
 	_road(Vector2(tx1 + 2.0, c.z), Vector2(route_x - 6.0, c.z), 5.0, C_DIRT, false)
 	_reserve(Rect2(x0 - 12, z0 - 12, (tx1 - x0) + 24, (z1 - z0) + 24))
+	Game.grotte_rect = Rect2(x0 - ep, z0 - ep, (tx1 - x0) + ep, (z1 - z0) + 2 * ep)
 	# sol
 	_flat(Rect2(x0, z0, x1 - x0, z1 - z0), 0.015, col.darkened(0.25), "roche")
 	_flat(Rect2(x1, c.z - tw / 2.0, tl, tw), 0.015, col.darkened(0.25), "roche")
@@ -1620,6 +1637,7 @@ func _grotte(c: Vector3, route_x: float) -> void:
 		lum.position = Vector3(x0 + 2.0 + i * 20.0, 0.4, z0 + 2.0 + i * 20.0)
 		decor.add_child(lum)
 		_box(lum.position - Vector3(0, 0.3, 0), Vector3(0.9, 0.15, 0.9), Color(0.15, 0.08, 0.05), false)
+	_grotte_details(c, x0, x1, z0, z1, hs, x1, tx1, tw, th, col)
 	# trésor du Colosse
 	var coffre := _container(Vector3(x0 + 2.0, 0, c.z), Vector3(1.4, 0.9, 0.9), Color(0.25, 0.3, 0.2), "Cache du Colosse", "boss", 7)
 	if Decor.existe("caisse_mil"):
@@ -1637,3 +1655,398 @@ func _grotte(c: Vector3, route_x: float) -> void:
 		guards.append({"pos": Vector3(tx1 + rng.randf_range(4, 18), 0.1, c.z + rng.randf_range(-14, 14)), "kind": "civil", "radius": 12.0})
 	_poi("Grotte du Colosse (boss)", Vector3(c.x, 0, c.z), Color(0.75, 0.3, 0.95))
 	Game.map_rects.append({"rect": Rect2(x0 - ep, z0 - ep, (tx1 - x0) + ep, (z1 - z0) + 2 * ep), "color": Color(0.42, 0.4, 0.38)})
+
+
+
+# ================================================================ relief
+const TerrainShader = preload("res://shaders/terrain.gdshader")
+const EauShader = preload("res://shaders/eau.gdshader")
+
+
+## Collines, lacs, rivière, ponts, ponton, antenne, lignes électriques et rochers.
+func _relief() -> void:
+	var m := Game.map_half
+	# --- lacs (dans la campagne, loin de tout)
+	var essais := 0
+	while relief.lacs.size() < 5 and essais < 400:
+		essais += 1
+		var r := rng.randf_range(24.0, 46.0)
+		var c := Vector2(rng.randf_range(-m + 80, m - 80), rng.randf_range(-m + 80, m - 80))
+		if absf(c.x) < half + 60 and absf(c.y) < half + 60:
+			continue
+		var re := Rect2(c.x - r * 1.3 - 6, c.y - r * 1.3 - 6, r * 2.6 + 12, r * 2.6 + 12)
+		if _overlaps(re) or relief.dist_riviere(c.x, c.y) < r * 1.4 + 30.0:
+			continue
+		var proche := false
+		for l in relief.lacs:
+			if Vector2(l.c).distance_to(c) < r + float(l.r) + 60.0:
+				proche = true
+		if proche:
+			continue
+		relief.lacs.append({"c": c, "r": r, "p": [rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU], "prof": rng.randf_range(1.2, 1.8)})
+		reserved.append(re)
+	# cabane de pêche et ponton sur le premier lac (côté ville)
+	if not relief.lacs.is_empty():
+		_cabane_peche(relief.lacs[0])
+	# --- calcul du relief
+	var occupe: Array = reserved.duplicate()
+	occupe.append_array(plats)
+	relief.generer(rng.randi(), m, occupe)
+	Game.relief = relief
+	# --- sol
+	var tm := ShaderMaterial.new()
+	tm.shader = TerrainShader
+	for t in ["herbe", "terre", "roche"]:
+		tm.set_shader_parameter(t, load("res://textures/%s_albedo.jpg" % t))
+		tm.set_shader_parameter(t + "_n", load("res://textures/%s_normal.png" % t))
+	var sol := Node3D.new()
+	sol.name = "Sol"
+	add_child(sol)
+	relief.construire_maillage(sol, tm)
+	relief.construire_collision(self, Game.LAYER_WORLD)
+	Game.carte_relief = ImageTexture.create_from_image(relief.image_carte(m))
+
+	# --- eau
+	var em := ShaderMaterial.new()
+	em.shader = EauShader
+	for k in ["vagues1", "vagues2"]:
+		var nt := NoiseTexture2D.new()
+		nt.width = 256
+		nt.height = 256
+		nt.seamless = true
+		nt.as_normal_map = true
+		nt.bump_strength = 6.0
+		var fn := FastNoiseLite.new()
+		fn.seed = rng.randi()
+		fn.frequency = 0.03 if k == "vagues1" else 0.05
+		nt.noise = fn
+		em.set_shader_parameter(k, nt)
+	var er := em.duplicate()
+	er.set_shader_parameter("courant", Vector2(0.02, 0.0))
+	_eau_riviere(er)
+	for l in relief.lacs:
+		_eau_lac(l, em)
+	if not relief.lacs.is_empty():
+		var l0: Vector2 = relief.lacs[0].c
+		_poi("Étang", Vector3(l0.x, 0, l0.y), Color(0.4, 0.65, 0.95))
+	# --- ponts là où une route traverse la rivière
+	for rt in routes:
+		if rt.x:
+			continue
+		var rr: Rect2 = rt.r
+		var xc := rr.get_center().x
+		var zr: float = relief.riviere_z(xc)
+		if zr > rr.position.y and zr < rr.end.y:
+			_pont(xc, zr, rr.size.x)
+	_antenne()
+	# --- lignes électriques le long des autoroutes
+	var hx := -half + 4 * BLOCK
+	var hz := -half + 3 * BLOCK
+	_ligne_electrique(Vector2(hx + 9.0, half + 20.0), Vector2(hx + 9.0, m - 15.0))
+	_ligne_electrique(Vector2(hx - 9.0, -half - 20.0), Vector2(hx - 9.0, -m + 15.0))
+	_ligne_electrique(Vector2(half + 20.0, hz - 9.0), Vector2(m - 15.0, hz - 9.0))
+	_ligne_electrique(Vector2(-half - 20.0, hz + 9.0), Vector2(-m + 15.0, hz + 9.0))
+	# --- rochers sur les pentes
+	var n_roc := 0
+	for i in 2500:
+		if n_roc >= 260:
+			break
+		var p := Vector3(rng.randf_range(-m + 20, m - 20), 0, rng.randf_range(-m + 20, m - 20))
+		if relief.pente(p.x, p.z) < 0.12 or _overlaps(Rect2(p.x - 3, p.z - 3, 6, 6)):
+			continue
+		var k := rng.randf_range(1.4, 4.0)
+		p.y = relief.hauteur(p.x, p.z) - k * 0.3
+		_prop("rocher", p, rng.randf() * TAU, true, k, 300.0)
+		n_roc += 1
+
+
+
+func _eau_riviere(materiau: Material) -> void:
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	var x: float = -relief.demi
+	var lg := Relief.RIV_DEMI_LARGEUR * 1.5
+	var k := 0
+	while x <= relief.demi:
+		var z: float = relief.riviere_z(x)
+		var s: float = relief.riviere_pente(x)
+		var nrm := Vector2(-s, 1.0).normalized() * lg
+		verts.append(Vector3(x - nrm.x, Relief.NIVEAU_EAU, z - nrm.y))
+		verts.append(Vector3(x + nrm.x, Relief.NIVEAU_EAU, z + nrm.y))
+		if k > 0:
+			var a := (k - 1) * 2
+			idx.append_array([a, a + 2, a + 1, a + 1, a + 2, a + 3])
+		k += 1
+		x += 4.0
+	_maillage_eau(verts, idx, materiau)
+
+
+func _eau_lac(l: Dictionary, materiau: Material) -> void:
+	var c: Vector2 = l.c
+	var verts := PackedVector3Array([Vector3(c.x, Relief.NIVEAU_EAU, c.y)])
+	var idx := PackedInt32Array()
+	var nseg := 64
+	for i in nseg + 1:
+		var a := TAU * i / nseg
+		var r: float = Relief.rayon_lac(l, a) * 1.1
+		verts.append(Vector3(c.x + cos(a) * r, Relief.NIVEAU_EAU, c.y + sin(a) * r))
+		if i > 0:
+			idx.append_array([0, i + 1, i])
+	_maillage_eau(verts, idx, materiau)
+
+
+func _maillage_eau(verts: PackedVector3Array, idx: PackedInt32Array, materiau: Material) -> void:
+	var norms := PackedVector3Array()
+	norms.resize(verts.size())
+	norms.fill(Vector3.UP)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_INDEX] = idx
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.material_override = materiau
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+## Pont en béton (tablier + parapets) pour une route nord-sud au-dessus de la rivière.
+func _pont(xc: float, zr: float, largeur: float) -> void:
+	var lg := Relief.RIV_DEMI_LARGEUR * 3.2 + 8.0
+	var col := Color(0.8, 0.79, 0.76)
+	_box(Vector3(xc, -0.3, zr), Vector3(largeur + 1.2, 0.6, lg), col, true, "beton")
+	for sd in [-1.0, 1.0]:
+		_box(Vector3(xc + sd * (largeur / 2.0 + 0.35), 0.45, zr), Vector3(0.4, 0.9, lg), col, true, "beton")
+		_box(Vector3(xc + sd * (largeur / 2.0 + 0.35), 0.95, zr), Vector3(0.5, 0.1, lg), col.darkened(0.1), false, "beton")
+	# piles dans l'eau
+	for dz in [-lg / 4.0, lg / 4.0]:
+		_box(Vector3(xc, -1.6, zr + dz), Vector3(largeur - 2.0, 2.0, 1.0), col.darkened(0.15), true, "beton")
+	_poi("Pont", Vector3(xc, 0, zr), Color(0.75, 0.75, 0.7))
+
+
+## Cabane de pêcheur au bord d'un lac, avec un ponton en bois.
+func _cabane_peche(l: Dictionary) -> void:
+	var c: Vector2 = l.c
+	var dir := (-c).normalized()
+	var a := dir.angle()
+	var r: float = Relief.rayon_lac(l, a)
+	var pc := c + dir * (r + 9.0)
+	var porte := ""
+	if absf(dir.x) > absf(dir.y):
+		porte = "w" if dir.x > 0 else "e"
+	else:
+		porte = "n" if dir.y > 0 else "s"
+	var z := _building(Vector3(pc.x, 0, pc.y), 7.0, 6.0, 3.6, Color(0.55, 0.42, 0.3), [porte], "maison", "Cabane de pêche", false, 4, Color(0.55, 0.42, 0.3), "pente")
+	_residents(z, 0.5, 1)
+	# ponton : du bord vers le centre du lac
+	var bois := Color(0.62, 0.48, 0.34)
+	var p0 := c + dir * (r + 1.5)
+	var p1 := c + dir * (r - 13.0)
+	var mid := (p0 + p1) / 2.0
+	var long := p0.distance_to(p1)
+	var le_long_x := absf(dir.x) > absf(dir.y)
+	var taille := Vector3(long, 0.2, 2.2) if le_long_x else Vector3(2.2, 0.2, long)
+	_box(Vector3(mid.x, 0.18, mid.y), taille, bois, true, "planches")
+	for t in 5:
+		var pp := p0.lerp(p1, t / 4.0)
+		for sd in [-1.0, 1.0]:
+			var off := Vector2(0, sd * 1.0) if le_long_x else Vector2(sd * 1.0, 0)
+			_box(Vector3(pp.x + off.x, -1.0, pp.y + off.y), Vector3(0.2, 2.4, 0.2), bois.darkened(0.3), false, "planches")
+	var barque := _container(Vector3(p1.x + (0.0 if le_long_x else 2.2), 0.3, p1.y + (2.2 if le_long_x else 0.0)), Vector3(1.2, 0.5, 0.7), Color(0.35, 0.3, 0.25), "Caisse du pêcheur", "ferme", 3)
+	barque.set_texture("planches")
+	reserved.append(Rect2(minf(p0.x, p1.x) - 3, minf(p0.y, p1.y) - 3, absf(p1.x - p0.x) + 6, absf(p1.y - p0.y) + 6))
+
+
+## Antenne relais sur le point le plus haut de la carte jouable.
+func _antenne() -> void:
+	var m := Game.map_half - 90.0
+	var best := Vector3(0, -100, 0)
+	var x := -m
+	while x < m:
+		var z := -m
+		while z < m:
+			var y: float = relief.hauteur(x, z)
+			if y > best.y and relief.pente(x, z) < 0.25 and not _overlaps(Rect2(x - 6, z - 6, 12, 12)):
+				best = Vector3(x, y, z)
+			z += 8.0
+		x += 8.0
+	if best.y < 6.0:
+		return
+	var metal := Color(0.7, 0.7, 0.72)
+	var hm := 30.0
+	for o in [Vector2(-0.9, -0.9), Vector2(0.9, -0.9), Vector2(-0.9, 0.9), Vector2(0.9, 0.9)]:
+		_box(best + Vector3(o.x, hm / 2.0 - 1.0, o.y), Vector3(0.18, hm, 0.18), metal, true, "metal")
+	var y2 := 3.0
+	while y2 < hm:
+		_box(best + Vector3(0, y2, -0.9), Vector3(1.9, 0.08, 0.08), metal, false, "metal")
+		_box(best + Vector3(0, y2, 0.9), Vector3(1.9, 0.08, 0.08), metal, false, "metal")
+		_box(best + Vector3(-0.9, y2, 0), Vector3(0.08, 0.08, 1.9), metal, false, "metal")
+		_box(best + Vector3(0.9, y2, 0), Vector3(0.08, 0.08, 1.9), metal, false, "metal")
+		y2 += 3.0
+	for k in 3:
+		_box(best + Vector3(0.0, hm - 3.0 - k * 1.5, -1.2), Vector3(0.6, 1.2, 0.15), Color(0.85, 0.85, 0.85), false, "metal")
+	var feu := OmniLight3D.new()
+	feu.light_color = Color(1.0, 0.15, 0.1)
+	feu.light_energy = 2.0
+	feu.omni_range = 6.0
+	feu.position = best + Vector3(0, hm, 0)
+	decor.add_child(feu)
+	_box(best + Vector3(0, hm - 0.8, 0), Vector3(0.35, 0.35, 0.35), Color(1.0, 0.2, 0.15), false, "uni")
+	# local technique et clôture
+	_box(best + Vector3(5.0, 0.8, 0), Vector3(4.0, 4.0, 3.0), Color(0.75, 0.74, 0.7), true, "beton")
+	_box(best + Vector3(5.0, 2.85, 0), Vector3(4.4, 0.15, 3.4), Color(0.4, 0.4, 0.4), true, "tole")
+	var caisse := _container(best + Vector3(5.0, 0.0, 2.3), Vector3(1.0, 0.8, 0.7), Color(0.4, 0.42, 0.45), "Armoire technique", "quincaillerie", 3)
+	caisse.position.y = relief.hauteur(best.x + 5.0, best.z + 2.3) - 0.05
+	caisse.set_texture("metal_peint")
+	_poi("Antenne relais", best, Color(0.85, 0.85, 0.9))
+	for i in 3:
+		guards.append({"pos": best + Vector3(rng.randf_range(-6, 6), 0.4, rng.randf_range(-6, 6)), "kind": "civil", "radius": 8.0})
+
+
+## Poteaux en bois et câbles le long d'un segment (axe x ou z).
+func _ligne_electrique(a: Vector2, b: Vector2) -> void:
+	var bois := Color(0.45, 0.36, 0.28)
+	var long := a.distance_to(b)
+	var dir := (b - a) / long
+	var le_long_x := absf(dir.x) > 0.5
+	var precedent := Vector3.INF
+	var t := 0.0
+	while t <= long:
+		var p := a + dir * t
+		t += 45.0
+		var y: float = maxf(relief.hauteur(p.x, p.y), 0.0)
+		if relief.dans_eau(p.x, p.y) or _overlaps(Rect2(p.x - 0.5, p.y - 0.5, 1, 1)):
+			precedent = Vector3.INF
+			continue
+		_box(Vector3(p.x, y + 4.0, p.y), Vector3(0.28, 8.5, 0.28), bois, true, "planches")
+		_box(Vector3(p.x, y + 7.8, p.y), Vector3(0.15, 0.15, 2.0) if le_long_x else Vector3(2.0, 0.15, 0.15), bois, false, "planches")
+		var haut := Vector3(p.x, y + 7.9, p.y)
+		if precedent != Vector3.INF and absf(precedent.y - haut.y) < 2.0:
+			var mid := (precedent + haut) / 2.0
+			for o in [-0.85, 0.0, 0.85]:
+				var off := Vector3(0, -0.15, o) if le_long_x else Vector3(o, -0.15, 0)
+				var sz := Vector3(absf(haut.x - precedent.x), 0.03, 0.03) if le_long_x else Vector3(0.03, 0.03, absf(haut.z - precedent.z))
+				_box(mid + off, sz, Color(0.08, 0.08, 0.08), false, "uni")
+		precedent = haut
+
+
+
+## Plafonnier à néon ; certains sont encore alimentés (secours) et éclairent faiblement, parfois en clignotant.
+func _plafonnier(p: Vector3, kind: String, important: bool) -> void:
+	_box(p + Vector3(0, -0.03, 0), Vector3(0.3, 0.06, 1.25), Color(0.75, 0.75, 0.73), false, "metal")
+	var chance := 0.55 if (important or kind in ["hopital", "police", "militaire", "magasin", "supermarche"]) else 0.22
+	if rng.randf() > chance:
+		return
+	var tube := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.08, 0.04, 1.15)
+	tube.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.95, 0.97, 1.0)
+	m.emission_enabled = true
+	m.emission = Color(0.85, 0.93, 1.0)
+	m.emission_energy_multiplier = 2.5
+	tube.material_override = m
+	tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	tube.position = p + Vector3(0, -0.075, 0)
+	decor.add_child(tube)
+	var l := Neon.new()
+	l.light_color = Color(0.82, 0.9, 1.0)
+	l.base = rng.randf_range(0.7, 1.2)
+	l.light_energy = l.base
+	l.omni_range = 7.5
+	l.omni_attenuation = 1.3
+	l.shadow_enabled = false
+	l.position = p + Vector3(0, -0.25, 0)
+	l.clignote = rng.randf() < 0.4
+	l.mat_tube = m
+	decor.add_child(l)
+
+
+
+## Stalactites, stalagmites, rochers le long des parois et ossements dans la grotte.
+func _grotte_details(c: Vector3, x0: float, x1: float, z0: float, z1: float, hs: float, tx0: float, tx1: float, tw: float, th: float, col: Color) -> void:
+	var mat_roc: Material = mats["roche"].duplicate()
+	(mat_roc as StandardMaterial3D).vertex_color_use_as_albedo = false
+	(mat_roc as StandardMaterial3D).albedo_color = col.darkened(0.1)
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.35
+	cone.bottom_radius = 0.0
+	cone.height = 1.0
+	cone.radial_segments = 7
+	cone.rings = 1
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = cone
+	var xfs: Array = []
+	# stalactites (plafond de la salle et du tunnel)
+	for i in 70:
+		var dans_tunnel := i % 4 == 0
+		var p := Vector3(rng.randf_range(x0 + 0.5, x1 - 0.5), hs, rng.randf_range(z0 + 0.5, z1 - 0.5))
+		if dans_tunnel:
+			p = Vector3(rng.randf_range(tx0 + 1.0, tx1 - 1.0), th, c.z + rng.randf_range(-tw / 2.0 + 0.4, tw / 2.0 - 0.4))
+		var lg := rng.randf_range(0.4, 2.2) if not dans_tunnel else rng.randf_range(0.2, 0.8)
+		var lr := rng.randf_range(0.5, 1.2)
+		xfs.append(Transform3D(Basis.from_scale(Vector3(lr, lg, lr)), p - Vector3(0, lg / 2.0, 0)))
+	# stalagmites (sol de la salle, hors du passage central)
+	for i in 22:
+		var p2 := Vector3(rng.randf_range(x0 + 0.8, x1 - 0.8), 0, rng.randf_range(z0 + 0.8, z1 - 0.8))
+		if Vector2(p2.x - c.x, p2.z - c.z).length() < 6.0 or (absf(p2.z - c.z) < 3.0 and p2.x > x1 - 6.0):
+			continue
+		var lg2 := rng.randf_range(0.4, 1.6)
+		var lr2 := rng.randf_range(0.6, 1.3)
+		xfs.append(Transform3D(Basis(Vector3.RIGHT, PI) * Basis.from_scale(Vector3(lr2, lg2, lr2)), p2 + Vector3(0, lg2 / 2.0, 0)))
+	mm.instance_count = xfs.size()
+	for k in xfs.size():
+		mm.set_instance_transform(k, xfs[k])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = mat_roc
+	decor.add_child(mmi)
+	# rochers encastrés dans les parois (cachent les murs droits)
+	for i in 26:
+		var cote := i % 4
+		var p3 := Vector3.ZERO
+		var k := rng.randf_range(1.6, 3.0)
+		match cote:
+			0: p3 = Vector3(x0 - 0.2, rng.randf_range(-0.5, 3.5), rng.randf_range(z0, z1))
+			1: p3 = Vector3(rng.randf_range(x0, x1), rng.randf_range(-0.5, 3.5), z0 - 0.2)
+			2: p3 = Vector3(rng.randf_range(x0, x1), rng.randf_range(-0.5, 3.5), z1 + 0.2)
+			3:
+				var zz := rng.randf_range(z0, z1)
+				if absf(zz - c.z) < tw / 2.0 + 1.5:
+					continue
+				p3 = Vector3(x1 + 0.2, rng.randf_range(-0.5, 3.5), zz)
+		_prop("rocher", p3, rng.randf() * TAU, false, k, 120.0)
+	for i in 10:
+		var p4 := Vector3(rng.randf_range(tx0 + 1.0, tx1 - 2.0), rng.randf_range(-0.6, 1.2), c.z + (tw / 2.0 + 0.3) * (1.0 if i % 2 == 0 else -1.0))
+		_prop("rocher", p4, rng.randf() * TAU, false, rng.randf_range(1.0, 1.8), 120.0)
+	# ossements et crânes autour du repaire
+	var os_col := Color(0.86, 0.82, 0.72)
+	var mat_os := StandardMaterial3D.new()
+	mat_os.albedo_color = os_col
+	mat_os.roughness = 0.8
+	for i in 40:
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(1.5, 9.0)
+		var p5 := c + Vector3(cos(a) * r, 0.04, sin(a) * r)
+		var mi := MeshInstance3D.new()
+		if i % 6 == 0:
+			var sm := SphereMesh.new()
+			sm.radius = 0.11
+			sm.height = 0.2
+			mi.mesh = sm
+			p5.y = 0.09
+		else:
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.025
+			cm.bottom_radius = 0.03
+			cm.height = rng.randf_range(0.25, 0.5)
+			mi.mesh = cm
+			mi.rotation = Vector3(PI / 2.0, rng.randf() * TAU, 0)
+		mi.material_override = mat_os
+		mi.position = p5
+		decor.add_child(mi)

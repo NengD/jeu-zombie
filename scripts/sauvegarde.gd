@@ -121,6 +121,8 @@ static func sauver(main: Node) -> bool:
 	for z in main.get_tree().get_nodes_in_group("zombies"):
 		zs.append({"pos": _v(z.global_position), "type": z.kind, "garde": z.persistent, "rayon": z.home_radius,
 				"pv": z.health, "maison": _v(z.home)})
+	for v in main.zombies_virtuels:
+		zs.append({"pos": _v(v.pos), "type": v.kind, "garde": true, "rayon": v.rayon, "pv": v.pv, "maison": _v(v.maison)})
 	d["zombies"] = zs
 	var ouvertes := []
 	for pt in main.world.portes:
@@ -158,10 +160,15 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 
 
 static func appliquer_zombies(main: Node, d: Dictionary) -> void:
+	var ref := _vd(d.get("joueur", {}).get("pos", [0, 0, 0]))
 	for zd in d.get("zombies", []):
-		var z = main.spawn_zombie(_vd(zd.pos), str(zd.get("type", "civil")), bool(zd.get("garde", false)), float(zd.get("rayon", 12.0)))
-		z.health = float(zd.get("pv", z.health))
-		z.home = _vd(zd.get("maison", zd.pos))
+		var pos := _vd(zd.pos)
+		if bool(zd.get("garde", false)):
+			main.placer_zombie(pos, str(zd.get("type", "civil")), float(zd.get("rayon", 12.0)), float(zd.get("pv", -1.0)), _vd(zd.get("maison", zd.pos)), ref)
+		else:
+			var z = main.spawn_zombie(pos, str(zd.get("type", "civil")), false, float(zd.get("rayon", 12.0)))
+			z.health = float(zd.get("pv", z.health))
+			z.home = _vd(zd.get("maison", zd.pos))
 
 
 static func appliquer_joueur(main: Node, d: Dictionary) -> void:

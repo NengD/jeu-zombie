@@ -85,6 +85,23 @@ var muzzle_light: OmniLight3D
 var fps_arms: Node3D
 var vm_weapon: Node3D = null
 var reload_total := 1.0
+# --- tenue de l'arme en vue 1re personne
+var sway := Vector2.ZERO          # inertie de l'arme quand on tourne la tête
+var sway_v := Vector2.ZERO
+var rec_pos := Vector3.ZERO       # recul (ressort amorti)
+var rec_vel := Vector3.ZERO
+var rec_rot := Vector3.ZERO
+var rec_rvel := Vector3.ZERO
+var draw_t := 0.0                 # sortie de l'arme (1 → 0)
+var ads := 0.0                    # 0 = à la hanche, 1 = en visée
+var sprint_k := 0.0
+var air_vy := 0.0
+var reload_vide := false          # rechargement à vide (chargeur éjecté, armement)
+var reload_cart := 3              # cartouches insérées une à une
+var reload_ev: Array = []         # évènements sonores restants
+var scope_vp: SubViewport         # image grossie de la lunette
+var scope_cam: Camera3D
+var oculaire_mat: ShaderMaterial
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
 var accessoires := {}              # arme -> {emplacement: accessoire}
@@ -156,6 +173,20 @@ func _build_rig() -> void:
 	camera.add_child(vm_holder)
 	fps_arms = FpsArms.new()
 	camera.add_child(fps_arms)
+	# lunette : une seconde caméra au champ étroit rend l'image affichée dans l'oculaire
+	scope_vp = SubViewport.new()
+	scope_vp.size = Vector2i(512, 512)
+	scope_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(scope_vp)
+	scope_cam = Camera3D.new()
+	scope_cam.cull_mask = 0xFFFFF & ~2    # sans l'arme ni les bras
+	scope_cam.near = 0.3
+	scope_cam.far = 900.0
+	scope_vp.add_child(scope_cam)
+	scope_cam.current = true
+	oculaire_mat = ShaderMaterial.new()
+	oculaire_mat.shader = preload("res://shaders/lunette.gdshader")
+	oculaire_mat.set_shader_parameter("vue", scope_vp.get_texture())
 	viewmodel = Node3D.new()
 	vm_holder.add_child(viewmodel)
 	muzzle_light = OmniLight3D.new()
@@ -207,6 +238,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM if aiming else 1.0)
+		if aiming and scope_vp.render_target_update_mode != SubViewport.UPDATE_DISABLED:
+			sens *= 0.3
+		sway_v += Vector2(event.relative.x, event.relative.y) * 0.0012
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
 		return
@@ -321,6 +355,11 @@ func _move(delta: float, can_act: bool) -> void:
 		speed = CROUCH_SPEED
 	elif aiming:
 		speed = AIM_SPEED
+	# dans l'eau : on avance lentement, sans sprinter
+	var mouille := Game.dans_eau(global_position)
+	if mouille:
+		speed = minf(speed, WALK * 0.55)
+		sprinting = false
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -341,7 +380,10 @@ func _move(delta: float, can_act: bool) -> void:
 		step_t -= delta
 		if step_t <= 0.0:
 			step_t = 0.4 if sprinting else 0.6
-			if sprinting:
+			if mouille:
+				Game.make_noise(global_position, 10.0)
+				Game.play_ui("eau", -8.0, 0.2)
+			elif sprinting:
 				Game.make_noise(global_position, 16.0)
 				Game.play_ui("pas", -10.0, 0.15)
 			elif not crouching:
@@ -396,38 +438,163 @@ func _update_camera(delta: float) -> void:
 	_set_model_shadow_only(fps)
 	vm_holder.visible = fps
 	hand.visible = not fps
-	var is_gun: bool = Items.info(current_weapon()).get("type", "") == "gun"
-	var fov_vise := FOV_AIM * float(arme_stats(current_weapon()).get("fov_visee", 1.0)) if is_gun else FOV_AIM
-	camera.fov = lerpf(camera.fov, fov_vise if (aiming and is_gun) else FOV, delta * 10.0)
-	# position de l'arme en vue 1re personne (balancement, visée, recul, coup)
-	var target_pos := Vector3(0.0, -0.1, -0.32) if (aiming and is_gun) else Vector3(0.24, -0.2, -0.42)
-	var bob := Vector3(sin(bob_t) * 0.012, absf(cos(bob_t)) * 0.012, 0) if is_on_floor() else Vector3.ZERO
-	vm_holder.position = vm_holder.position.lerp(target_pos + bob + Vector3(0, 0, vm_kick * 0.08), delta * 14.0)
-	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
-	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
-	viewmodel.rotation = Vector3(-sin(swing_t * PI) * 1.1 + vm_kick * 0.2, sin(swing_t * PI) * 0.5, 0)
-	# rechargement + bras en vue 1re personne
 	var cw := current_weapon()
 	var cwi := Items.info(cw)
+	var is_gun: bool = cwi.get("type", "") == "gun"
+	var optique := str(accessoires.get(cw, {}).get("viseur", "")) if is_gun else ""
+	var vise := aiming and is_gun and reload_t <= 0.0 and placing == ""
+	ads = move_toward(ads, 1.0 if vise else 0.0, delta * (5.5 if vise else 7.0))
+	var k_ads := smoothstep(0.0, 1.0, ads)
+	var fov_vise := FOV_AIM * float(arme_stats(cw).get("fov_visee", 1.0)) if is_gun else FOV_AIM
+	camera.fov = lerpf(FOV, fov_vise, k_ads)
+	# --- lunette : image grossie rendue seulement quand on vise
+	var lunette := optique == "lunette" and fps and ads > 0.6
+	scope_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if lunette else SubViewport.UPDATE_DISABLED
+	oculaire_mat.set_shader_parameter("actif", 1.0 if lunette else 0.0)
+	if lunette:
+		scope_cam.global_transform = camera.global_transform
+		scope_cam.fov = camera.fov / 4.5
+	camera.near = 0.012 if (optique == "lunette" and ads > 0.2) else 0.05
+	# --- position de l'arme : hanche, sprint, visée alignée sur le viseur
+	var hs := Vector2(velocity.x, velocity.z).length()
+	sprint_k = move_toward(sprint_k, 1.0 if (sprinting and hs > 3.0 and is_on_floor() and reload_t <= 0.0) else 0.0, delta * 5.0)
+	var hanche := Vector3(0.24, -0.2, -0.42)
+	var visee := Vector3(0.0, -0.1, -0.32)
+	if is_gun and vm_weapon and is_instance_valid(vm_weapon):
+		var pv := _point_visee(cw, optique)
+		var base_xf := Transform3D(Basis.from_scale(vm_holder.scale)) * vm_weapon.transform
+		visee = Vector3(0, 0, -float(pv.dist)) - base_xf * Vector3(pv.pt)
+	var cible := hanche.lerp(visee, k_ads)
+	cible += Vector3(-0.04, -0.05, 0.05) * sprint_k
+	# balancement de marche (en huit), respiration, inertie
+	var t := Time.get_ticks_msec() / 1000.0
+	var amp := clampf(hs / WALK, 0.0, 1.7) * (1.0 - 0.85 * k_ads) if is_on_floor() else 0.0
+	var bob := Vector3(sin(bob_t) * 0.014, -absf(cos(bob_t)) * 0.012, 0.0) * amp
+	var souffle := Vector3(sin(t * 1.3) * 0.0016, sin(t * 2.6) * 0.0022, 0.0) * (1.0 - 0.55 * k_ads)
+	sway_v = sway_v.lerp(Vector2.ZERO, minf(1.0, delta * 12.0))
+	var sway_cible := sway_v.clamp(Vector2(-0.12, -0.12), Vector2(0.12, 0.12))
+	sway = sway.lerp(sway_cible, minf(1.0, delta * 9.0))
+	var k_sway := 1.0 - 0.8 * k_ads
+	# atterrissage
+	if is_on_floor() and air_vy < -3.0:
+		rec_vel += Vector3(0, clampf(air_vy * 0.06, -0.9, 0.0), 0)
+		rec_rvel += Vector3(clampf(air_vy * 0.25, -3.0, 0.0), 0, 0)
+	air_vy = velocity.y if not is_on_floor() else 0.0
+	# ressorts du recul (petits pas de temps : stable même à faible nombre d'images par seconde)
+	var raideur := 170.0
+	var amort := 17.0
+	var reste := minf(delta, 0.25)
+	while reste > 0.0:
+		var dt := minf(reste, 1.0 / 240.0)
+		reste -= dt
+		rec_vel += (-rec_pos * raideur - rec_vel * amort) * dt
+		rec_pos += rec_vel * dt
+		rec_rvel += (-rec_rot * raideur - rec_rvel * amort) * dt
+		rec_rot += rec_rvel * dt
+	# sortie de l'arme
+	draw_t = move_toward(draw_t, 0.0, delta * 2.6)
+	var sortie := smoothstep(0.0, 1.0, draw_t)
+	vm_holder.position = vm_holder.position.lerp(cible, minf(1.0, delta * 16.0)) if ads < 0.999 else cible
+	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
+	var rot := Vector3(-sin(swing_t * PI) * 1.1, sin(swing_t * PI) * 0.5, 0)
+	rot += Vector3(sway.y * 0.9, sway.x * 0.9, -sway.x * 0.7) * k_sway
+	rot += Vector3(0.0, 0.0, sin(bob_t) * 0.02 * amp)
+	rot += rec_rot
+	rot += Vector3(-0.28, 0.55, 0.2) * sprint_k * (1.0 if is_gun else 0.3)
+	rot += Vector3(-1.0, 0.25, 0.3) * sortie
+	var pos := bob + souffle + rec_pos + Vector3(-sway.x * 0.02, sway.y * 0.015, 0.0) * k_sway
+	pos += Vector3(0.0, -0.18, 0.06) * sortie
+	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
+	# rechargement + bras en vue 1re personne
 	var p_rel := -1.0
 	if reload_t > 0.0 and reload_total > 0.0:
 		p_rel = 1.0 - reload_t / reload_total
-	viewmodel.position = Vector3.ZERO
+		_reload_evenements(p_rel)
 	if p_rel >= 0.0 and vm_weapon:
-		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi))
-		viewmodel.rotation += pose.rot
-		viewmodel.position = pose.off
+		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi), reload_vide, reload_cart)
+		rot += pose.rot
+		pos += pose.off
+	viewmodel.rotation = rot
+	viewmodel.position = pos
 	fps_arms.visible = fps
 	_update_lampes(fps)
 	if fps:
 		var wxf = null
 		if vm_weapon and is_instance_valid(vm_weapon):
 			wxf = camera.global_transform.affine_inverse() * vm_weapon.global_transform
-		fps_arms.update(cw, cwi, wxf, p_rel, swing_t)
+		fps_arms.update(cw, cwi, wxf, p_rel, swing_t, reload_vide, reload_cart)
 	if pap == null:
 		hand.rotation.x = -sin(swing_t * PI) * 1.4
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	muzzle_light.light_energy = 6.0 if muzzle_t > 0.0 else 0.0
+
+
+## Point de visée sur le modèle de l'arme (repère du modèle) et distance à l'œil.
+## Point rouge : centre du verre ; lunette : oculaire ; sinon : hausse (dessus de la carcasse).
+func _point_visee(id: String, optique: String) -> Dictionary:
+	var pts := Accessoires.points(id, vm_weapon)
+	var v: Vector3 = pts.get("viseur", Vector3(0, 0.05, 0))
+	var longue: bool = float(Items.info(id).get("len", 0.3)) >= 0.4
+	match optique:
+		"point_rouge":
+			return {"pt": v + Vector3(0, 0.03, -0.021), "dist": 0.17 if longue else 0.24}
+		"lunette":
+			return {"pt": v + Vector3(0, 0.04, 0.1365), "dist": 0.042}
+	return {"pt": v + Vector3(0, 0.006, 0.0), "dist": 0.2 if longue else 0.3}
+
+
+## Sons et effets du rechargement au fil de l'animation.
+func _reload_evenements(p: float) -> void:
+	while not reload_ev.is_empty() and p >= float(reload_ev[0][0]):
+		var e: String = reload_ev.pop_front()[1]
+		match e:
+			"lacher":
+				_lacher_chargeur()
+			"chargeur_sort":
+				Game.play_ui("chargeur_sort", -6.0, 0.08)
+			"chargeur_in":
+				Game.play_ui("chargeur_in", -4.0, 0.08)
+			"culasse":
+				Game.play_ui("culasse", -4.0, 0.06)
+			"cartouche":
+				Game.play_ui("cartouche", -7.0, 0.12)
+			"pompe":
+				Game.play_ui("pompe", -3.0, 0.05)
+			"barillet":
+				Game.play_ui("culasse", -8.0, 0.1, 1.3)
+
+
+## Le chargeur vide tombe au sol (objet physique qui disparaît après un moment).
+func _lacher_chargeur() -> void:
+	if vm_weapon == null or not is_instance_valid(vm_weapon):
+		return
+	var pts := FpsArms.hand_points(current_weapon(), Items.info(current_weapon()))
+	var depart: Vector3 = vm_weapon.global_transform * Vector3(pts.get("well", Vector3(0, -0.08, -0.04)))
+	var rb := RigidBody3D.new()
+	rb.collision_layer = 0
+	rb.collision_mask = Game.LAYER_WORLD
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.03, 0.12, 0.06)
+	cs.shape = bs
+	rb.add_child(cs)
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = bs.size
+	mi.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.1, 0.1, 0.1)
+	m.metallic = 0.5
+	m.roughness = 0.5
+	mi.material_override = m
+	rb.add_child(mi)
+	get_parent().add_child(rb)
+	rb.global_position = depart
+	rb.global_basis = camera.global_basis
+	rb.linear_velocity = velocity * 0.8 + Vector3(0, -1.0, 0)
+	rb.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4))
+	get_tree().create_timer(25.0).timeout.connect(rb.queue_free)
+	get_tree().create_timer(0.45).timeout.connect(func(): if is_instance_valid(rb): Game.play_3d("chargeur_sol", rb.global_position, -8.0, 0.15, 12.0))
 
 
 ## Lampe : celle montée sur l'arme si elle en a une, sinon la lampe torche.
@@ -609,6 +776,10 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	head.rotation.x = clampf(head.rotation.x + float(w.recoil), -1.45, 1.45)
 	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * 0.3)
 	vm_kick = 1.0
+	# recul visible de l'arme (moins fort en visée, l'épaule encaisse)
+	var force := clampf(float(w.recoil) * 14.0, 0.35, 1.6) * (0.55 if aiming else 1.0)
+	rec_vel += Vector3(randf_range(-0.12, 0.12), 0.18, 1.5) * force
+	rec_rvel += Vector3(2.6, randf_range(-0.5, 0.5), randf_range(-0.9, 0.9)) * force
 	muzzle_t = 0.05
 	shoot_pose_t = 1.5
 	if w.get("silencieux", false):
@@ -668,9 +839,18 @@ func _start_reload() -> void:
 	if count(w.ammo) <= 0:
 		Game.msg("Pas de munitions : " + Items.nom(w.ammo))
 		return
-	reload_t = w.reload
-	reload_total = w.reload
-	Game.play_ui("recharge", -4.0)
+	var facteur: float = float(w.reload) / maxf(float(Items.info(id).get("reload", w.reload)), 0.01)
+	reload_vide = int(mags.get(id, 0)) == 0
+	if FpsArms.arme_a_cartouches(id):
+		# une cartouche à la fois
+		reload_cart = mini(int(w.mag) - int(mags.get(id, 0)), count(w.ammo))
+		reload_total = (0.55 + 0.42 * reload_cart + 0.5) * facteur
+		reload_vide = false
+	else:
+		reload_cart = 0
+		reload_total = float(w.reload) * (1.3 if reload_vide else 1.0)
+	reload_t = reload_total
+	reload_ev = FpsArms.evenements(id, reload_vide, reload_cart)
 	Game.make_noise(global_position, 4.0)
 
 
@@ -719,6 +899,8 @@ func _refresh_weapon_model() -> void:
 		c.queue_free()
 	vm_weapon = null
 	hand_weapon = null
+	draw_t = 1.0
+	reload_t = 0.0
 	var id := current_weapon()
 	var w := Items.info(id)
 	var col: Color = w.get("color", Color.GRAY)
@@ -743,6 +925,12 @@ func _refresh_weapon_model() -> void:
 		var accs: Dictionary = accessoires.get(id, {})
 		Accessoires.habiller(vm, id, accs, true)
 		Accessoires.habiller(hm, id, accs, true)
+		# arme et accessoires de la vue 1re personne : invisibles pour la caméra de la lunette
+		for g in vm.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).layers = 2
+		var oc := vm.find_child("Oculaire", true, false)
+		if oc:
+			(oc as MeshInstance3D).material_override = oculaire_mat
 		hand_weapon = hm
 		if perso_ual and w.type != "gun":
 			hm.rotation.x = deg_to_rad(80)   # manche dans le poing, tête de l'arme vers le haut

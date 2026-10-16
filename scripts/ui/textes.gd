@@ -79,6 +79,14 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Carambolages[/b] (repères rouges) : zones infestées sur l'autoroute, une trentaine de zombies et des coffres bien remplis.
 • [b]Grotte du Colosse[/b] (repère violet) : le BOSS, un zombie géant de 2 500 PV qui charge et frappe le sol. Prends une lampe ! Sa cache contient le meilleur butin du jeu.
 
+[b]PAYSAGE[/b]
+• Collines, lacs et rivière au nord de la ville (on peut marcher dans l'eau, lentement). Un pont la traverse sur l'autoroute.
+• Cabane de pêche au bord de l'étang, antenne relais sur le point le plus haut. La carte (M) montre le relief et l'eau.
+
+[b]VISÉE ET RECHARGEMENT[/b]
+• En visant, on regarde vraiment dans le viseur : hausse et guidon, verre du point rouge, ou lunette grossissante avec réticule.
+• Rechargement réaliste : chargeur changé ; à vide, il tombe au sol et on réarme. Fusil à pompe et revolver : une cartouche à la fois.
+
 [b]BÂTIMENTS ET PORTES[/b]
 • Toutes les portes s'ouvrent et se ferment avec F. Les zombies ne savent pas les ouvrir : ils tapent dedans jusqu'à les enfoncer.
 • Les immeubles se visitent en entier : un escalier relie tous les étages, chacun avec ses meubles… et ses habitants."""

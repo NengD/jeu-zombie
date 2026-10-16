@@ -67,6 +67,7 @@ func _ready() -> void:
 	cm.height = 0.06
 	shell.mesh = cm
 	shell.material_override = _mat(Color(0.75, 0.15, 0.1))
+	shell.layers = 2
 	add_child(shell)
 
 
@@ -87,6 +88,7 @@ func _seg(radius: float, col: Color) -> MeshInstance3D:
 	mi.mesh = cm
 	mi.material_override = _mat(col)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.layers = 2   # invisible pour la caméra de la lunette
 	add_child(mi)
 	return mi
 
@@ -98,6 +100,7 @@ func _box(size: Vector3, col: Color) -> MeshInstance3D:
 	mi.mesh = bm
 	mi.material_override = _mat(col)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.layers = 2
 	add_child(mi)
 	return mi
 
@@ -170,8 +173,10 @@ static func hand_points(id: String, w: Dictionary) -> Dictionary:
 	if t == "gun":
 		if length < 0.4:
 			res.L = Vector3(-0.03, -0.06, 0.025)          # main d'appui sous la poignée
+			res["culasse"] = Vector3(0.0, 0.035, 0.03)    # arrière de la glissière
 		else:
 			res.L = Vector3(0, -0.035, -length * 0.5)     # garde-main
+			res["culasse"] = Vector3(-0.035, 0.03, -0.1)  # levier d'armement
 		res["well"] = Vector3(0, -0.08, -minf(length * 0.08, 0.06))
 	elif t == "melee":
 		res.R = Vector3(0, 0, 0)
@@ -180,52 +185,99 @@ static func hand_points(id: String, w: Dictionary) -> Dictionary:
 	return res
 
 
-## Animation de rechargement : renvoie {rot, off, L (point repère arme ou null), mag, shell}
-static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary) -> Dictionary:
-	var k := sin(clampf(p, 0.0, 1.0) * PI)
-	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "shell": false}
-	var grip_l = pts.L if pts.L != null else Vector3(-0.03, -0.06, 0.02)
+## Interpolation entre clés [[p, valeur], ...] avec accélération / décélération douces.
+static func _cles(cles: Array, p: float):
+	if p <= float(cles[0][0]):
+		return cles[0][1]
+	for i in range(1, cles.size()):
+		var p1: float = cles[i][0]
+		if p <= p1:
+			var p0: float = cles[i - 1][0]
+			var t := smoothstep(0.0, 1.0, (p - p0) / maxf(p1 - p0, 0.0001))
+			return cles[i - 1][1].lerp(cles[i][1], t)
+	return cles[cles.size() - 1][1]
+
+
+static func arme_a_cartouches(id: String) -> bool:
+	return id in SHELL_FED
+
+
+## Évènements sonores du rechargement : [[progression, nom], ...]
+static func evenements(id: String, vide: bool, n_cart: int) -> Array:
 	if id in SHELL_FED:
-		out.rot = Vector3(0.18 * k, 0.0, -0.55 * k)
-		out.off = Vector3(-0.02 * k, -0.03 * k, 0.0)
-		var port := Vector3(0.0, -0.01, -0.06) if id != "revolver" else Vector3(0.0, 0.02, -0.03)
-		var below := port + Vector3(-0.04, -0.2, 0.06)
+		var ev := []
+		var cyc := 0.7 / maxf(1, n_cart)
+		for i in n_cart:
+			ev.append([0.12 + cyc * (i + 0.5), "cartouche"])
+		if id == "revolver":
+			ev.push_front([0.06, "barillet"])
+			ev.append([0.88, "barillet"])
+		else:
+			ev.append([0.9, "pompe"])
+		return ev
+	if vide:
+		return [[0.12, "chargeur_sort"], [0.15, "lacher"], [0.61, "chargeur_in"], [0.79, "culasse"]]
+	return [[0.13, "chargeur_sort"], [0.67, "chargeur_in"]]
+
+
+## Pose de rechargement : {rot, off (arme), L (point de la main gauche, repère arme), mag (chargeur en main), shell}
+static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vide := false, n_cart := 3) -> Dictionary:
+	p = clampf(p, 0.0, 1.0)
+	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "shell": false}
+	var grip_l: Vector3 = pts.L if pts.L != null else Vector3(-0.03, -0.06, 0.02)
+	var longue: bool = float(w.get("len", 0.3)) >= 0.4
+	if id in SHELL_FED:
+		var revolver := id == "revolver"
+		var port := Vector3(0.0, -0.01, -0.06) if not revolver else Vector3(0.0, 0.02, -0.03)
+		var below := port + Vector3(-0.05, -0.2, 0.08)
+		var incl := Vector3(0.25, 0.3, -0.6) if not revolver else Vector3(0.35, 0.4, -0.9)
+		out.rot = _cles([[0.0, Vector3.ZERO], [0.1, incl], [0.82, incl], [0.95, Vector3.ZERO]], p)
+		var ob := Vector3(-0.28, 0.12, 0.06)
+		out.off = _cles([[0.0, Vector3.ZERO], [0.1, ob], [0.82, ob], [0.95, Vector3.ZERO]], p)
+		var cyc := 0.7 / maxf(1, n_cart)
 		if p < 0.12:
-			out.L = grip_l.lerp(below, p / 0.12)
+			out.L = grip_l.lerp(below, smoothstep(0.0, 1.0, p / 0.12))
 		elif p < 0.82:
-			var q := fmod((p - 0.12) / 0.7 * 3.0, 1.0)  # 3 cartouches
+			var q := fmod((p - 0.12) / cyc, 1.0)
 			out.L = below.lerp(port, sin(q * PI))
 			out.shell = q < 0.55
 		else:
 			var q2 := (p - 0.82) / 0.18
-			out.L = below.lerp(grip_l, q2)
-			if id == "fusil_pompe":
-				out.off.z += 0.04 * sin(q2 * PI)   # pompe
+			out.L = below.lerp(grip_l, smoothstep(0.0, 1.0, minf(q2 * 1.6, 1.0)))
+			if not revolver and q2 > 0.5:
+				# pompe : la main tire le garde-main vers l'arrière puis le repousse
+				var pq := (q2 - 0.5) / 0.5
+				out.L = grip_l + Vector3(0, 0, 0.08 * sin(pq * PI))
+				out.off.z += 0.02 * sin(pq * PI)
 		return out
-	# armes à chargeur
-	out.rot = Vector3(0.22 * k, 0.05 * k, 0.5 * k)
-	out.off = Vector3(0.0, -0.03 * k, 0.02 * k)
+	# ------------------------------------------------ armes à chargeur
 	var well: Vector3 = pts.get("well", Vector3(0, -0.08, -0.04))
-	var down := well + Vector3(0.06, -0.38, 0.12)
-	if p < 0.15:
-		out.L = grip_l.lerp(well, p / 0.15)
-	elif p < 0.4:
-		out.L = well.lerp(down, (p - 0.15) / 0.25)
-		out.mag = true
-	elif p < 0.65:
-		out.L = down.lerp(well, (p - 0.4) / 0.25)
-		out.mag = true
-	elif p < 0.75:
-		out.L = well + Vector3(0, 0.012 * sin((p - 0.65) / 0.1 * PI), 0)
-		out.mag = p < 0.72
-	else:
-		out.L = well.lerp(grip_l, (p - 0.75) / 0.25)
-		out.off.z += 0.03 * sin((p - 0.75) / 0.25 * PI)   # armement
+	var sous := well + Vector3(0.01, -0.13, 0.03)
+	var poche := well + Vector3(0.12, -0.45, 0.2)
+	var bosse := well + Vector3(0, 0.018, 0)
+	# l'arme est ramenée devant soi et inclinée pour voir le puits du chargeur
+	var r1 := Vector3(0.3, 0.38, 0.6) if longue else Vector3(0.35, 0.3, 0.45)
+	var o1 := Vector3(-0.32, 0.15, 0.1) if longue else Vector3(-0.24, 0.12, 0.05)
+	if not vide:
+		out.L = _cles([[0.0, grip_l], [0.12, well], [0.2, sous], [0.34, poche], [0.44, poche], [0.58, sous], [0.65, bosse], [0.7, well], [0.88, grip_l]], p)
+		out.mag = (p > 0.14 and p < 0.34) or (p > 0.44 and p < 0.68)
+		out.rot = _cles([[0.0, Vector3.ZERO], [0.12, r1], [0.66, r1], [0.69, r1 + Vector3(0.06, 0, 0)], [0.74, r1], [0.92, Vector3.ZERO]], p)
+		out.off = _cles([[0.0, Vector3.ZERO], [0.12, o1], [0.66, o1], [0.68, o1 + Vector3(0, 0.014, 0)], [0.72, o1], [0.92, Vector3.ZERO]], p)
+		return out
+	# rechargement à vide : le chargeur tombe, nouveau chargeur, puis armement
+	var culasse: Vector3 = pts.get("culasse", Vector3(0, 0.03, 0.02))
+	var tire := culasse + Vector3(0, 0, 0.08)
+	var r2 := Vector3(0.15, 0.1, -0.4) if longue else Vector3(0.2, -0.1, -0.35)
+	var o2 := Vector3(-0.22, 0.12, 0.06)
+	out.L = _cles([[0.0, grip_l], [0.1, well], [0.16, well + Vector3(0, -0.03, 0)], [0.3, poche], [0.38, poche], [0.53, sous], [0.6, bosse], [0.63, well], [0.72, culasse], [0.78, tire], [0.82, culasse], [0.97, grip_l]], p)
+	out.mag = p > 0.38 and p < 0.62
+	out.rot = _cles([[0.0, Vector3.ZERO], [0.1, r1], [0.6, r1], [0.62, r1 + Vector3(0.06, 0, 0)], [0.7, r2], [0.84, r2], [0.97, Vector3.ZERO]], p)
+	out.off = _cles([[0.0, Vector3.ZERO], [0.1, o1], [0.6, o1], [0.61, o1 + Vector3(0, 0.014, 0)], [0.7, o2], [0.79, o2 + Vector3(0, 0, 0.025)], [0.84, o2], [0.97, Vector3.ZERO]], p)
 	return out
 
 
 ## Mise à jour à chaque image. weapon_xf : repère de l'arme en espace caméra (null = poings).
-func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float) -> void:
+func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float, vide := false, n_cart := 3) -> void:
 	mag.visible = false
 	shell.visible = false
 	if weapon_xf == null:
@@ -244,7 +296,7 @@ func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float)
 	layouts = {"R": "poignee" if is_gun else "manche", "L": ("poignee" if short_gun else "garde") if is_gun else "manche"}
 	var lp = pts.L
 	if reload_p >= 0.0 and w.get("type", "") == "gun":
-		var pose := reload_pose(id, w, reload_p, pts)
+		var pose := reload_pose(id, w, reload_p, pts, vide, n_cart)
 		lp = pose.L
 		if pose.mag and lp != null:
 			mag.visible = true

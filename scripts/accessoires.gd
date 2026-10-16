@@ -21,7 +21,7 @@ const COMPAT := {
 ## Effets : multiplicateurs (précision = dispersion, bruit, dégâts, recul, capacité, champ de vision en visée).
 const EFFETS := {
 	"point_rouge": {"dispersion_visee": 0.6, "fov_visee": 0.92},
-	"lunette": {"dispersion_visee": 0.3, "fov_visee": 0.45, "dispersion": 1.15},
+	"lunette": {"dispersion_visee": 0.3, "fov_visee": 0.86, "dispersion": 1.15},
 	"silencieux": {"bruit": 0.3, "degats": 0.93},
 	"silencieux_artisanal": {"bruit": 0.55, "degats": 0.9, "dispersion": 1.1},
 	"chargeur_etendu": {"capacite": 1.6, "rechargement": 1.15},
@@ -180,9 +180,12 @@ static func _mat(c: Color, metal := 0.4, rough := 0.5) -> StandardMaterial3D:
 	return m
 
 
-static func _cyl(parent: Node3D, r: float, h: float, pos: Vector3, mat: Material, axe_z := true, r2 := -1.0) -> MeshInstance3D:
+static func _cyl(parent: Node3D, r: float, h: float, pos: Vector3, mat: Material, axe_z := true, r2 := -1.0, creux := false) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
+	if creux:
+		cm.cap_top = false
+		cm.cap_bottom = false
 	cm.top_radius = r if r2 < 0.0 else r2
 	cm.bottom_radius = r
 	cm.height = h
@@ -216,10 +219,14 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 	match id:
 		"point_rouge":
 			_boite(n, Vector3(0.024, 0.012, 0.05), Vector3(0, 0.006, 0), noir)
-			_cyl(n, 0.017, 0.045, Vector3(0, 0.03, 0), noir)
-			var verre := _mat(Color(0.3, 0.5, 0.45, 0.35), 0.2, 0.05)
+			var noir_creux := noir.duplicate()
+			noir_creux.cull_mode = BaseMaterial3D.CULL_DISABLED
+			_cyl(n, 0.017, 0.045, Vector3(0, 0.03, 0), noir_creux, true, -1.0, true)
+			# verre traité (légèrement teinté) : on voit à travers, le point rouge est projeté au centre
+			var verre := _mat(Color(0.55, 0.75, 0.7, 0.16), 0.0, 0.02)
 			verre.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			_cyl(n, 0.014, 0.002, Vector3(0, 0.03, -0.021), verre)
+			verre.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_cyl(n, 0.0155, 0.001, Vector3(0, 0.03, -0.021), verre)
 			var point := _mat(Color(1, 0.1, 0.05))
 			point.emission_enabled = true
 			point.emission = Color(1, 0.1, 0.05)
@@ -241,6 +248,16 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 			_cyl(n, 0.009, 0.02, Vector3(0, 0.062, 0), noir, false)
 			var verre := _mat(Color(0.15, 0.25, 0.35), 0.8, 0.05)
 			_cyl(n, 0.022, 0.003, Vector3(0, 0.04, -0.146), verre)
+			# oculaire (côté œil) : reçoit l'image grossie quand on vise
+			var oc := MeshInstance3D.new()
+			oc.name = "Oculaire"
+			var qm := QuadMesh.new()
+			qm.size = Vector2(0.038, 0.038)
+			oc.mesh = qm
+			oc.position = Vector3(0, 0.04, 0.1365)
+			var om := _mat(Color(0.05, 0.08, 0.1), 0.6, 0.05)
+			oc.material_override = om
+			n.add_child(oc)
 		"silencieux":
 			_cyl(n, 0.017, 0.17, Vector3(0, 0, -0.085), noir)
 			_cyl(n, 0.019, 0.012, Vector3(0, 0, -0.006), noir)

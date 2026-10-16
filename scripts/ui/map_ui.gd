@@ -9,7 +9,10 @@ class MapView extends Control:
 		var origin := (vs - Vector2(side, side)) / 2.0
 		var m := Game.map_half
 		var k := side / (2.0 * m)
-		draw_rect(Rect2(origin, Vector2(side, side)), Color(0.2, 0.24, 0.15))
+		if Game.carte_relief:
+			draw_texture_rect(Game.carte_relief, Rect2(origin, Vector2(side, side)), false)
+		else:
+			draw_rect(Rect2(origin, Vector2(side, side)), Color(0.2, 0.24, 0.15))
 		for r in Game.map_rects:
 			var rr: Rect2 = r.rect
 			draw_rect(Rect2(origin + (rr.position + Vector2(m, m)) * k, rr.size * k), r.color)

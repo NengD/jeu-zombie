@@ -41,7 +41,7 @@ func _ready() -> void:
 	add_child(zombies_root)
 	if charge.is_empty():
 		for g in world.guards:
-			spawn_zombie(g.pos, g.kind, true, g.radius)
+			placer_zombie(g.pos, g.kind, g.radius, -1.0, g.pos, spawn)
 	else:
 		Sauvegarde.appliquer_monde(self, charge)
 		Sauvegarde.appliquer_zombies(self, charge)
@@ -84,6 +84,40 @@ func _unhandled_input(event: InputEvent) -> void:
 			Game.msg("Aucune sauvegarde.")
 
 
+## Zombies « endormis » loin du joueur : gardés en mémoire seulement (pas de nœud), réveillés à son approche.
+var zombies_virtuels: Array = []   # {pos, kind, rayon, pv, maison}
+const DIST_REVEIL := 175.0
+const DIST_SOMMEIL := 215.0
+
+
+func placer_zombie(pos: Vector3, kind: String, rayon: float, pv: float, maison: Vector3, ref: Vector3) -> void:
+	if pos.distance_to(ref) > DIST_REVEIL:
+		zombies_virtuels.append({"pos": pos, "kind": kind, "rayon": rayon, "pv": pv, "maison": maison})
+		return
+	var z = spawn_zombie(pos, kind, true, rayon)
+	if pv > 0.0:
+		z.health = pv
+	z.home = maison
+
+
+func _gerer_virtuels() -> void:
+	var pp: Vector3 = player.global_position
+	for z in get_tree().get_nodes_in_group("zombies"):
+		if z.persistent and z.state != z.State.CHASE and z.global_position.distance_to(pp) > DIST_SOMMEIL:
+			zombies_virtuels.append({"pos": z.global_position + Vector3(0, 0.05, 0), "kind": z.kind, "rayon": z.home_radius, "pv": z.health, "maison": z.home})
+			z.remove_from_group("zombies")
+			z.remove_from_group("boss")
+			z.queue_free()
+	for i in range(zombies_virtuels.size() - 1, -1, -1):
+		var v: Dictionary = zombies_virtuels[i]
+		if Vector3(v.pos).distance_to(pp) < DIST_REVEIL:
+			zombies_virtuels.remove_at(i)
+			var z = spawn_zombie(v.pos, v.kind, true, v.rayon)
+			if float(v.pv) > 0.0:
+				z.health = float(v.pv)
+			z.home = v.maison
+
+
 func spawn_zombie(pos: Vector3, kind: String, persistent: bool, radius: float) -> Node:
 	var z = ZOMBIE_SCENE.instantiate()
 	z.setup(kind, persistent, radius)
@@ -96,6 +130,7 @@ var auto_t := 300.0
 
 
 func _process(delta: float) -> void:
+	_maj_ambiance(delta)
 	auto_t -= delta
 	if auto_t <= 0.0:
 		auto_t = 300.0
@@ -105,6 +140,7 @@ func _process(delta: float) -> void:
 	if spawn_t > 0.0 or player == null or not player.alive:
 		return
 	spawn_t = 1.0
+	_gerer_virtuels()
 	var roamers := 0
 	for z in get_tree().get_nodes_in_group("zombies"):
 		if z.persistent:
@@ -128,7 +164,9 @@ func _spawn_roamer() -> bool:
 		var ang := randf() * TAU
 		var dist := randf_range(45.0, 100.0)
 		var p: Vector3 = player.global_position + Vector3(cos(ang), 0, sin(ang)) * dist
-		p.y = 0.1
+		p.y = Game.hauteur(p.x, p.z) + 0.15
+		if Game.relief and Game.relief.dans_eau(p.x, p.z):
+			continue
 		if absf(p.x) > Game.map_half - 10.0 or absf(p.z) > Game.map_half - 10.0:
 			continue
 		if not Game.find_zone(p + Vector3.UP).is_empty():
@@ -145,16 +183,69 @@ func _spawn_roamer() -> bool:
 	return false
 
 
+## Ambiances sonores : vent, campagne (jour), grillons (nuit), ville, grotte, musique du boss.
+## Les pistes se fondent les unes dans les autres selon l'endroit et l'heure.
+var ambiances := {}
+var reverb_idx := -1
+
+
 func _ambience() -> void:
-	var s = Game.sfx("vent")
-	if s == null:
+	for nom in ["vent", "amb_campagne", "amb_nuit", "amb_ville", "amb_grotte", "musique_boss"]:
+		var s = Game.sfx(nom)
+		if s == null:
+			continue
+		if s is AudioStreamWAV:
+			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+			s.loop_begin = 0
+			s.loop_end = int(s.get_length() * s.mix_rate)
+		var a := AudioStreamPlayer.new()
+		a.stream = s
+		a.volume_db = -60.0
+		a.autoplay = true
+		add_child(a)
+		ambiances[nom] = a
+	# écho dans la grotte
+	var rv := AudioEffectReverb.new()
+	rv.room_size = 0.85
+	rv.damping = 0.3
+	rv.wet = 0.35
+	rv.dry = 0.9
+	AudioServer.add_bus_effect(0, rv)
+	reverb_idx = AudioServer.get_bus_effect_count(0) - 1
+	AudioServer.set_bus_effect_enabled(0, reverb_idx, false)
+
+
+func _exit_tree() -> void:
+	if reverb_idx >= 0 and reverb_idx < AudioServer.get_bus_effect_count(0):
+		AudioServer.remove_bus_effect(0, reverb_idx)
+		reverb_idx = -1
+
+
+func _maj_ambiance(delta: float) -> void:
+	if ambiances.is_empty() or player == null:
 		return
-	if s is AudioStreamWAV:
-		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		s.loop_begin = 0
-		s.loop_end = int(s.get_length() * s.mix_rate)
-	var a := AudioStreamPlayer.new()
-	a.stream = s
-	a.volume_db = -14.0
-	a.autoplay = true
-	add_child(a)
+	var p: Vector3 = player.global_position
+	var dans_grotte := Game.grotte_rect.has_point(Vector2(p.x, p.z)) and p.y < 8.0
+	var dedans: bool = not player.in_zone.is_empty()
+	var ville := Game.in_city(p)
+	var nuit := Game.is_night()
+	var boss := false
+	for b in get_tree().get_nodes_in_group("boss"):
+		if b.state == b.State.CHASE or b.global_position.distance_to(p) < 25.0:
+			boss = true
+	var ext := 0.0 if dans_grotte else (0.45 if dedans else 1.0)
+	var cibles := {
+		"vent": (0.55 if ville else 0.4) * ext,
+		"amb_campagne": (0.0 if (nuit or ville) else 0.75) * ext,
+		"amb_nuit": (0.7 if (nuit and not ville) else (0.25 if nuit else 0.0)) * ext,
+		"amb_ville": (0.75 if ville else 0.0) * ext,
+		"amb_grotte": 0.9 if dans_grotte else 0.0,
+		"musique_boss": 0.85 if (boss and player.alive) else 0.0,
+	}
+	for nom in ambiances:
+		var a: AudioStreamPlayer = ambiances[nom]
+		var lin := db_to_linear(a.volume_db)
+		lin = move_toward(lin, float(cibles.get(nom, 0.0)) * 0.35, delta * 0.25)
+		a.volume_db = linear_to_db(maxf(lin, 0.0005))
+	if reverb_idx >= 0:
+		AudioServer.set_bus_effect_enabled(0, reverb_idx, dans_grotte)

@@ -203,6 +203,8 @@ func _physics_process(delta: float) -> void:
 		stop_dist = 0.05
 	if to_goal.length() > stop_dist:
 		desired = _steer(to_goal.normalized(), delta)
+	if Game.dans_eau(global_position):
+		speed *= 0.6
 	var accel := 30.0 if charge_t > 0.0 else 10.0
 	velocity.x = move_toward(velocity.x, desired.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, desired.z * speed, accel * delta)

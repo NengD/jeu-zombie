@@ -7,16 +7,18 @@ class Crosshair extends Control:
 	var spread := 6.0
 	var hit := 0.0
 	var head := false
+	var vise := false   # en visée : on utilise le viseur de l'arme, pas de réticule
 
 	func _draw() -> void:
 		var c := size / 2.0
 		var col := Color(1, 1, 1, 0.85)
 		var g := spread
-		draw_line(c + Vector2(-g - 8, 0), c + Vector2(-g, 0), col, 2.0)
-		draw_line(c + Vector2(g, 0), c + Vector2(g + 8, 0), col, 2.0)
-		draw_line(c + Vector2(0, -g - 8), c + Vector2(0, -g), col, 2.0)
-		draw_line(c + Vector2(0, g), c + Vector2(0, g + 8), col, 2.0)
-		draw_circle(c, 1.5, col)
+		if not vise:
+			draw_line(c + Vector2(-g - 8, 0), c + Vector2(-g, 0), col, 2.0)
+			draw_line(c + Vector2(g, 0), c + Vector2(g + 8, 0), col, 2.0)
+			draw_line(c + Vector2(0, -g - 8), c + Vector2(0, -g), col, 2.0)
+			draw_line(c + Vector2(0, g), c + Vector2(0, g + 8), col, 2.0)
+			draw_circle(c, 1.5, col)
 		if hit > 0.0:
 			var hc := Color(1, 0.25, 0.2, hit) if head else Color(1, 1, 1, hit)
 			for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
@@ -277,6 +279,7 @@ func _process(delta: float) -> void:
 	var target_spread := 4.0 + moving * 1.5 + (0.0 if p.aiming else 4.0)
 	cross.spread = lerpf(cross.spread, target_spread, delta * 10.0)
 	cross.visible = p.alive and not Game.ui_open
+	cross.vise = p.ads > 0.6
 	cross.queue_redraw()
 
 

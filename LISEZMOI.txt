@@ -72,6 +72,29 @@ Grotte du Colosse ..... (repère violet, nord-ouest) le BOSS : un zombie géant
                         de 2 500 PV qui charge et frappe le sol. Prends une lampe !
                         Sa cache au fond de la grotte contient le meilleur butin.
 
+PAYSAGE
+- Collines (plus de sapins sur les hauteurs, rochers sur les pentes), 5 lacs et
+  une rivière au nord de la ville (on peut marcher dans l'eau, mais lentement et
+  bruyamment). Un pont la traverse sur l'autoroute nord.
+- Cabane de pêche avec ponton au bord de l'étang, antenne relais sur le point le
+  plus haut (belle vue… et une armoire technique à fouiller), lignes électriques.
+- La carte (M) montre maintenant le relief et l'eau.
+
+ARMES : VISÉE ET RECHARGEMENT
+- En visant (clic droit), l'arme vient se caler sur l'œil : on vise avec la hausse
+  et le guidon, à travers le verre du point rouge, ou dans la lunette (image
+  grossie environ 4,5 fois, réticule). Le réticule de l'écran disparaît en visée.
+- L'arme bouge de façon naturelle : inertie quand on tourne, balancement en
+  marchant, arme baissée en sprint, recul, sortie de l'arme quand on la change.
+- Rechargement réaliste : chargeur retiré et remplacé ; à vide, le chargeur
+  tombe au sol et on réarme. Fusil à pompe et revolver : une cartouche à la fois.
+
+AMBIANCE
+- Sons d'ambiance selon l'endroit et l'heure (oiseaux, grillons la nuit, ville,
+  grotte avec écho), musique pendant le combat contre le Colosse.
+- Quelques néons de secours fonctionnent encore dans les bâtiments (certains
+  clignotent). La grotte a ses stalactites… et ses ossements.
+
 BÂTIMENTS ET PORTES
 - Toutes les portes s'ouvrent et se ferment avec F. Les zombies ne savent pas
   les ouvrir : ils tapent dedans jusqu'à les enfoncer (une porte fermée te fait
