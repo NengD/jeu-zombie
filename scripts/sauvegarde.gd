@@ -26,8 +26,8 @@ static func lire() -> Dictionary:
 	if not FileAccess.file_exists(FICHIER):
 		return {}
 	var d = JSON.parse_string(FileAccess.get_file_as_string(FICHIER))
-	# les sauvegardes d'avant les bâtiments à étages ne correspondent plus à la carte
-	return d if d is Dictionary and int(d.get("version", 1)) >= 2 else {}
+	# les sauvegardes d'avant le relief (collines, lacs) ne correspondent plus à la carte
+	return d if d is Dictionary and int(d.get("version", 1)) >= 3 else {}
 
 
 static func supprimer() -> void:
@@ -80,7 +80,7 @@ static func sauver(main: Node) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
 		return false
-	var d := {"version": 2, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
+	var d := {"version": 3, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
 			"date": Time.get_datetime_string_from_system(false, true)}
 	# joueur
 	var eq := {}
