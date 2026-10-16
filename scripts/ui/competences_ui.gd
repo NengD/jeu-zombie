@@ -144,7 +144,7 @@ func _apres_talent(t: String) -> void:
 func _gains(c: String) -> String:
 	match c:
 		"combat":
-			return "XP : tuer des zombies (plus pour policiers et militaires), frapper au corps à corps."
+			return "XP : tuer des zombies (plus pour policiers et militaires), toucher un zombie au corps à corps ou avec une arme à feu."
 		"fabrication":
 			return "XP : fabriquer des objets, poser des établis, caisses, barricades."
 		_:

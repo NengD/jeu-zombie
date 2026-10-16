@@ -595,10 +595,14 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	var spread := deg_to_rad(spread_deg)
 	var right := camera.global_basis.x.normalized()
 	var up := camera.global_basis.y.normalized()
+	var touche := false
 	for i in int(w.pellets):
 		var dir := (aim - origin).normalized()
 		dir = dir.rotated(right, randf_range(-spread, spread)).rotated(up, randf_range(-spread, spread))
-		_shoot_ray(origin, origin + dir * float(w.range), float(w.damage))
+		if _shoot_ray(origin, origin + dir * float(w.range), float(w.damage)):
+			touche = true
+	if touche:
+		prog.gagner("combat", 2)   # XP de combat aussi avec les armes à feu
 	head.rotation.x = clampf(head.rotation.x + float(w.recoil), -1.45, 1.45)
 	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * 0.3)
 	vm_kick = 1.0

@@ -111,7 +111,8 @@ NIVEAUX ET COMPÉTENCES (touche K)
 - Niveau global : chaque action donne de l'XP ; à chaque niveau, 1 point d'attribut :
   Endurance (+10 max, récupération plus rapide), Santé (+10 max), Soif et Faim (baissent moins vite).
 - 3 compétences avec leurs propres niveaux (jusqu'au niveau 10) :
-  Combat (tuer des zombies : 20 XP civil, 35 policier, 50 militaire ; frapper au corps à corps),
+  Combat (tuer des zombies : 20 XP civil, 35 policier, 50 militaire, avec n'importe quelle arme ;
+  chaque zombie touché au corps à corps ou par balle donne aussi de l'XP),
   Fabrication (fabriquer, poser établis/caisses/barricades),
   Exploration (fouiller meubles et corps, découvrir bâtiments et lieux importants).
 - Chaque niveau de compétence donne 1 point de talent pour débloquer un bonus de cette compétence
