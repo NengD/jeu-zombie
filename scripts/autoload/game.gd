@@ -35,6 +35,14 @@ var ui_open := false
 var time_hours := 8.0
 var graine_monde := 0
 var partie_a_charger: Dictionary = {}   # rempli par « Continuer » : partie à reprendre
+# --- mode admin (tests) : rien n'est sauvegardé
+var admin := false
+var admin_invincible := true
+var admin_munitions := true
+var admin_vol := false
+var admin_murs := false        # traverser les murs en volant
+var admin_invisible := false   # les zombies ne voient plus le joueur
+var admin_besoins := true      # ni faim, ni soif, endurance infinie
 var day := 1
 var blood_mat: StandardMaterial3D
 
@@ -88,6 +96,8 @@ func _setup_inputs() -> void:
 	_key("soigner", KEY_H)
 	_key("inspecter", KEY_T)
 	_key("competences", KEY_K)
+	_phys("admin_panneau", KEY_F2)
+	_key("admin_vol", KEY_N)
 	_phys("sauvegarde_rapide", KEY_F5)
 	_phys("chargement_rapide", KEY_F9)
 	_phys("aide", KEY_F1)
@@ -151,6 +161,7 @@ func apply_settings() -> void:
 ## Reprend la partie sauvegardée.
 func charger_partie() -> void:
 	partie_a_charger = Sauvegarde.lire()
+	admin = false
 	get_tree().paused = false
 	ui_open = false
 	get_tree().change_scene_to_file("res://scenes/main.tscn")

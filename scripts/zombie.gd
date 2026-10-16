@@ -252,7 +252,7 @@ func _physics_process(delta: float) -> void:
 
 func _think() -> void:
 	var p = Game.player
-	if p == null or not p.alive:
+	if p == null or not p.alive or (Game.admin and Game.admin_invisible):
 		if state == State.CHASE:
 			state = State.WANDER
 		_wander_update()

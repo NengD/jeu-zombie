@@ -72,6 +72,22 @@ Grotte du Colosse ..... (repère violet, nord-ouest) le BOSS : un zombie géant
                         de 2 500 PV qui charge et frappe le sol. Prends une lampe !
                         Sa cache au fond de la grotte contient le meilleur butin.
 
+MODE ADMIN (pour tester)
+- Bouton « Mode admin (test) » dans le menu principal. Rien n'est sauvegardé.
+- Invincible, munitions infinies, ni faim ni soif (réglables).
+- N : voler (Espace monte, Ctrl/C descend, Maj = très rapide). Option pour
+  traverser les murs.
+- F2 : panneau admin
+  · Équipement complet (fusil d'assaut avec tous les accessoires, gilet, casque,
+    sac militaire, munitions, soins)
+  · Coffres de tous les objets (5 coffres posés devant toi, un par catégorie)
+  · N'importe quel objet en double-cliquant dans la liste
+  · Téléportation vers chaque lieu de la carte
+  · Heure (aube, matin, midi, soir, nuit), jour suivant
+  · Faire apparaître des zombies, une horde, le Colosse ; tuer ceux qui sont proches
+  · Soigner, monter de niveau, débloquer tous les talents
+  · Invisible pour les zombies
+
 PAYSAGE
 - Collines (plus de sapins sur les hauteurs, rochers sur les pentes), 5 lacs et
   une rivière au nord de la ville (on peut marcher dans l'eau, mais lentement et
@@ -79,6 +95,11 @@ PAYSAGE
 - Cabane de pêche avec ponton au bord de l'étang, antenne relais sur le point le
   plus haut (belle vue… et une armoire technique à fouiller), lignes électriques.
 - La carte (M) montre maintenant le relief et l'eau.
+
+MAINS ET ANIMATIONS
+- Mains réalistes à cinq doigts en vue 1re personne : les doigts se referment sur
+  la poignée, le garde-main, le manche, le chargeur ; l'index reste le long de
+  l'arme et se pose sur la détente au tir. Coups de poing alternés gauche/droite.
 
 ARMES : VISÉE ET RECHARGEMENT
 - En visant (clic droit), l'arme vient se caler sur l'œil : on vise avec la hausse

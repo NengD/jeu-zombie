@@ -79,6 +79,9 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Carambolages[/b] (repères rouges) : zones infestées sur l'autoroute, une trentaine de zombies et des coffres bien remplis.
 • [b]Grotte du Colosse[/b] (repère violet) : le BOSS, un zombie géant de 2 500 PV qui charge et frappe le sol. Prends une lampe ! Sa cache contient le meilleur butin du jeu.
 
+[b]MODE ADMIN[/b] (bouton dans le menu principal, rien n'est sauvegardé)
+• N : voler (Espace monte, Ctrl descend, Maj rapide). F2 : panneau admin (tous les objets, téléportation, heure, zombies, boss, niveaux).
+
 [b]PAYSAGE[/b]
 • Collines, lacs et rivière au nord de la ville (on peut marcher dans l'eau, lentement). Un pont la traverse sur l'autoroute.
 • Cabane de pêche au bord de l'étang, antenne relais sur le point le plus haut. La carte (M) montre le relief et l'eau.

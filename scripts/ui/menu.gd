@@ -62,16 +62,18 @@ void fragment() {
 	main_box.add_child(spacer)
 	var play: Button
 	if Sauvegarde.existe():
-		play = _big_button("Continuer", func(): Game.partie_a_charger = Sauvegarde.lire(); _play())
+		play = _big_button("Continuer", func(): Game.admin = false; Game.partie_a_charger = Sauvegarde.lire(); _play())
 		var info := Label.new()
 		info.text = Sauvegarde.resume()
 		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		info.add_theme_font_size_override("font_size", 16)
 		info.add_theme_color_override("font_color", Color(0.65, 0.65, 0.6))
 		main_box.add_child(info)
-		_big_button("Nouvelle partie", func(): Game.partie_a_charger = {}; _play())
+		_big_button("Nouvelle partie", func(): Game.admin = false; Game.partie_a_charger = {}; _play())
 	else:
-		play = _big_button("Jouer", func(): Game.partie_a_charger = {}; _play())
+		play = _big_button("Jouer", func(): Game.admin = false; Game.partie_a_charger = {}; _play())
+	var adm := _big_button("Mode admin (test)", func(): _lancer_admin())
+	adm.tooltip_text = "Partie de test : vol, invincible, tous les objets, téléportation… (rien n'est sauvegardé)"
 	_big_button("Paramètres", func(): _show(settings_panel))
 	_big_button("Guide", func(): _show(guide_panel))
 	_big_button("Quitter", func(): get_tree().quit())
@@ -252,3 +254,17 @@ func _play() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+
+## Lance une partie de test en mode admin (rien n'est sauvegardé).
+func _lancer_admin() -> void:
+	Game.admin = true
+	Game.admin_invincible = true
+	Game.admin_munitions = true
+	Game.admin_besoins = true
+	Game.admin_vol = false
+	Game.admin_murs = false
+	Game.admin_invisible = false
+	Game.partie_a_charger = {}
+	_play()

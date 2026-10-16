@@ -56,6 +56,8 @@ func _ready() -> void:
 	add_child(InspectionUI.new())
 	add_child(CompetencesUI.new())
 	add_child(MapUI.new())
+	if Game.admin:
+		add_child(preload("res://scripts/ui/admin_ui.gd").new())
 	_ambience()
 	if charge.is_empty():
 		Game.msg("Bienvenue. Trouve de quoi survivre. [F1] pour l'aide.")
@@ -68,6 +70,10 @@ func _ready() -> void:
 func sauvegarder(auto := false) -> void:
 	if player == null or not player.alive:
 		return
+	if Game.admin:
+		if not auto:
+			Game.msg("Mode admin : la partie n'est pas sauvegardée.")
+		return
 	if Sauvegarde.sauver(self):
 		Game.msg("Sauvegarde automatique." if auto else "Partie sauvegardée.")
 	else:
@@ -78,7 +84,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("sauvegarde_rapide"):
 		sauvegarder()
 	elif event.is_action_pressed("chargement_rapide"):
-		if Sauvegarde.existe():
+		if Game.admin:
+			Game.msg("Mode admin : chargement désactivé.")
+		elif Sauvegarde.existe():
 			Game.charger_partie()
 		else:
 			Game.msg("Aucune sauvegarde.")

@@ -1,6 +1,7 @@
 extends Node3D
-## Bras du joueur en vue 1re personne : les mains tiennent réellement l'arme
-## (cinématique inverse à 2 segments : bras + avant-bras), et animation de rechargement.
+## Bras et mains du joueur en vue 1re personne.
+## Mains réalistes à cinq doigts (paume, trois phalanges par doigt, pouce, ongles) dont les doigts
+## se referment sur ce qu'elles tiennent ; bras posés par cinématique inverse (bras + avant-bras).
 ## Placé comme enfant de la caméra : toutes les positions sont en espace caméra.
 
 const UPPER := 0.34
@@ -10,56 +11,116 @@ const SHOULDER_L := Vector3(-0.17, -0.30, 0.04)
 const POLE_R := Vector3(0.7, -1.0, 0.4)
 const POLE_L := Vector3(-0.7, -1.0, 0.4)
 
-const SKIN := Color(0.86, 0.66, 0.52)
-const SLEEVE := Color(0.32, 0.38, 0.30)
-const GLOVE := Color(0.18, 0.16, 0.14)
+const PEAU := Color(0.78, 0.58, 0.46)
+const ONGLE := Color(0.86, 0.7, 0.64)
+const MANCHE := Color(0.24, 0.30, 0.24)
+const ECHELLE := 0.85
 
-# Armes tenues à deux mains (main gauche le long du manche)
-const HAND_SCALE := 0.85
-# Formes de main : [paume, doigts, doigts 2, pouce] = [décalage, taille], puis position du poignet.
-# Repère de l'arme : -Z = avant, +Y = haut, +X = droite (miroir pour la main gauche).
-const HAND_LAYOUTS := {
-	# poignée pistolet (verticale)
-	"poignee": [[Vector3(0.026, 0.0, 0.008), Vector3(0.02, 0.08, 0.07)], [Vector3(0.0, -0.002, -0.03), Vector3(0.058, 0.075, 0.02)],
-		[Vector3(-0.026, -0.002, -0.012), Vector3(0.016, 0.07, 0.04)], [Vector3(-0.02, 0.045, 0.0), Vector3(0.018, 0.018, 0.055)], Vector3(0.03, -0.01, 0.06)],
-	# garde-main (barre horizontale le long de l'arme), main par-dessous
-	"garde": [[Vector3(0.0, -0.03, 0.0), Vector3(0.058, 0.02, 0.085)], [Vector3(-0.03, -0.008, 0.0), Vector3(0.018, 0.045, 0.08)],
-		[Vector3(-0.024, 0.016, 0.0), Vector3(0.012, 0.012, 0.075)], [Vector3(0.028, -0.008, 0.012), Vector3(0.016, 0.035, 0.05)], Vector3(0.0, -0.06, 0.05)],
-	# manche (arme blanche), tenu le long de -Z
-	"manche": [[Vector3(0.026, 0.0, 0.0), Vector3(0.02, 0.06, 0.08)], [Vector3(0.0, -0.026, 0.0), Vector3(0.05, 0.02, 0.08)],
-		[Vector3(-0.024, -0.006, 0.0), Vector3(0.016, 0.04, 0.075)], [Vector3(0.0, 0.028, 0.02), Vector3(0.022, 0.016, 0.05)], Vector3(0.03, -0.035, 0.035)],
-	# poing fermé
-	"poing": [[Vector3(0.0, 0.0, 0.0), Vector3(0.07, 0.06, 0.085)], [Vector3(0.0, -0.005, -0.045), Vector3(0.068, 0.05, 0.03)],
-		[Vector3(-0.02, -0.03, -0.035), Vector3(0.025, 0.02, 0.03)], [Vector3(-0.038, 0.0, -0.02), Vector3(0.018, 0.04, 0.03)], Vector3(0.0, -0.01, 0.06)],
-}
-
-var layouts := {"R": "poignee", "L": "garde"}
-
-
-func layout_of(side: String) -> String:
-	return layouts.get(side, "poignee")
-
+# ---------------------------------------------------------------- géométrie de la main (droite)
+# Repère de la main : doigts tendus vers -Z, paume vers -Y, pouce du côté -X. Origine = centre de la paume.
+# [base de la 1re phalange, longueurs des 3 phalanges, rayon, écart]
+const DOIGTS := [
+	[Vector3(-0.028, 0.002, -0.043), [0.043, 0.026, 0.021], 0.0093, -0.07],
+	[Vector3(-0.009, 0.003, -0.046), [0.047, 0.029, 0.023], 0.0097, 0.0],
+	[Vector3(0.010, 0.002, -0.044), [0.044, 0.027, 0.022], 0.0091, 0.06],
+	[Vector3(0.027, -0.001, -0.038), [0.034, 0.021, 0.019], 0.0081, 0.13],
+]
+const POUCE_BASE := Vector3(-0.026, -0.010, 0.014)
+const POUCE_DIR := Vector3(-0.68, -0.2, -0.7)
+const POUCE_LONG := [0.042, 0.031, 0.025]
+# direction du pouce selon la prise (sinon POUCE_DIR) : le long du garde-main, le long de la carcasse…
+const POUCE_POSE := {"garde": Vector3(-0.95, -0.12, -0.28), "poignee": Vector3(-0.45, -0.22, -0.86), "detente": Vector3(-0.45, -0.22, -0.86),
+	"appui": Vector3(-0.55, -0.2, -0.8), "chargeur": Vector3(-0.8, -0.2, -0.55)}
+const POUCE_RAYON := 0.0115
+const POIGNET := Vector3(0.0, 0.003, 0.052)
 
 const TWO_HANDED_MELEE := ["batte", "batte_cloutee", "hache", "masse"]
 const SHELL_FED := ["fusil_pompe", "fusil_artisanal", "revolver"]
 
-var parts := {}   # "R"/"L" -> {upper, fore, hand, thumb}
+# Poses : angles de flexion (degrés) [1re, 2e, 3e phalange] pour index, majeur, annulaire, auriculaire, puis pouce.
+const POSES := {
+	"ouverte": [[12, 14, 8], [14, 16, 8], [16, 18, 10], [18, 20, 10], [8, 8, 5]],
+	"poignee": [[18, 22, 12], [78, 92, 62], [82, 94, 64], [84, 96, 66], [38, 30, 18]],
+	"detente": [[48, 68, 38], [78, 92, 62], [82, 94, 64], [84, 96, 66], [38, 30, 18]],
+	"garde": [[66, 74, 50], [70, 78, 52], [72, 80, 54], [74, 82, 56], [8, 12, 6]],
+	"appui": [[62, 72, 48], [66, 76, 50], [70, 78, 52], [72, 80, 52], [14, 16, 10]],
+	"manche": [[82, 96, 68], [86, 98, 70], [88, 100, 70], [90, 100, 72], [48, 42, 30]],
+	"poing": [[96, 108, 72], [98, 110, 74], [100, 110, 74], [102, 110, 74], [56, 52, 36]],
+	"chargeur": [[48, 54, 38], [54, 58, 40], [58, 62, 42], [62, 66, 44], [28, 26, 18]],
+	"pince": [[42, 56, 48], [86, 98, 70], [90, 100, 70], [92, 100, 72], [36, 34, 30]],
+}
+
+# Orientation de la main pour chaque prise, dans le repère de l'arme (colonnes : axes X, Y, Z de la main)
+# et décalage du centre de la paume par rapport au point de prise.
+static func _prise(nom: String, gauche: bool) -> Array:
+	match nom:
+		"poignee":
+			# poignée inclinée vers l'arrière d'une quinzaine de degrés
+			return [Basis(Vector3.RIGHT, deg_to_rad(14)) * Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)), Vector3(0.026, 0.004, 0.04)]
+		"garde":
+			return [Basis(Vector3(0, 0, -1), Vector3(0, -1, 0), Vector3(-1, 0, 0)), Vector3(-0.022, -0.026, 0.0)]
+		"appui":
+			return [Basis(Vector3(0, 0.8, -0.6), Vector3(-1, 0, 0), Vector3(0, 0.6, 0.8)), Vector3(-0.03, -0.012, 0.004)]
+		"manche":
+			if gauche:
+				return [Basis(Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 1, 0)), Vector3(-0.024, 0.012, 0.0)]
+			return [Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3(0.024, 0.012, 0.0)]
+		"chargeur", "pince":
+			return [Basis(Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)), Vector3(-0.034, -0.01, 0.0)]
+	return [Basis.IDENTITY, Vector3.ZERO]
+
+
+var parts := {}       # "R"/"L" -> {bras, coude, avant, manchette, poignet, segs: [], ongles: [], paume: [...]}
 var mag: MeshInstance3D
 var shell: MeshInstance3D
+var mat_peau: StandardMaterial3D
+var mat_ongle: StandardMaterial3D
+var mat_manche: StandardMaterial3D
+var temps := 0.0
+var geo := {}         # points mesurés sur le modèle de l'arme tenue (fournis par le joueur)
 
 
 func _ready() -> void:
+	mat_peau = StandardMaterial3D.new()
+	mat_peau.albedo_color = PEAU
+	mat_peau.roughness = 0.62
+	mat_peau.rim_enabled = true
+	mat_peau.rim = 0.25
+	mat_peau.rim_tint = 0.6
+	mat_ongle = StandardMaterial3D.new()
+	mat_ongle.albedo_color = ONGLE
+	mat_ongle.roughness = 0.35
+	mat_manche = StandardMaterial3D.new()
+	mat_manche.albedo_color = MANCHE
+	mat_manche.roughness = 0.92
+	if ResourceLoader.exists("res://textures/tissu_albedo.jpg"):
+		mat_manche.albedo_texture = load("res://textures/tissu_albedo.jpg")
 	for side in ["R", "L"]:
-		parts[side] = {
-			"upper": _seg(0.05, SLEEVE),
-			"fore": _seg(0.042, SLEEVE),
-			"cuff": _seg(0.044, SLEEVE.darkened(0.25)),
-			"palm": _box(Vector3.ONE, GLOVE),
-			"fing": _box(Vector3.ONE, GLOVE.lightened(0.08)),
-			"fing2": _box(Vector3.ONE, GLOVE.lightened(0.08)),
-			"thumb": _box(Vector3.ONE, GLOVE),
+		var p := {
+			"bras": _cyl(0.052, 0.046, mat_manche),
+			"coude": _sphere(0.047, mat_manche),
+			"avant": _cyl(0.045, 0.037, mat_manche),
+			"manchette": _cyl(0.04, 0.04, mat_manche),
+			"poignet": _cyl(0.024, 0.021, mat_peau),
+			"segs": [],
+			"articulations": [],
+			"ongles": [],
+			"paume": _boite(Vector3(0.07, 0.024, 0.078), mat_peau),
+			"jointures": _capsule(0.0115, 0.062, mat_peau),
+			"talon": _capsule(0.0125, 0.056, mat_peau),
+			"thenar": _sphere(0.019, mat_peau),
 		}
-	mag = _box(Vector3(0.03, 0.13, 0.06), Color(0.12, 0.12, 0.12))
+		for f in 4:
+			var lg: Array = DOIGTS[f][1]
+			var r: float = DOIGTS[f][2]
+			for k in 3:
+				p.segs.append(_capsule(r * (1.0 - 0.08 * k), lg[k], mat_peau))
+			p.ongles.append(_boite(Vector3(r * 1.35, 0.0015, r * 1.4), mat_ongle))
+		for k in 3:
+			p.segs.append(_capsule(POUCE_RAYON * (1.0 - 0.1 * k), POUCE_LONG[k], mat_peau))
+		p.ongles.append(_boite(Vector3(POUCE_RAYON * 1.35, 0.0015, POUCE_RAYON * 1.4), mat_ongle))
+		parts[side] = p
+	mag = _boite(Vector3(0.03, 0.13, 0.06), _mat(Color(0.12, 0.12, 0.12)))
 	shell = MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.009
@@ -78,34 +139,67 @@ func _mat(c: Color) -> StandardMaterial3D:
 	return m
 
 
-func _seg(radius: float, col: Color) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = radius * 0.9
-	cm.bottom_radius = radius
-	cm.height = 1.0
-	cm.radial_segments = 8
-	mi.mesh = cm
-	mi.material_override = _mat(col)
+func _ajoute(mi: MeshInstance3D, m: Material) -> MeshInstance3D:
+	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.layers = 2   # invisible pour la caméra de la lunette
 	add_child(mi)
 	return mi
 
 
-func _box(size: Vector3, col: Color) -> MeshInstance3D:
+func _cyl(r_haut: float, r_bas: float, m: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = r_haut
+	cm.bottom_radius = r_bas
+	cm.height = 1.0
+	cm.radial_segments = 14
+	mi.mesh = cm
+	return _ajoute(mi, m)
+
+
+func _capsule(r: float, longueur: float, m: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = r
+	cm.height = longueur + 2.0 * r
+	cm.radial_segments = 10
+	cm.rings = 4
+	mi.mesh = cm
+	return _ajoute(mi, m)
+
+
+func _sphere(r: float, m: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = r
+	sm.height = r * 2.0
+	sm.radial_segments = 12
+	sm.rings = 6
+	mi.mesh = sm
+	return _ajoute(mi, m)
+
+
+func _boite(size: Vector3, m: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
 	mi.mesh = bm
-	mi.material_override = _mat(col)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.layers = 2
-	add_child(mi)
-	return mi
+	return _ajoute(mi, m)
 
 
-## Place un segment (cylindre d'axe Y) entre a et b.
+## Base orthonormée dont l'axe Y suit « dir ».
+static func _base_y(dir: Vector3) -> Basis:
+	var y := dir.normalized()
+	var x := y.cross(Vector3.FORWARD)
+	if x.length() < 0.01:
+		x = y.cross(Vector3.RIGHT)
+	x = x.normalized()
+	var z := x.cross(y).normalized()
+	return Basis(x, y, z)
+
+
+## Place un cylindre (axe Y, hauteur 1) entre a et b.
 func _place(mi: MeshInstance3D, a: Vector3, b: Vector3) -> void:
 	var d := b - a
 	var l := d.length()
@@ -113,16 +207,11 @@ func _place(mi: MeshInstance3D, a: Vector3, b: Vector3) -> void:
 		mi.visible = false
 		return
 	mi.visible = true
-	var y := d / l
-	var x := y.cross(Vector3.FORWARD)
-	if x.length() < 0.01:
-		x = y.cross(Vector3.RIGHT)
-	x = x.normalized()
-	var z := x.cross(y).normalized()
-	mi.transform = Transform3D(Basis(x, y * l, z), (a + b) * 0.5)
+	var bs := _base_y(d)
+	mi.transform = Transform3D(Basis(bs.x, bs.y * l, bs.z), (a + b) * 0.5)
 
 
-func _ik(s: Vector3, t: Vector3, pole: Vector3) -> Array:
+func _ik(s: Vector3, t: Vector3, pole: Vector3) -> Vector3:
 	var u := UPPER
 	var f := FORE
 	var v := t - s
@@ -136,37 +225,101 @@ func _ik(s: Vector3, t: Vector3, pole: Vector3) -> Array:
 	var a := (u * u - f * f + d * d) / (2.0 * d)
 	var h := sqrt(maxf(0.0, u * u - a * a))
 	var p := (pole - n * pole.dot(n)).normalized()
-	return [s + n * a + p * h]
+	return s + n * a + p * h
 
 
-func _arm(side: String, shoulder: Vector3, hand_xf: Transform3D, pole: Vector3, show: bool) -> void:
+## Articulations d'un doigt (repère main droite) : renvoie les 4 points de la base au bout.
+static func _chaine(base: Vector3, dir0: Vector3, lateral: Vector3, longueurs: Array, angles: Array) -> Array:
+	var pts := [base]
+	var d := dir0
+	var p := base
+	for k in 3:
+		d = d.rotated(lateral, -deg_to_rad(float(angles[k])))
+		p = p + d * float(longueurs[k])
+		pts.append(p)
+	return pts
+
+
+## Pose la main : xf = repère de la main en espace caméra (origine = centre de la paume).
+func _main(side: String, xf: Transform3D, pose: String, variation: float) -> void:
+	var pr: Dictionary = parts[side]
+	var miroir := -1.0 if side == "L" else 1.0
+	var angles: Array = POSES.get(pose, POSES["ouverte"])
+	var sc := ECHELLE
+	var b := xf.basis.orthonormalized()
+	var o := xf.origin
+	var M := func(v: Vector3) -> Vector3: return o + b * (Vector3(v.x * miroir, v.y, v.z) * sc)
+	var MD := func(v: Vector3) -> Vector3: return b * Vector3(v.x * miroir, v.y, v.z)
+	# paume
+	var bm := Basis(b.x * sc, b.y * sc, b.z * sc)
+	pr.paume.transform = Transform3D(bm, M.call(Vector3(0.0, 0.0, -0.002)))
+	pr.jointures.transform = Transform3D(_base_y(MD.call(Vector3(1, 0, 0))).scaled(Vector3(sc, sc, sc)), M.call(Vector3(0.0, 0.0, -0.038)))
+	pr.talon.transform = Transform3D(_base_y(MD.call(Vector3(1, 0, -0.15))).scaled(Vector3(sc, sc, sc)), M.call(Vector3(0.004, -0.002, 0.036)))
+	pr.thenar.transform = Transform3D(Basis(b.x * sc * 1.1, b.y * sc * 0.75, b.z * sc * 1.5), M.call(Vector3(-0.024, -0.009, 0.014)))
+	# doigts
+	var i := 0
+	for f in 5:
+		var pts: Array
+		var rayon: float
+		var a: Array = angles[f].duplicate()
+		var bruit := sin(temps * 1.3 + f * 1.7) * 2.5 * variation
+		for k in 3:
+			a[k] = float(a[k]) + bruit
+		if f < 4:
+			var dd: Array = DOIGTS[f]
+			var ecart: float = float(dd[3]) * (1.0 - clampf(float(a[0]) / 100.0, 0.0, 0.8))
+			var dir0 := Vector3(0, 0, -1).rotated(Vector3.UP, -ecart)
+			var lat := Vector3(1, 0, 0).rotated(Vector3.UP, -ecart)
+			pts = _chaine(dd[0], dir0, lat, dd[1], a)
+			rayon = dd[2]
+		else:
+			var d0: Vector3 = POUCE_POSE.get(pose, POUCE_DIR).normalized()
+			var lat2 := d0.cross(Vector3(0.75, -0.55, 0.0)).normalized()
+			pts = _chaine(POUCE_BASE, d0, -lat2, POUCE_LONG, a)
+			rayon = POUCE_RAYON
+		for k in 3:
+			var mi: MeshInstance3D = pr.segs[i]
+			var pa: Vector3 = M.call(pts[k])
+			var pb: Vector3 = M.call(pts[k + 1])
+			mi.transform = Transform3D(_base_y(pb - pa).scaled(Vector3(sc, sc, sc)), (pa + pb) * 0.5)
+			i += 1
+		# ongle sur le dessus de la dernière phalange
+		var dbout: Vector3 = (pts[3] - pts[2]).normalized()
+		var dessus := Vector3(0, 1, 0).rotated(Vector3(1, 0, 0), 0.0)
+		dessus = (dessus - dbout * dessus.dot(dbout)).normalized()
+		var centre_ongle: Vector3 = pts[3] - dbout * rayon * 0.7 + dessus * rayon * 0.62
+		var ny: Vector3 = MD.call(dessus)
+		var nz: Vector3 = MD.call(dbout)
+		var nx := ny.cross(nz).normalized()
+		pr.ongles[f].transform = Transform3D(Basis(nx * sc, ny * sc, nz * sc), M.call(centre_ongle))
+
+
+## Bras complet : épaule → coude (IK) → poignet, puis la main.
+func _arm(side: String, shoulder: Vector3, hand_xf: Transform3D, pole: Vector3, show: bool, pose := "ouverte", variation := 1.0) -> void:
 	var pr: Dictionary = parts[side]
 	for k in pr:
-		pr[k].visible = show
+		if pr[k] is Array:
+			for m in pr[k]:
+				m.visible = show
+		else:
+			pr[k].visible = show
 	if not show:
 		return
-	var hand_pos := hand_xf.origin
-	var hb := hand_xf.basis.orthonormalized()
-	var lay: Array = HAND_LAYOUTS.get(layout_of(side), HAND_LAYOUTS["poignee"])
-	var mir := -1.0 if side == "L" else 1.0
-	var keys := ["palm", "fing", "fing2", "thumb"]
-	for i in 4:
-		var off: Vector3 = lay[i][0] * HAND_SCALE
-		var size: Vector3 = lay[i][1] * HAND_SCALE
-		off.x *= mir
-		var mi: MeshInstance3D = pr[keys[i]]
-		mi.transform = Transform3D(hb.scaled(size), hand_pos + hb * off)
-	var wrist_off: Vector3 = lay[4] * HAND_SCALE
-	wrist_off.x *= mir
-	var wrist := hand_pos + hb * wrist_off
-	var elbow: Vector3 = _ik(shoulder, wrist, pole)[0]
-	_place(pr.upper, shoulder, elbow)
-	_place(pr.fore, elbow, wrist)
-	_place(pr.cuff, wrist.lerp(elbow, 0.12), wrist)
+	_main(side, hand_xf, pose, variation)
+	var miroir := -1.0 if side == "L" else 1.0
+	var wrist: Vector3 = hand_xf.origin + hand_xf.basis.orthonormalized() * (Vector3(POIGNET.x * miroir, POIGNET.y, POIGNET.z) * ECHELLE)
+	var elbow := _ik(shoulder, wrist, pole)
+	_place(pr.bras, shoulder, elbow)
+	pr.coude.position = elbow
+	var fin_manche := elbow.lerp(wrist, 0.9)
+	_place(pr.avant, elbow, fin_manche)
+	_place(pr.manchette, fin_manche.lerp(elbow, 0.08), fin_manche)
+	_place(pr.poignet, fin_manche.lerp(elbow, 0.03), wrist)
 
 
 ## Points de prise en main (repère de l'arme, mètres). Main droite = poignée (origine).
-static func hand_points(id: String, w: Dictionary) -> Dictionary:
+## geo : points mesurés sur le modèle 3D de l'arme (Accessoires.points) quand il est disponible.
+static func hand_points(id: String, w: Dictionary, geo := {}) -> Dictionary:
 	var t: String = w.get("type", "")
 	var length: float = w.get("len", 0.3)
 	var res := {"R": Vector3(0, -0.035, 0.02), "L": null}
@@ -175,9 +328,20 @@ static func hand_points(id: String, w: Dictionary) -> Dictionary:
 			res.L = Vector3(-0.03, -0.06, 0.025)          # main d'appui sous la poignée
 			res["culasse"] = Vector3(0.0, 0.035, 0.03)    # arrière de la glissière
 		else:
-			res.L = Vector3(0, -0.035, -length * 0.5)     # garde-main
+			res.L = Vector3(0, -0.035, -length * 0.4)     # garde-main
 			res["culasse"] = Vector3(-0.035, 0.03, -0.1)  # levier d'armement
 		res["well"] = Vector3(0, -0.08, -minf(length * 0.08, 0.06))
+		if not geo.is_empty():
+			var ch: Vector3 = geo.get("chargeur", Vector3.ZERO)
+			var vi: Vector3 = geo.get("viseur", Vector3.ZERO)
+			if length >= 0.4:
+				var rail: Vector3 = geo.get("rail", Vector3.ZERO)
+				res.L = Vector3(0.0, rail.y - 0.012, rail.z + 0.04)
+				res["well"] = Vector3(0.0, ch.y + 0.1, ch.z)
+				res["culasse"] = Vector3(-0.03, vi.y - 0.03, vi.z + 0.05)
+			else:
+				res["well"] = Vector3(0.0, ch.y + 0.01, ch.z)
+				res["culasse"] = Vector3(0.0, vi.y - 0.005, vi.z + 0.06)
 	elif t == "melee":
 		res.R = Vector3(0, 0, 0)
 		if id in TWO_HANDED_MELEE:
@@ -223,7 +387,7 @@ static func evenements(id: String, vide: bool, n_cart: int) -> Array:
 ## Pose de rechargement : {rot, off (arme), L (point de la main gauche, repère arme), mag (chargeur en main), shell}
 static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vide := false, n_cart := 3) -> Dictionary:
 	p = clampf(p, 0.0, 1.0)
-	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "shell": false}
+	var out := {"rot": Vector3.ZERO, "off": Vector3.ZERO, "L": pts.L, "mag": false, "shell": false, "prise": "garde" if float(w.get("len", 0.3)) >= 0.4 else "appui"}
 	var grip_l: Vector3 = pts.L if pts.L != null else Vector3(-0.03, -0.06, 0.02)
 	var longue: bool = float(w.get("len", 0.3)) >= 0.4
 	if id in SHELL_FED:
@@ -237,10 +401,12 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 		var cyc := 0.7 / maxf(1, n_cart)
 		if p < 0.12:
 			out.L = grip_l.lerp(below, smoothstep(0.0, 1.0, p / 0.12))
+			out.prise = "pince" if p > 0.06 else out.prise
 		elif p < 0.82:
 			var q := fmod((p - 0.12) / cyc, 1.0)
 			out.L = below.lerp(port, sin(q * PI))
 			out.shell = q < 0.55
+			out.prise = "pince"
 		else:
 			var q2 := (p - 0.82) / 0.18
 			out.L = below.lerp(grip_l, smoothstep(0.0, 1.0, minf(q2 * 1.6, 1.0)))
@@ -261,6 +427,8 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 	if not vide:
 		out.L = _cles([[0.0, grip_l], [0.12, well], [0.2, sous], [0.34, poche], [0.44, poche], [0.58, sous], [0.65, bosse], [0.7, well], [0.88, grip_l]], p)
 		out.mag = (p > 0.14 and p < 0.34) or (p > 0.44 and p < 0.68)
+		if p > 0.07 and p < 0.76:
+			out.prise = "chargeur"
 		out.rot = _cles([[0.0, Vector3.ZERO], [0.12, r1], [0.66, r1], [0.69, r1 + Vector3(0.06, 0, 0)], [0.74, r1], [0.92, Vector3.ZERO]], p)
 		out.off = _cles([[0.0, Vector3.ZERO], [0.12, o1], [0.66, o1], [0.68, o1 + Vector3(0, 0.014, 0)], [0.72, o1], [0.92, Vector3.ZERO]], p)
 		return out
@@ -271,44 +439,69 @@ static func reload_pose(id: String, w: Dictionary, p: float, pts: Dictionary, vi
 	var o2 := Vector3(-0.22, 0.12, 0.06)
 	out.L = _cles([[0.0, grip_l], [0.1, well], [0.16, well + Vector3(0, -0.03, 0)], [0.3, poche], [0.38, poche], [0.53, sous], [0.6, bosse], [0.63, well], [0.72, culasse], [0.78, tire], [0.82, culasse], [0.97, grip_l]], p)
 	out.mag = p > 0.38 and p < 0.62
+	if p > 0.06 and p < 0.66:
+		out.prise = "chargeur"
+	elif p >= 0.66 and p < 0.88:
+		out.prise = "pince"
 	out.rot = _cles([[0.0, Vector3.ZERO], [0.1, r1], [0.6, r1], [0.62, r1 + Vector3(0.06, 0, 0)], [0.7, r2], [0.84, r2], [0.97, Vector3.ZERO]], p)
 	out.off = _cles([[0.0, Vector3.ZERO], [0.1, o1], [0.6, o1], [0.61, o1 + Vector3(0, 0.014, 0)], [0.7, o2], [0.79, o2 + Vector3(0, 0, 0.025)], [0.84, o2], [0.97, Vector3.ZERO]], p)
 	return out
 
 
 ## Mise à jour à chaque image. weapon_xf : repère de l'arme en espace caméra (null = poings).
-func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float, vide := false, n_cart := 3) -> void:
+## tir : 0..1 (index sur la détente) ; coup_gauche : le coup de poing part de la main gauche.
+func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float, vide := false, n_cart := 3, tir := 0.0, coup_gauche := false) -> void:
+	temps += get_process_delta_time()
 	mag.visible = false
 	shell.visible = false
 	if weapon_xf == null:
-		# poings levés, coup de poing avec la droite
+		# garde de boxe ; coup de poing (droite ou gauche) avec rotation du poing
 		var punch := sin(swing * PI)
-		layouts = {"R": "poing", "L": "poing"}
-		var hr := Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0.16, -0.17 + punch * 0.05, -0.36 - punch * 0.22))
-		var hl := Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(-0.15, -0.19, -0.33))
-		_arm("R", SHOULDER_R, hr, POLE_R, true)
-		_arm("L", SHOULDER_L, hl, POLE_L, true)
+		var garde := Vector3(0, sin(temps * 2.0) * 0.004, 0)
+		var br := Basis(Vector3(0, 0, 1), deg_to_rad(62)) * Basis(Vector3.RIGHT, 0.25)
+		var bl := Basis(Vector3(0, 0, 1), deg_to_rad(-62)) * Basis(Vector3.RIGHT, 0.25)
+		var pr_r := Vector3(0.15, -0.17, -0.35) + garde
+		var pr_l := Vector3(-0.14, -0.18, -0.32) + garde
+		if coup_gauche:
+			pr_l += Vector3(0.05, 0.05, -0.24) * punch
+			bl = bl.slerp(Basis(Vector3(0, 0, 1), deg_to_rad(-88)), punch)
+			pr_r += Vector3(0.01, 0.01, 0.03) * punch
+		else:
+			pr_r += Vector3(-0.05, 0.05, -0.24) * punch
+			br = br.slerp(Basis(Vector3(0, 0, 1), deg_to_rad(88)), punch)
+			pr_l += Vector3(-0.01, 0.01, 0.03) * punch
+		_arm("R", SHOULDER_R, Transform3D(br, pr_r), POLE_R, true, "poing", 0.0)
+		_arm("L", SHOULDER_L, Transform3D(bl, pr_l), POLE_L, true, "poing", 0.0)
 		return
 	var xf: Transform3D = weapon_xf
-	var pts := hand_points(id, w)
+	var bw := xf.basis.orthonormalized()
+	var pts := hand_points(id, w, geo)
 	var is_gun: bool = w.get("type", "") == "gun"
 	var short_gun: bool = is_gun and float(w.get("len", 0.3)) < 0.4
-	layouts = {"R": "poignee" if is_gun else "manche", "L": ("poignee" if short_gun else "garde") if is_gun else "manche"}
+	var prise_r := "poignee" if is_gun else "manche"
+	var prise_l := ("appui" if short_gun else "garde") if is_gun else "manche"
 	var lp = pts.L
-	if reload_p >= 0.0 and w.get("type", "") == "gun":
+	if reload_p >= 0.0 and is_gun:
 		var pose := reload_pose(id, w, reload_p, pts, vide, n_cart)
 		lp = pose.L
+		prise_l = pose.get("prise", prise_l)
 		if pose.mag and lp != null:
 			mag.visible = true
-			mag.transform = Transform3D(xf.basis.orthonormalized(), xf * (lp + Vector3(0, 0.06, -0.02)))
+			mag.transform = Transform3D(bw, xf * (lp + Vector3(0, 0.06, -0.02)))
 		if pose.shell and lp != null:
 			shell.visible = true
-			shell.transform = Transform3D(xf.basis.orthonormalized() * Basis(Vector3.RIGHT, PI / 2.0), xf * (lp + Vector3(0, 0.04, 0)))
-	var basis_r := xf.basis
-	var hand_r := Transform3D(basis_r, xf * pts.R)
-	_arm("R", SHOULDER_R, hand_r, POLE_R, true)
+			shell.transform = Transform3D(bw * Basis(Vector3.RIGHT, PI / 2.0), xf * (lp + Vector3(0, 0.04, 0)))
+	# main droite
+	var gr := _prise(prise_r, false)
+	var hand_r := Transform3D(bw * gr[0], xf * (pts.R + Vector3(gr[1])))
+	var pose_r := prise_r
+	if is_gun and tir > 0.0:
+		pose_r = "detente" if tir > 0.35 else "poignee"
+	_arm("R", SHOULDER_R, hand_r, POLE_R, true, pose_r, 1.0)
+	# main gauche
 	if lp != null:
-		var hand_l := Transform3D(basis_r * Basis(Vector3.FORWARD, 0.4), xf * lp)
-		_arm("L", SHOULDER_L, hand_l, POLE_L, true)
+		var gl := _prise(prise_l, true)
+		var hand_l := Transform3D(bw * gl[0], xf * (Vector3(lp) + Vector3(gl[1])))
+		_arm("L", SHOULDER_L, hand_l, POLE_L, true, prise_l, 1.0)
 	else:
 		_arm("L", SHOULDER_L, Transform3D(), POLE_L, false)

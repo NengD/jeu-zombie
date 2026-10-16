@@ -96,6 +96,8 @@ var draw_t := 0.0                 # sortie de l'arme (1 → 0)
 var ads := 0.0                    # 0 = à la hanche, 1 = en visée
 var sprint_k := 0.0
 var air_vy := 0.0
+var doigt_tir := 0.0               # index sur la détente (0..1)
+var coup_gauche := false           # alternance des coups de poing
 var reload_vide := false          # rechargement à vide (chargeur éjecté, armement)
 var reload_cart := 3              # cartouches insérées une à une
 var reload_ev: Array = []         # évènements sonores restants
@@ -257,6 +259,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			ghost_rot += PI / 2.0
 		get_viewport().set_input_as_handled()
 		return
+	if Game.admin and event.is_action_pressed("admin_vol"):
+		Game.admin_vol = not Game.admin_vol
+		if not Game.admin_vol:
+			collision_mask = Game.LAYER_WORLD | Game.LAYER_ZOMBIE
+		Game.msg("Vol : " + ("activé (Espace / Ctrl, Maj = rapide)" if Game.admin_vol else "désactivé"))
+		return
 	if event.is_action_pressed("tirer"):
 		fire_queued = 0.2
 	elif event.is_action_pressed("arme_suiv"):
@@ -311,6 +319,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_stats(delta: float) -> void:
+	if Game.admin and Game.admin_besoins:
+		hunger = 100.0
+		thirst = 100.0
+		stamina = prog.endurance_max()
+		return
 	hunger = maxf(0.0, hunger - delta * 0.055 * prog.faim_mult())
 	thirst = maxf(0.0, thirst - delta * 0.085 * prog.soif_mult())
 	if sprinting:
@@ -343,6 +356,9 @@ func _move(delta: float, can_act: bool) -> void:
 	var input := Vector2.ZERO
 	if can_act:
 		input = Input.get_vector("gauche", "droite", "avancer", "reculer")
+	if Game.admin and Game.admin_vol:
+		_voler(delta, input, can_act)
+		return
 	var dir := (global_basis * Vector3(input.x, 0, input.y))
 	dir.y = 0.0
 	dir = dir.normalized()
@@ -389,6 +405,24 @@ func _move(delta: float, can_act: bool) -> void:
 			elif not crouching:
 				Game.make_noise(global_position, 6.0)
 				Game.play_ui("pas", -16.0, 0.15)
+
+
+## Mode admin : vol libre (Espace monte, Ctrl/C descend, Maj accélère), murs traversables en option.
+func _voler(delta: float, input: Vector2, can_act: bool) -> void:
+	aiming = can_act and Input.is_action_pressed("viser") and placing == ""
+	sprinting = false
+	var dir := (camera.global_basis * Vector3(input.x, 0, input.y))
+	if can_act:
+		if Input.is_action_pressed("sauter"):
+			dir += Vector3.UP
+		if Input.is_action_pressed("accroupir"):
+			dir += Vector3.DOWN
+	var vitesse := 14.0
+	if can_act and Input.is_action_pressed("sprint"):
+		vitesse = 45.0
+	velocity = velocity.lerp(dir.limit_length(1.0) * vitesse, minf(1.0, delta * 8.0))
+	collision_mask = 0 if Game.admin_murs else (Game.LAYER_WORLD | Game.LAYER_ZOMBIE)
+	move_and_slide()
 
 
 func _set_crouch(on: bool) -> void:
@@ -511,7 +545,7 @@ func _update_camera(delta: float) -> void:
 		p_rel = 1.0 - reload_t / reload_total
 		_reload_evenements(p_rel)
 	if p_rel >= 0.0 and vm_weapon:
-		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi), reload_vide, reload_cart)
+		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi, fps_arms.geo), reload_vide, reload_cart)
 		rot += pose.rot
 		pos += pose.off
 	viewmodel.rotation = rot
@@ -522,7 +556,9 @@ func _update_camera(delta: float) -> void:
 		var wxf = null
 		if vm_weapon and is_instance_valid(vm_weapon):
 			wxf = camera.global_transform.affine_inverse() * vm_weapon.global_transform
-		fps_arms.update(cw, cwi, wxf, p_rel, swing_t, reload_vide, reload_cart)
+		var appuie := is_gun and not Game.ui_open and Input.is_action_pressed("tirer") and reload_t <= 0.0
+		doigt_tir = move_toward(doigt_tir, 1.0 if appuie else 0.0, delta * 9.0)
+		fps_arms.update(cw, cwi, wxf, p_rel, swing_t, reload_vide, reload_cart, doigt_tir, coup_gauche)
 	if pap == null:
 		hand.rotation.x = -sin(swing_t * PI) * 1.4
 	muzzle_t = maxf(0.0, muzzle_t - delta)
@@ -568,7 +604,7 @@ func _reload_evenements(p: float) -> void:
 func _lacher_chargeur() -> void:
 	if vm_weapon == null or not is_instance_valid(vm_weapon):
 		return
-	var pts := FpsArms.hand_points(current_weapon(), Items.info(current_weapon()))
+	var pts := FpsArms.hand_points(current_weapon(), Items.info(current_weapon()), fps_arms.geo)
 	var depart: Vector3 = vm_weapon.global_transform * Vector3(pts.get("well", Vector3(0, -0.08, -0.04)))
 	var rb := RigidBody3D.new()
 	rb.collision_layer = 0
@@ -756,7 +792,9 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 		else:
 			Game.msg("Plus de munitions (%s)." % Items.nom(w.ammo))
 		return
-	mags[id] = int(mags[id]) - 1
+	if not (Game.admin and Game.admin_munitions):
+		mags[id] = int(mags[id]) - 1
+	doigt_tir = 1.0
 	cooldown = w.rate
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
@@ -799,6 +837,8 @@ func _melee(w: Dictionary) -> void:
 	stamina = maxf(0.0, stamina - cost)
 	cooldown = w.rate
 	swing_t = 1.0
+	if current_weapon() == "poings":
+		coup_gauche = not coup_gauche
 	if perso_ual:
 		if current_weapon() == "poings":
 			_p_anim("coup_poing" if randf() < 0.5 else "coup_poing2", 1.5, 0.4)
@@ -868,6 +908,9 @@ func _finish_reload() -> void:
 func take_damage(amount: float, _from: Node = null) -> void:
 	if not alive:
 		return
+	if Game.admin and Game.admin_invincible:
+		hurt_flash = 0.3
+		return
 	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0))
 	hurt_flash = 1.0
 	Game.play_ui("douleur", -2.0, 0.15)
@@ -928,6 +971,7 @@ func _refresh_weapon_model() -> void:
 		# arme et accessoires de la vue 1re personne : invisibles pour la caméra de la lunette
 		for g in vm.find_children("*", "GeometryInstance3D", true, false):
 			(g as GeometryInstance3D).layers = 2
+		fps_arms.geo = Accessoires.points(id, vm) if w.type == "gun" else {}
 		var oc := vm.find_child("Oculaire", true, false)
 		if oc:
 			(oc as MeshInstance3D).material_override = oculaire_mat
