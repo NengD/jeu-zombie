@@ -8,7 +8,7 @@ const TOUCHES := [
 	["S'accroupir (plus discret)", "C ou Ctrl"],
 	["Se pencher à gauche / à droite", "A / E"],
 	["Frapper / tirer", "Clic gauche"],
-	["Viser (armes à feu)", "Clic droit"],
+	["Viser (armes à feu) / parer (mêlée)", "Clic droit"],
 	["Barre rapide (arme ou objet)", "1 à 5, molette"],
 	["Recharger", "R"],
 	["Se soigner", "H"],
@@ -85,6 +85,12 @@ const GUIDE := """[b]LES BASES[/b]
 [b]PAYSAGE[/b]
 • Collines, lacs et rivière au nord de la ville (on peut marcher dans l'eau, lentement). Un pont la traverse sur l'autoroute.
 • Cabane de pêche au bord de l'étang, antenne relais sur le point le plus haut. La carte (M) montre le relief et l'eau.
+
+[b]CORPS À CORPS[/b]
+• Estoc au couteau, coup en arc (batte, machette…), coup vertical (hache, masse). Clic droit : parade (80 % de dégâts en moins, repousse le zombie).
+
+[b]ZOMBIES[/b]
+• Coureurs, gros zombies, rampants. Bras et jambes peuvent être arrachés ; sans jambes, le zombie rampe.
 
 [b]VISÉE ET RECHARGEMENT[/b]
 • En visant, on regarde vraiment dans le viseur : hausse et guidon, verre du point rouge, ou lunette grossissante avec réticule.

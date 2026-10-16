@@ -281,6 +281,7 @@ func _road(a: Vector2, b: Vector2, width: float, col := C_ASPHALT, lines := true
 			_flat(pr, 0.02, col)
 	_reserve(r, Color(0.12, 0.12, 0.12) if col == C_ASPHALT else Color(0.35, 0.28, 0.18))
 	routes.append({"r": r, "x": along_x})
+	Game.sols.append({"r": r, "s": "beton" if col == C_ASPHALT else "terre"})
 	if lines:
 		var d := 0.0
 		while d < length - 4.0:
@@ -1284,6 +1285,7 @@ func _military_base(c: Vector3) -> void:
 	var mat_avant := cur_mat
 	cur_mat = "parpaing"
 	_flat(Rect2(x0, z0, w, d), 0.01, Color(0.85, 0.83, 0.78), "beton")
+	Game.sols.append({"r": Rect2(x0, z0, w, d), "s": "beton"})
 	Game.map_rects.append({"rect": Rect2(x0, z0, w, d), "color": Color(0.3, 0.35, 0.22)})
 	# murs d'enceinte : portail à l'est, brèche au nord
 	_box(Vector3(c.x, hgt / 2.0, z1), Vector3(w, hgt, 0.6), wall_col)

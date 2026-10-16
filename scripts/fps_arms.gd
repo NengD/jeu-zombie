@@ -90,6 +90,7 @@ var mat_ongle: StandardMaterial3D
 var mat_manche: StandardMaterial3D
 var temps := 0.0
 var geo := {}         # points mesurés sur le modèle de l'arme tenue (fournis par le joueur)
+var pompe := 0.0      # 0..1 : main gauche qui tire la pompe du fusil à pompe
 var echelle := ECHELLE  # taille des mains : celle de l'arme tenue (les armes sont réduites en vue 1re personne)
 
 
@@ -522,7 +523,9 @@ func update(id: String, w: Dictionary, weapon_xf, reload_p: float, swing: float,
 	if is_gun and tir > 0.0:
 		pose_r = "detente" if tir > 0.35 else "poignee"
 	_arm("R", SHOULDER_R, hand_r, POLE_R, true, pose_r, 1.0)
-	# main gauche
+	# main gauche (coup de pompe : la main recule avec le garde-main)
+	if lp != null and pompe > 0.0 and id == "fusil_pompe":
+		lp = Vector3(lp) + Vector3(0, 0, 0.09 * pompe)
 	if lp != null:
 		var gl := _prise(prise_l, true)
 		var il := incl if prise_l == "appui" else Basis.IDENTITY

@@ -20,6 +20,25 @@ var map_rects: Array = []  # rectangles de la carte : {rect, color}
 var relief = null          # relief de la campagne (scripts/relief.gd)
 var carte_relief: Texture2D = null
 var grotte_rect := Rect2()   # emprise de la grotte (ambiance, écho)
+var sols: Array = []          # [{r: Rect2, s: "beton"/"terre"}] : routes, chemins, dalles (bruits de pas)
+
+
+## Nature du sol sous un point extérieur (pour les bruits de pas).
+func sol_exterieur(pos: Vector3) -> String:
+	if dans_eau(pos):
+		return "eau"
+	if in_city(pos):
+		return "beton"
+	var p := Vector2(pos.x, pos.z)
+	for e in sols:
+		if Rect2(e.r).has_point(p):
+			return e.s
+	if relief and relief.rive.size() > 0:
+		var fx := clampi(int(round((pos.x + relief.demi) / relief.PAS)), 0, relief.n - 1)
+		var fz := clampi(int(round((pos.z + relief.demi) / relief.PAS)), 0, relief.n - 1)
+		if relief.rive[fz * relief.n + fx] > 0.45:
+			return "terre"
+	return "herbe"
 
 
 ## Hauteur du sol à l'extérieur (0 en ville et sur les routes).
@@ -66,6 +85,7 @@ func reset() -> void:
 	pois.clear()
 	map_rects.clear()
 	relief = null
+	sols.clear()
 	ui_open = false
 	time_hours = 8.0
 	day = 1

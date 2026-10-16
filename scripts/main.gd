@@ -186,7 +186,16 @@ func _spawn_roamer() -> bool:
 		pq.collision_mask = Game.LAYER_WORLD
 		if not space.intersect_point(pq, 1).is_empty():
 			continue
-		spawn_zombie(p, "civil", false, 15.0)
+		# variété : coureurs (surtout la nuit), gros, rampants
+		var r := randf()
+		var kind := "civil"
+		if r < (0.22 if Game.is_night() else 0.12):
+			kind = "coureur"
+		elif r < 0.3:
+			kind = "gros"
+		elif r < 0.38:
+			kind = "rampant"
+		spawn_zombie(p, kind, false, 15.0)
 		return true
 	return false
 

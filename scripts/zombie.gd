@@ -40,6 +40,14 @@ var charge_dir := Vector3.ZERO
 var charge_touche := false
 var slam_cd := 4.0          # boss : délai avant le prochain coup au sol
 var slam_t := -1.0          # boss : temps avant l'impact du coup au sol
+var rampant := false        # rampe au sol (jambes arrachées ou zombie rampant)
+var corps := Vector3.ONE    # proportions du modèle (gros zombie plus large)
+var membres := {}           # dégâts reçus par membre (démembrement)
+var coupes: Array = []      # os coupés
+var demembre: Node = null
+var aspect := {}            # apparence (couleurs des morceaux arrachés)
+var squelette: Skeleton3D = null
+var etourdi := 0.0          # repoussé par une parade ou un coup lourd : ne peut plus attaquer un instant
 
 @onready var modele: Node3D = $Modele
 var ap: AnimationPlayer = null      # animations du modèle Blender (si présent)
@@ -71,6 +79,22 @@ func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
 		"patient":
 			health = 90.0
 			run_speed = 3.3
+		"coureur":
+			health = 75.0
+			damage = 8.0
+			run_speed = 5.4
+			corps = Vector3(0.92, 1.02, 0.92)
+		"gros":
+			health = 420.0
+			armor = 0.15
+			damage = 24.0
+			run_speed = 2.5
+			corps = Vector3(1.3, 1.07, 1.3)
+		"rampant":
+			health = 55.0
+			damage = 9.0
+			run_speed = 1.3
+			rampant = true
 		"boss":
 			est_boss = true
 			health = 2500.0
@@ -81,9 +105,13 @@ func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
 	if est_boss:
 		walk_speed = 1.0
 		return
-	if Game.is_night() and randf() < 0.3:
+	if Game.is_night() and randf() < 0.3 and kind != "gros" and not rampant:
 		run_speed += 1.3  # coureurs nocturnes
 	walk_speed = randf_range(0.8, 1.3)
+	if kind == "gros":
+		walk_speed = 0.6
+	elif rampant:
+		walk_speed = 0.45
 
 
 func _ready() -> void:
@@ -96,6 +124,16 @@ func _ready() -> void:
 	think_t = randf() * 0.3
 	Game.noise_made.connect(_on_noise)
 	_apply_look()
+	if corps != Vector3.ONE:
+		modele.scale = corps
+		var cs0: CollisionShape3D = $Collision
+		var cap0 := CapsuleShape3D.new()
+		cap0.radius = 0.33 * corps.x
+		cap0.height = 1.8 * corps.y
+		cs0.shape = cap0
+		cs0.position.y = 0.9 * corps.y
+	if rampant:
+		_mettre_au_sol()
 	if est_boss:
 		add_to_group("boss")
 		modele.scale = Vector3.ONE * echelle
@@ -111,7 +149,8 @@ func _apply_look() -> void:
 	var m: Node3D = null
 	if Perso.disponible():
 		# personnage réaliste (mannequin UAL habillé par perso.gdshader)
-		m = Perso.creer(Perso.apparence(kind))
+		aspect = Perso.apparence(kind)
+		m = Perso.creer(aspect)
 		anim_noms = ANIMS_UAL
 	else:
 		m = ModeleUtil.charger("res://modeles/%s.glb" % MODELES.get(kind, "zombie_civil"))
@@ -124,8 +163,9 @@ func _apply_look() -> void:
 			ModeleUtil.teinter(m, "Haut", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 			ModeleUtil.teinter(m, "Manche", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 		ap = ModeleUtil.anim_player(m)
+		squelette = ModeleUtil.squelette(m)
 		if ap:
-			ModeleUtil.boucler(ap, ["idle", "marche", "course"])
+			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
 			ap.playback_default_blend_time = 0.2
 			_anim("idle")
 			ap.seek(randf() * 2.0)
@@ -191,6 +231,8 @@ func _physics_process(delta: float) -> void:
 	var goal := _route(raw)
 	var routed := not goal.is_equal_approx(raw)
 	var speed := run_speed if state == State.CHASE else walk_speed
+	if etourdi > 0.0:
+		speed *= 0.15
 	if charge_t > 0.0 or slam_t >= 0.0:
 		goal = global_position + charge_dir * 3.0
 		routed = false
@@ -230,6 +272,9 @@ func _physics_process(delta: float) -> void:
 		_update_anim(delta)
 	else:
 		modele.rotation.x = -lunge * 0.5
+	if etourdi > 0.0:
+		etourdi -= delta
+		attack_t = maxf(attack_t, 0.3)
 	if est_boss:
 		_boss_update(delta, p)
 	if state == State.CHASE and p and p.alive:
@@ -237,7 +282,8 @@ func _physics_process(delta: float) -> void:
 		if flat < 1.5 * (1.6 if est_boss else 1.0) and absf(p.global_position.y - global_position.y) < 1.5 * echelle and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
 			attack_t = 1.7 if est_boss else 1.1
 			lunge = 1.0
-			_anim("attaque", 1.0, 0.8)
+			if not rampant:
+				_anim("attaque", 1.0, 0.8)
 			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
 			p.take_damage(damage, self)
 	# bruit de grognement (attire les autres de près)
@@ -477,6 +523,13 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if state == State.DEAD:
 		return
 	var headshot := pos.y > global_position.y + 1.45 * echelle
+	var tete := _pos_os("Head")
+	if tete != Vector3.INF:
+		headshot = pos.distance_to(tete + Vector3.UP * 0.07 * echelle) < 0.17 * echelle
+	elif rampant:
+		headshot = false
+	if not headshot and not est_boss:
+		_toucher_membre(pos, dmg, from)
 	if headshot:
 		dmg *= 2.5
 	else:
@@ -500,7 +553,7 @@ func take_damage(amount: float, _from: Node = null) -> void:
 	take_hit(amount, global_position, global_position)
 
 
-const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50, "boss": 600}
+const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50, "boss": 600, "coureur": 30, "gros": 60, "rampant": 15}
 
 
 func _die() -> void:
@@ -557,7 +610,8 @@ func interact(player: Node) -> void:
 		searched = true
 		grille = Grille.creer("Corps", 6 if est_boss else 4, 6 if est_boss else 4)
 		player.prog.gagner("exploration", 4)
-		var found := Items.roll_loot("zombie_" + kind, 6 if est_boss else 2, 0.0 if est_boss else 0.35)
+		var table := "zombie_" + kind if Items.LOOT.has("zombie_" + kind) else "zombie_civil"
+		var found := Items.roll_loot(table, 6 if est_boss else (3 if kind == "gros" else 2), 0.0 if est_boss else 0.35)
 		for id in found:
 			if Items.grid(id).x > 0:
 				grille.ajouter_entree(player.nouvelle_entree(id))
@@ -592,6 +646,9 @@ func _update_anim(delta: float) -> void:
 		return
 	var hs := Vector2(velocity.x, velocity.z).length()
 	hs /= echelle
+	if rampant:
+		_anim("rampe", clampf(hs / 0.55, 0.25, 2.0) if hs > 0.05 else 0.25)
+		return
 	if hs > 2.0 / echelle:
 		_anim("course", clampf(hs / (3.1 if anim_noms else 3.0), 0.6, 1.8))
 	elif hs > 0.15:
@@ -659,3 +716,134 @@ func _boss_update(delta: float, p) -> void:
 		charge_dir = Vector3.ZERO
 		_anim("attaque", 0.7, 1.1)
 		Game.play_3d("grogne3", global_position + Vector3.UP * 2.5, 6.0, 0.0, 90.0)
+
+
+
+## Repoussé (parade du joueur, coup de masse…) : recule et reste étourdi un instant.
+func repousser(dir: Vector3, force: float, duree: float) -> void:
+	if state == State.DEAD:
+		return
+	var f := force * (0.25 if est_boss else 1.0)
+	velocity += Vector3(dir.x, 0.0, dir.z).normalized() * f
+	etourdi = maxf(etourdi, duree * (0.3 if est_boss else 1.0))
+	if anim_lock <= 0.0:
+		_anim("touche", 1.0, 0.35)
+
+
+# ================================================================ rampants et démembrement
+## Position (monde) d'un os du modèle, ou INF si indisponible.
+func _pos_os(nom: String) -> Vector3:
+	if squelette == null or not is_instance_valid(squelette):
+		return Vector3.INF
+	var i := squelette.find_bone(nom)
+	if i < 0:
+		return Vector3.INF
+	return squelette.global_transform * squelette.get_bone_global_pose(i).origin
+
+
+## Le zombie rampe : corps couché, collision basse.
+func _mettre_au_sol() -> void:
+	rampant = true
+	run_speed = minf(run_speed, 1.3)
+	walk_speed = 0.45
+	var cs: CollisionShape3D = $Collision
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.32
+	cap.height = 0.64
+	cs.shape = cap
+	cs.position.y = 0.32
+	if ap:
+		_anim("rampe", 0.3)
+
+
+## Accumule les dégâts sur le membre touché ; au-delà d'un seuil, le membre est arraché.
+func _toucher_membre(pos: Vector3, dmg: float, from: Vector3) -> void:
+	if squelette == null:
+		return
+	var os_membres := ["lowerarm_l", "lowerarm_r", "upperarm_l", "upperarm_r", "calf_l", "calf_r", "thigh_l", "thigh_r"]
+	var meilleur := ""
+	var dmin := 0.2
+	for b in os_membres:
+		if b in coupes:
+			continue
+		var p := _pos_os(b)
+		if p == Vector3.INF:
+			continue
+		var d := p.distance_to(pos)
+		if d < dmin:
+			dmin = d
+			meilleur = b
+	if meilleur == "":
+		return
+	var cote := meilleur.substr(meilleur.length() - 2)
+	var cle := ("bras" if meilleur.contains("arm") else "jambe") + cote
+	membres[cle] = float(membres.get(cle, 0.0)) + dmg
+	var seuil := 35.0 if cle.begins_with("bras") else 40.0
+	if float(membres[cle]) >= seuil and health - dmg * (1.0 - armor) > 0.0:
+		_arracher(meilleur, from)
+
+
+func _arracher(os_nom: String, from: Vector3) -> void:
+	var p_os := _pos_os(os_nom)
+	coupes.append(os_nom)
+	if demembre == null:
+		demembre = preload("res://scripts/demembrement.gd").new()
+		squelette.add_child(demembre)
+	demembre.coupes = coupes
+	Game.spawn_blood(p_os, get_parent())
+	Game.spawn_blood(p_os + Vector3.UP * 0.1, get_parent())
+	Game.play_3d("impact", p_os, 2.0, 0.2, 30.0)
+	# morceau arraché
+	var jambe := os_nom.begins_with("calf") or os_nom.begins_with("thigh")
+	var rb := RigidBody3D.new()
+	rb.collision_layer = 0
+	rb.collision_mask = Game.LAYER_WORLD
+	var lg := 0.45 if jambe else 0.33
+	var r := 0.065 if jambe else 0.045
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = r
+	cap.height = lg
+	cs.shape = cap
+	rb.add_child(cs)
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = r
+	cm.height = lg
+	mi.mesh = cm
+	var m := StandardMaterial3D.new()
+	var peau: Color = aspect.get("peau", Color(0.55, 0.5, 0.45))
+	m.albedo_color = (aspect.get("bas", Color(0.3, 0.3, 0.3)) if jambe else peau.lerp(Color(0.45, 0.5, 0.4), 0.4))
+	m.roughness = 0.8
+	mi.material_override = m
+	rb.add_child(mi)
+	var bout := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = r * 1.05
+	sm.height = r * 2.1
+	bout.mesh = sm
+	var mb := StandardMaterial3D.new()
+	mb.albedo_color = Color(0.4, 0.02, 0.02)
+	mb.roughness = 0.4
+	bout.material_override = mb
+	bout.position = Vector3(0, lg * 0.5 - r * 0.5, 0)
+	rb.add_child(bout)
+	get_parent().add_child(rb)
+	rb.global_position = p_os
+	var dir := (p_os - from)
+	dir.y = 0.0
+	rb.linear_velocity = dir.normalized() * 2.5 + Vector3.UP * 2.0
+	rb.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))
+	get_tree().create_timer(60.0).timeout.connect(func(): if is_instance_valid(rb): rb.queue_free())
+	if jambe:
+		if not rampant:
+			kind = "rampant"
+			_mettre_au_sol()
+	else:
+		# sans ses deux bras, il ne peut plus que mordre
+		var bras := 0
+		for c in coupes:
+			if c.contains("arm"):
+				bras += 1
+		if bras >= 2:
+			damage *= 0.5

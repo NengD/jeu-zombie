@@ -101,8 +101,32 @@ MAINS ET ANIMATIONS
   la poignée, le garde-main, le manche, le chargeur ; l'index reste le long de
   l'arme et se pose sur la détente au tir. Coups de poing alternés gauche/droite.
 
+COMBAT AU CORPS À CORPS
+- Chaque arme a son coup : estoc au couteau, coup en arc (batte, machette,
+  matraque, pied-de-biche…), coup vertical puissant (hache, masse) qui repousse.
+  Les dégâts arrivent au moment de l'impact, après l'élan.
+- Clic droit avec une arme de mêlée (ou les poings) : PARADE. Un coup venant de
+  devant ne fait plus que 20 % des dégâts, coûte de l'endurance et repousse le
+  zombie, qui reste étourdi un instant.
+
+EFFETS DE TIR
+- Flamme au bout du canon, fumée, douilles éjectées qui rebondissent au sol
+  (cartouche rouge éjectée au coup de pompe du fusil à pompe), impacts sur les
+  murs (trous, poussière, étincelles sur le métal).
+
+ZOMBIES
+- Nouveaux : COUREURS (rapides, surtout la nuit), GROS (lents, très résistants,
+  frappent fort), RAMPANTS (au ras du sol).
+- Démembrement : un bras ou une jambe trop abîmé est arraché. Sans jambes, le
+  zombie continue en rampant ; sans ses deux bras, il mord moins fort.
+- Les tirs à la tête sont détectés sur la vraie position de la tête.
+
+SONS
+- Bruits de pas selon le sol (herbe, terre, béton, bois, métal, eau),
+  atterrissage après un saut, respiration quand tu es essoufflé.
+
 ARMES : VISÉE ET RECHARGEMENT
-- En visant (clic droit), l'arme vient se caler sur l'œil : on vise avec la hausse
+- En visant (clic droit), l'arme monte à l'épaule en pivotant puis se cale sur l'œil : on vise avec la hausse
   et le guidon, à travers le verre du point rouge, ou dans la lunette (image
   grossie environ 4,5 fois, réticule). Le réticule de l'écran disparaît en visée.
 - L'arme bouge de façon naturelle : inertie quand on tourne, balancement en

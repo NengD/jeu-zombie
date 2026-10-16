@@ -22,8 +22,11 @@ const ANIMS := {
 	"z_idle": ["ual2", "Zombie_Idle"], "z_marche": ["ual2", "Zombie_Walk_Fwd"], "z_attaque": ["ual2", "Zombie_Scratch"],
 	"recul": ["ual2", "Hit_Knockback"], "crochet": ["ual2", "Melee_Hook"], "manger": ["ual2", "Consume"],
 	"frappe2": ["ual2", "Sword_Regular_A"], "fouiller": ["ual2", "Chest_Open"],
+	"frappe3": ["ual2", "Sword_Regular_B"], "estoc": ["ual2", "Sword_Regular_C"], "hache": ["ual2", "TreeChopping"],
+	"parade": ["ual2", "Sword_Block"], "pousser": ["ual1", "Push"], "rampe": ["ual1", "Swim_Fwd"],
+	"visee_haut": ["ual1", "Pistol_Aim_Up"], "visee_bas": ["ual1", "Pistol_Aim_Down"],
 }
-const BOUCLES := ["idle", "marche", "jogging", "course", "accroupi", "accroupi_marche", "arme_idle", "visee", "z_idle", "z_marche"]
+const BOUCLES := ["idle", "marche", "jogging", "course", "accroupi", "accroupi_marche", "arme_idle", "visee", "z_idle", "z_marche", "rampe", "parade", "visee_haut", "visee_bas"]
 
 const COIFFURES := ["hair_simple_parted", "hair_buzzed", "hair_long", "hair_buns", "hair_beard", "hair_buzzed_female"]
 

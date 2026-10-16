@@ -134,6 +134,9 @@ func _construire() -> void:
 	_bouton(hz, "Horde ×10", func(): _zombies("civil", 10))
 	_bouton(hz, "Policier", func(): _zombies("police", 1))
 	_bouton(hz, "Militaire", func(): _zombies("militaire", 1))
+	_bouton(hz, "Coureur", func(): _zombies("coureur", 1))
+	_bouton(hz, "Gros", func(): _zombies("gros", 1))
+	_bouton(hz, "Rampant", func(): _zombies("rampant", 1))
 	_bouton(hz, "Le Colosse (boss)", func(): _zombies("boss", 1))
 	_bouton(hz, "Tuer les zombies proches", _tuer)
 

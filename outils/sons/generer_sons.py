@@ -190,4 +190,83 @@ for f, a in [(55, 0.25), (58.3, 0.18), (110, 0.12), (164.8, 0.08), (174.6, 0.06)
 cord = np.sin(2 * np.pi * 440 * tt + 3 * np.sin(2 * np.pi * 5 * tt)) * 0.03 * (np.sin(np.pi * tt / dur) ** 2)
 x += cord
 sauver("musique_boss", boucle(x, 0.3), 0.7)
+
+# ---------------------------------------------------------------- pas selon le sol (3 variantes chacun)
+def pas(sol, k):
+    r = np.random.default_rng(100 + k * 7 + ["herbe", "terre", "beton", "bois", "metal"].index(sol) * 11)
+    n = int(SR * 0.22)
+    t2 = np.arange(n) / SR
+    if sol == "herbe":
+        x = passe_haut(r.standard_normal(n), 1500) * env(n, 0.008, 0.05) * 0.6
+        x += passe_bas(r.standard_normal(n), 500) * env(n, 0.003, 0.03) * 0.5
+    elif sol == "terre":
+        x = passe_bas(r.standard_normal(n), 900) * env(n, 0.004, 0.04)
+        for j in range(8):
+            d = r.uniform(0.005, 0.06)
+            x += (t2 > d) * np.exp(-np.maximum(0, t2 - d) / 0.002) * r.uniform(-0.4, 0.4)
+    elif sol == "beton":
+        x = passe_bas(r.standard_normal(n), 2600) * env(n, 0.001, 0.018)
+        x += np.sin(2 * np.pi * r.uniform(140, 190) * t2) * env(n, 0.001, 0.025) * 0.6
+        x += passe_haut(r.standard_normal(n), 3000) * env(n, 0.001, 0.01) * 0.3
+    elif sol == "bois":
+        x = np.zeros(n)
+        for f0, a in [(r.uniform(180, 230), 1.0), (r.uniform(420, 520), 0.5), (r.uniform(900, 1100), 0.2)]:
+            x += np.sin(2 * np.pi * f0 * t2) * env(n, 0.001, 0.045) * a
+        x += passe_bas(r.standard_normal(n), 2000) * env(n, 0.001, 0.012) * 0.5
+    else:  # métal
+        x = np.zeros(n)
+        for f0 in [r.uniform(700, 900), r.uniform(1500, 1900), r.uniform(2900, 3400)]:
+            x += np.sin(2 * np.pi * f0 * t2) * env(n, 0.001, 0.07) * 0.4
+        x += passe_bas(r.standard_normal(n), 3000) * env(n, 0.001, 0.01)
+    return x
+
+for sol in ["herbe", "terre", "beton", "bois", "metal"]:
+    for k in range(3):
+        sauver("pas_%s%d" % (sol, k + 1), pas(sol, k), 0.8)
+n = int(SR * 0.35)
+sauver("atterrissage", passe_bas(bruit(n), 700) * env(n, 0.002, 0.08) + np.sin(2 * np.pi * 70 * t(0.35)) * env(n, 0.002, 0.06), 0.85)
+
+# ---------------------------------------------------------------- respiration (boucle : inspiration + expiration)
+dur = 2.4
+n = int(SR * dur)
+tt = np.arange(n) / SR
+souffle = np.zeros(n)
+for debut, longueur, f_c, a in [(0.05, 0.55, 1400, 0.7), (0.75, 0.75, 900, 1.0), (1.25, 0.5, 1300, 0.6), (1.8, 0.55, 850, 0.85)]:
+    i0 = int(SR * debut)
+    m = int(SR * longueur)
+    seg = passe_bas(passe_haut(bruit(m), 300), f_c) * np.hanning(m) * a
+    souffle[i0:i0 + m] += seg[: n - i0]
+sauver("souffle", boucle(souffle, 0.1), 0.6)
+
+# ---------------------------------------------------------------- douilles et impacts
+for k in range(3):
+    r = np.random.default_rng(300 + k)
+    y = np.zeros(int(SR * 0.5))
+    tps = 0.0
+    for rebond in range(3):
+        m = int(SR * 0.12)
+        t2 = np.arange(m) / SR
+        c = np.zeros(m)
+        for f0 in [r.uniform(3500, 4500), r.uniform(6000, 7500), r.uniform(8800, 9800)]:
+            c += np.sin(2 * np.pi * f0 * t2) * np.exp(-t2 / 0.03) * 0.3
+        i = int(SR * tps)
+        y[i:i + m] += c[: len(y) - i] * (0.6 ** rebond)
+        tps += r.uniform(0.07, 0.14) * (0.7 ** rebond)
+    sauver("douille%d" % (k + 1), y, 0.5)
+n = int(SR * 0.25)
+sauver("impact_mur", passe_bas(bruit(n), 3500) * env(n, 0.0005, 0.02) + passe_bas(bruit(n), 400) * env(n, 0.001, 0.06) * 0.6, 0.8)
+sauver("impact_metal", placer(0.4, (0.0, clic((1800, 3100, 4700, 6900), 0.08, 0.4, 1.0))), 0.8)
+
+# ---------------------------------------------------------------- mêlée
+for nom, dur, f0, f1, g in [("vent_leger", 0.25, 2500, 800, 0.5), ("vent_lourd", 0.45, 1200, 300, 0.8)]:
+    n = int(SR * dur)
+    x = passe_bas(bruit(n), 4000) * np.hanning(n)
+    # balayage : filtre qui descend
+    out = np.zeros(n)
+    for i, f in enumerate(np.linspace(f0, f1, 8)):
+        a = slice(i * n // 8, (i + 1) * n // 8)
+        out[a] = passe_haut(x[a], f * 0.3)
+    sauver(nom, out * g, 0.7)
+sauver("parade", placer(0.5, (0.0, clic((600, 1300, 2600, 4100), 0.06, 0.3, 1.0)), (0.0, passe_bas(bruit(int(SR * 0.2)), 900) * env(int(SR * 0.2), 0.001, 0.05))), 0.9)
+
 print("sons générés dans", OUT)
