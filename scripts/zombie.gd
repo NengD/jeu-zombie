@@ -407,26 +407,35 @@ func _dead_process(delta: float) -> void:
 		queue_free()
 
 
+var label := "Corps"
+var grille: Grille = null
+
+
 func get_prompt() -> String:
 	if state != State.DEAD:
 		return ""
-	return "Corps (déjà fouillé)" if searched else "[F] Fouiller le corps"
+	if searched and grille and grille.vide():
+		return "Corps (vide)"
+	return "[F] Fouiller le corps"
 
 
 func interact(player: Node) -> void:
 	if state != State.DEAD:
 		return
-	if searched:
-		Game.msg("Ce corps a déjà été fouillé.")
-		return
-	searched = true
-	var found := Items.roll_loot("zombie_" + kind, 2, 0.35)
-	if found.is_empty():
-		Game.msg("Rien sur ce corps.")
-		return
-	for id in found:
-		player.add_item(id, found[id])
-	Game.msg("Sur le corps : " + Items.describe(found))
+	if grille == null:
+		searched = true
+		grille = Grille.creer("Corps", 4, 4)
+		var found := Items.roll_loot("zombie_" + kind, 2, 0.35)
+		for id in found:
+			if Items.grid(id).x > 0:
+				grille.ajouter_entree(player.nouvelle_entree(id))
+			else:
+				grille.ajouter(id, int(found[id]))
+	player.open_storage(self)
+
+
+func on_closed() -> void:
+	pass
 
 
 # ================================================================ animations

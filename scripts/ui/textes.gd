@@ -25,7 +25,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Fouille les meubles (armoires, casiers, frigos…) et les corps des zombies avec [b]F[/b].
 • Surveille ta faim et ta soif : si l'une tombe à zéro, tu perds de la santé.
 • La santé remonte doucement tant que tu es bien nourri et hydraté.
-• Attention au poids : au-delà de ta capacité, tu ne peux plus sprinter. Un sac à dos l'augmente.
+• Ta place est limitée : poches (5×2), plus le rangement de ton gilet et de ton sac à dos. Trouve de plus grands sacs !
 
 [b]COMBAT[/b]
 • Les armes à feu font beaucoup de bruit et attirent les zombies de loin. Les armes blanches sont discrètes.
@@ -33,8 +33,15 @@ const GUIDE := """[b]LES BASES[/b]
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
 
+[b]INVENTAIRE[/b]
+• Chaque objet occupe des cases : une conserve 1×1, un pistolet 2×1, un fusil d'assaut 4×2…
+• Glisse-dépose les objets entre tes poches, ton sac et les meubles fouillés. [b]R[/b] pendant le glissement pour tourner un objet.
+• Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
+• Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
+• Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
+
 [b]BARRE RAPIDE[/b]
-• Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 (ou sélectionne-le puis clique sur l'emplacement).
+• Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 de la barre rapide.
 • Clic droit sur un emplacement pour le vider.
 • Une arme dans un emplacement se prend en main ; un consommable (bandage, eau…) s'utilise directement.
 

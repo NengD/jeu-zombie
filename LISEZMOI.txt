@@ -29,9 +29,17 @@ L ............... lampe torche
 Échap ........... pause
 F1 .............. aide en jeu
 
+INVENTAIRE (Tab)
+Inventaire en grille : chaque objet occupe des cases (conserve 1×1, pistolet 2×1,
+fusil d'assaut 4×2…). Place disponible : poches 5×2 + gilet + sac à dos.
+• Glisser-déposer : ranger, échanger avec un meuble fouillé, équiper un sac/gilet/casque
+• R pendant le glissement : tourner l'objet
+• Double-clic : utiliser / équiper    • Ctrl + clic : transfert rapide
+• Clic droit : options (utiliser, diviser une pile, jeter…)
+• Lâcher hors de la fenêtre : jeter au sol
+
 BARRE RAPIDE
-Dans l'inventaire (Tab), glisse un objet sur un emplacement 1 à 5, ou
-sélectionne-le puis clique sur l'emplacement. Clic droit = vider l'emplacement.
+Glisse un objet de l'inventaire sur un emplacement 1 à 5. Clic droit = vider.
 Une arme se prend en main, un consommable (bandage, eau...) s'utilise directement.
 
 CONSTRUIRE SA BASE
@@ -62,6 +70,7 @@ scripts/autoload/items.gd  objets, recettes de craft, tables de loot
 scripts/world_gen.gd .... génération de la ville et de la campagne
 scripts/player.gd ....... joueur, combat, inventaire, construction
 scripts/zombie.gd ....... intelligence des zombies
+icones/ ................. images des objets (voir CREDITS.txt)
 sons/ ................... effets sonores (remplaçables par de vrais sons .wav)
 
 REMPLACER PAR DES MODÈLES BLENDER (plus tard)

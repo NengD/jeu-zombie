@@ -32,6 +32,7 @@ var lbl_prompt: Label
 var lbl_info: Label
 var hot_panels: Array = []
 var hot_labels: Array = []
+var hot_icons: Array = []
 var msg_box: VBoxContainer
 var messages: Array = []
 var flash: ColorRect
@@ -91,12 +92,21 @@ func _ready() -> void:
 	# barre rapide
 	for i in 5:
 		var pc := PanelContainer.new()
-		pc.custom_minimum_size = Vector2(150, 44)
-		var l2 := _label("", 15)
-		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pc.custom_minimum_size = Vector2(150, 48)
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 4)
+		pc.add_child(hb)
+		var tr := TextureRect.new()
+		tr.custom_minimum_size = Vector2(40, 40)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		hb.add_child(tr)
+		hot_icons.append(tr)
+		var l2 := _label("", 13)
 		l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		pc.add_child(l2)
+		l2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hb.add_child(l2)
 		root.add_child(pc)
 		hot_panels.append(pc)
 		hot_labels.append(l2)
@@ -213,6 +223,9 @@ func _process(delta: float) -> void:
 			if not Items.is_weapon(id):
 				txt += " ×%d" % p.count(id)
 		hot_labels[i].text = "%d  %s" % [i + 1, txt]
+		var tex: Texture2D = Items.icon(id) if id != "" else null
+		hot_icons[i].texture = tex
+		hot_icons[i].modulate = Items.category_color(id) if tex and String(tex.resource_path).ends_with(".svg") else Color.WHITE
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0.85, 0.75, 0.3, 0.55) if i == p.slot else Color(0, 0, 0, 0.45)
 		sb.set_corner_radius_all(4)
@@ -228,10 +241,8 @@ func _process(delta: float) -> void:
 		zone_name += "  —  bâtiment sûr" if nz == 0 else "  —  %d zombie(s) à l'intérieur" % nz
 	var hh := int(Game.time_hours)
 	var mm := int((Game.time_hours - hh) * 60.0)
-	lbl_info.text = "Jour %d — %02d:%02d%s\nVue : %s\nPoids : %.1f / %.0f kg%s\n%s" % [
-		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "",
-		view, p.carry_weight(), p.max_weight(), "  SURCHARGÉ" if p.carry_weight() > p.max_weight() else "",
-		zone_name]
+	lbl_info.text = "Jour %d — %02d:%02d%s\nVue : %s\n%s" % [
+		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", view, zone_name]
 	var moving: float = Vector2(p.velocity.x, p.velocity.z).length()
 	var target_spread := 4.0 + moving * 1.5 + (0.0 if p.aiming else 4.0)
 	cross.spread = lerpf(cross.spread, target_spread, delta * 10.0)

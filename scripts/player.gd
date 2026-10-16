@@ -20,7 +20,6 @@ const TPS_DIST := 2.9
 const SHOULDER := 0.75
 const FOV := 75.0
 const FOV_AIM := 50.0
-const BASE_CARRY := 25.0
 const VM_SCALE := 1.45                  # taille des armes 3D en vue 1re personne
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main (vue 3e personne)
 const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8)}
@@ -34,9 +33,9 @@ var alive := true
 var hurt_flash := 0.0
 
 # --- inventaire
-var items: Dictionary = {}
+var poches: Grille = Grille.creer("Poches", 5, 2)
 var mags: Dictionary = {}
-var equipped := {"tete": "", "torse": "", "dos": ""}
+var equipped := {"tete": {}, "torse": {}, "dos": {}}
 var hotbar: Array = ["", "", "", "", ""]
 var slot := 0
 
@@ -98,6 +97,7 @@ func _ready() -> void:
 	floor_snap_length = 0.3
 	_build_rig()
 	# équipement de départ
+	equipped.dos = nouvelle_entree("sac_toile")
 	add_item("couteau", 1)
 	add_item("conserve", 2)
 	add_item("eau", 2)
@@ -281,9 +281,8 @@ func _move(delta: float, can_act: bool) -> void:
 	var dir := (global_basis * Vector3(input.x, 0, input.y))
 	dir.y = 0.0
 	dir = dir.normalized()
-	var overweight := carry_weight() > max_weight()
 	aiming = can_act and Input.is_action_pressed("viser") and placing == ""
-	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0 and not overweight
+	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0
 	var speed := WALK
 	if sprinting:
 		speed = SPRINT
@@ -291,8 +290,6 @@ func _move(delta: float, can_act: bool) -> void:
 		speed = CROUCH_SPEED
 	elif aiming:
 		speed = AIM_SPEED
-	if overweight:
-		speed *= 0.65
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -685,60 +682,104 @@ func open_storage(crate: Node) -> void:
 		ui.open(crate)
 
 
-# ================================================================ inventaire
+# ================================================================ inventaire (grilles)
+## Grilles actives : poches + gilet/veste + sac à dos.
+func grilles() -> Array:
+	var g: Array = [poches]
+	for s in ["torse", "dos"]:
+		var e: Dictionary = equipped[s]
+		if not e.is_empty() and e.get("contenu") != null:
+			g.append(e.contenu)
+	return g
+
+
 func count(id: String) -> int:
-	return int(items.get(id, 0))
+	var c := 0
+	for g in grilles():
+		c += g.compter(id)
+	return c
 
 
-func add_item(id: String, n: int = 1) -> void:
+static func nouvelle_entree(id: String, n: int = 1) -> Dictionary:
+	var gs: Vector2i = Items.grid(id)
+	var contenu = Grille.creer(Items.nom(id), gs.x, gs.y) if gs.x > 0 else null
+	return {"id": id, "n": n, "x": 0, "y": 0, "r": false, "contenu": contenu}
+
+
+## Ajoute des objets dans l'inventaire. Ce qui ne rentre pas est posé au sol.
+func add_item(id: String, n: int = 1) -> int:
 	if n <= 0:
-		return
-	items[id] = count(id) + n
+		return 0
 	var w := Items.info(id)
 	if w.get("type", "") == "gun" and not mags.has(id):
 		mags[id] = int(int(w.mag) * randf_range(0.2, 1.0))
-	if Items.is_weapon(id) and not hotbar.has(id):
+	var reste := n
+	if Items.grid(id).x > 0:
+		# objets avec rangement (sacs, gilets) : une entrée par objet
+		while reste > 0:
+			var e := nouvelle_entree(id)
+			var ok := false
+			for g in grilles():
+				if g.ajouter_entree(e):
+					ok = true
+					break
+			if not ok:
+				break
+			reste -= 1
+	else:
+		for g in grilles():
+			reste = g.ajouter(id, reste)
+			if reste == 0:
+				break
+	if Items.is_weapon(id) and not hotbar.has(id) and count(id) > 0:
 		var empty := hotbar.find("")
 		if empty >= 0:
 			hotbar[empty] = id
 			if empty == slot:
 				_refresh_weapon_model()
+	if reste > 0:
+		var e2 := nouvelle_entree(id, reste)
+		drop_entry(e2)
+		Game.msg("Inventaire plein : %d× %s posé(s) au sol." % [reste, Items.nom(id)])
+	return reste
 
 
 func remove_item(id: String, n: int = 1) -> bool:
 	if count(id) < n:
 		return false
-	items[id] = count(id) - n
-	if items[id] <= 0:
-		items.erase(id)
-		var i := hotbar.find(id)
-		if i >= 0:
-			hotbar[i] = ""
-			if i == slot:
-				_refresh_weapon_model()
+	var gs := grilles()
+	gs.reverse()  # vider le sac avant les poches
+	for g in gs:
+		n -= g.enlever(id, n)
+		if n <= 0:
+			break
+	_check_hotbar()
 	return true
 
 
-func carry_weight() -> float:
-	var total := 0.0
-	for id in items:
-		total += Items.weight(id) * items[id]
-	return total
-
-
-func max_weight() -> float:
-	var extra := 0.0
-	if equipped.dos != "":
-		extra = float(Items.info(equipped.dos).get("capacity", 0.0))
-	return BASE_CARRY + extra
+func _check_hotbar() -> void:
+	for i in 5:
+		if hotbar[i] != "" and count(hotbar[i]) <= 0:
+			hotbar[i] = ""
+			if i == slot:
+				_refresh_weapon_model()
 
 
 func armor_total() -> float:
 	var a := 0.0
 	for s in equipped:
-		if equipped[s] != "":
-			a += float(Items.info(equipped[s]).get("armor", 0.0))
+		var e: Dictionary = equipped[s]
+		if not e.is_empty():
+			a += float(Items.info(e.id).get("armor", 0.0))
 	return minf(a, 0.75)
+
+
+func _find_entry(id: String) -> Array:
+	for g in grilles():
+		for e in g.entrees:
+			if e.id == id:
+				return [g, e]
+	return []
 
 
 func use_item(id: String) -> void:
@@ -759,7 +800,9 @@ func use_item(id: String) -> void:
 			remove_item(id)
 			Game.msg("Soigné avec : " + Items.nom(id))
 		"armor":
-			equip(id)
+			var f := _find_entry(id)
+			if not f.is_empty():
+				equip_entry(f[1], f[0])
 		"melee", "gun":
 			var i := hotbar.find(id)
 			if i < 0:
@@ -775,23 +818,82 @@ func use_item(id: String) -> void:
 			Game.msg("Cet objet sert à la fabrication.")
 
 
-func equip(id: String) -> void:
-	var it := Items.info(id)
-	var s: String = it.get("slot", "")
-	if s == "" or count(id) <= 0:
-		return
-	if equipped[s] != "":
-		add_item(equipped[s])
-	equipped[s] = id
-	remove_item(id)
-	Game.msg("Équipé : " + Items.nom(id))
+## Consomme une unité d'une entrée précise (nourriture, boisson, soin).
+func consume_entry(e: Dictionary, g: Grille) -> bool:
+	var it := Items.info(e.id)
+	var t: String = it.get("type", "")
+	if t == "heal" and health >= 99.5:
+		Game.msg("Ta santé est déjà au maximum.")
+		return false
+	if t == "food" or t == "drink":
+		hunger = minf(100.0, hunger + float(it.get("food", 0.0)))
+		thirst = minf(100.0, thirst + float(it.get("water", 0.0)))
+		Game.msg("Consommé : " + Items.nom(e.id))
+	elif t == "heal":
+		health = minf(100.0, health + float(it.heal))
+		Game.msg("Soigné avec : " + Items.nom(e.id))
+	else:
+		return false
+	e.n -= 1
+	if e.n <= 0:
+		g.retirer_entree(e)
+	_check_hotbar()
+	return true
+
+
+## Équipe une entrée venant d'une grille. L'ancien équipement retourne dans l'inventaire.
+func equip_entry(e: Dictionary, from: Grille) -> bool:
+	var s: String = Items.info(e.id).get("slot", "")
+	if s == "":
+		return false
+	if from:
+		from.retirer_entree(e)
+	var old: Dictionary = equipped[s]
+	equipped[s] = e
+	if not old.is_empty():
+		_stow_entry(old)
+	Game.msg("Équipé : " + Items.nom(e.id))
+	return true
+
+
+## Range une entrée dans l'inventaire (ou au sol si plein).
+func _stow_entry(e: Dictionary) -> void:
+	for g in grilles():
+		if g == e.get("contenu"):
+			continue
+		if g.ajouter_entree(e):
+			return
+	drop_entry(e)
+	Game.msg("Plus de place : %s posé au sol." % Items.nom(e.id))
 
 
 func unequip(s: String) -> void:
-	if equipped.get(s, "") == "":
+	var e: Dictionary = equipped.get(s, {})
+	if e.is_empty():
 		return
-	add_item(equipped[s])
-	equipped[s] = ""
+	equipped[s] = {}
+	_stow_entry(e)
+	_check_hotbar()
+
+
+## Pose une entrée au sol, dans un tas d'objets fouillable.
+func drop_entry(e: Dictionary) -> void:
+	var pile = null
+	for c in get_tree().get_nodes_in_group("tas_sol"):
+		if c.global_position.distance_to(global_position) < 2.0:
+			pile = c
+			break
+	if pile == null:
+		pile = LootContainer.new()
+		pile.setup("Objets au sol", "", Vector3(0.5, 0.25, 0.5), Color(0.35, 0.3, 0.25))
+		pile.make_storage(6, 6)
+		pile.add_to_group("tas_sol")
+		get_parent().add_child(pile)
+		pile.global_position = global_position - global_basis.z * 0.8
+	if not pile.grille.ajouter_entree(e):
+		var g2 := Grille.creer("Objets au sol", 6, 6)
+		g2.ajouter_entree(e)
+	_check_hotbar()
 
 
 func drop_item(id: String, n: int = 1) -> void:
@@ -799,12 +901,7 @@ func drop_item(id: String, n: int = 1) -> void:
 	if n <= 0:
 		return
 	remove_item(id, n)
-	var pile = LootContainer.new()
-	pile.setup("Objets au sol", "", Vector3(0.5, 0.25, 0.5), Color(0.35, 0.3, 0.25))
-	pile.is_storage = true
-	pile.contents = {id: n}
-	get_parent().add_child(pile)
-	pile.global_position = global_position - global_basis.z * 1.0
+	drop_entry(nouvelle_entree(id, n))
 
 
 func near_bench() -> bool:
@@ -912,7 +1009,7 @@ func _confirm_placement() -> void:
 	if placing == "caisse_stockage":
 		var crate = LootContainer.new()
 		crate.setup("Caisse de stockage", "", PLACE_SIZES[placing], Color(0.45, 0.32, 0.18))
-		crate.is_storage = true
+		crate.make_storage(8, 6)
 		obj = crate
 	else:
 		var p = Placeable.new()

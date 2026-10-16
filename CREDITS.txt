@@ -1,0 +1,13 @@
+CRÉDITS
+=======
+
+Icônes des objets (nourriture, soins, matériaux, munitions, vêtements, sacs, objets de base)
+— game-icons.net, licence Creative Commons BY 3.0 (https://creativecommons.org/licenses/by/3.0/)
+   Auteurs : Lorc (http://lorcblog.blogspot.com), Delapouite (https://delapouite.com),
+             Skoll, Rihlsul, Guard13007 (https://guard13007.com)
+   Source : https://github.com/game-icons/icons — icônes recolorées pour le jeu.
+
+Icônes des armes : rendues à partir des modèles 3D du jeu.
+Modèles 3D (personnages, zombies, armes) : créés pour le jeu avec Blender (outils/blender/generer_modeles.py).
+Sons : générés pour le jeu.
+Moteur : Godot Engine (https://godotengine.org), licence MIT.

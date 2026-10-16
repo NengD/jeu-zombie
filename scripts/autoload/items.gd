@@ -51,10 +51,41 @@ const DB := {
 	"casque_militaire": {"name": "Casque militaire", "type": "armor", "slot": "tete", "armor": 0.2, "weight": 1.5},
 	"sac_a_dos": {"name": "Sac à dos", "type": "armor", "slot": "dos", "capacity": 15.0, "armor": 0.0, "weight": 0.8},
 	"sac_militaire": {"name": "Sac militaire", "type": "armor", "slot": "dos", "capacity": 30.0, "armor": 0.0, "weight": 1.5},
+	"sac_toile": {"name": "Sac en toile", "type": "armor", "slot": "dos", "armor": 0.0, "weight": 0.4},
 	# --- objets à placer (base)
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
 	"barricade": {"name": "Barricade (à placer)", "type": "placeable", "weight": 4.0},
 	"caisse_stockage": {"name": "Caisse de stockage (à placer)", "type": "placeable", "weight": 4.0},
+}
+
+# Taille dans l'inventaire (largeur, hauteur en cases). Par défaut 1×1.
+const SIZES := {
+	"eau": [1, 2], "ration": [1, 2], "trousse": [2, 2], "alcool": [1, 2], "planche": [1, 3], "cuir": [2, 1],
+	"couteau": [1, 2], "matraque": [1, 3], "machette": [1, 3], "machette_art": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4],
+	"pistolet": [2, 1], "revolver": [2, 1], "fusil_artisanal": [3, 1], "fusil_pompe": [4, 1], "carabine": [4, 1], "fusil_assaut": [4, 2],
+	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
+	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
+	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
+	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2],
+}
+
+# Quantité maximale par case (piles). Par défaut 1.
+const STACKS := {
+	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
+	"poudre": 10, "cuir": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
+}
+
+# Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
+const GRIDS := {
+	"sac_toile": [4, 3], "sac_a_dos": [6, 5], "sac_militaire": [7, 7],
+	"veste_cuir": [4, 2], "veste_renforcee": [4, 2], "gilet_police": [5, 2], "gilet_militaire": [6, 3],
+}
+
+# Icônes (images) : res://icones/<id>.png ou .svg
+const CATEGORY_COLORS := {
+	"food": Color(0.95, 0.75, 0.45), "drink": Color(0.55, 0.8, 1.0), "heal": Color(1.0, 0.45, 0.45),
+	"material": Color(0.82, 0.8, 0.75), "ammo": Color(0.95, 0.82, 0.4), "armor": Color(0.6, 0.85, 0.55),
+	"placeable": Color(0.85, 0.65, 0.4), "melee": Color(0.85, 0.85, 0.9), "gun": Color(0.85, 0.85, 0.9),
 }
 
 # bench = true : nécessite d'être près d'un établi
@@ -103,8 +134,38 @@ func nom(id: String) -> String:
 	return info(id).get("name", id)
 
 
-func weight(id: String) -> float:
-	return float(info(id).get("weight", 0.1))
+func size(id: String) -> Vector2i:
+	var a: Array = SIZES.get(id, [1, 1])
+	return Vector2i(a[0], a[1])
+
+
+func stack(id: String) -> int:
+	return int(STACKS.get(id, 1))
+
+
+func grid(id: String) -> Vector2i:
+	var a: Array = GRIDS.get(id, [0, 0])
+	return Vector2i(a[0], a[1])
+
+
+func category_color(id: String) -> Color:
+	return CATEGORY_COLORS.get(info(id).get("type", ""), Color(0.8, 0.8, 0.8))
+
+
+var _icons := {}
+
+
+func icon(id: String) -> Texture2D:
+	if _icons.has(id):
+		return _icons[id]
+	var tex: Texture2D = null
+	for ext in ["png", "svg"]:
+		var p := "res://icones/%s.%s" % [id, ext]
+		if ResourceLoader.exists(p):
+			tex = load(p)
+			break
+	_icons[id] = tex
+	return tex
 
 
 func is_weapon(id: String) -> bool:
