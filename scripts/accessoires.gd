@@ -78,6 +78,16 @@ static func stats(arme: String, base: Dictionary, accs: Dictionary) -> Dictionar
 # ================================================================ modèles 3D
 static var _points := {}
 
+## Corrections mesurées sur les vues de profil des modèles : dessus de la carcasse (viseur),
+## bas du chargeur (et son inclinaison, en degrés, positive = bas du chargeur vers l'avant).
+const POINTS_FIXES := {
+	"fusil_assaut": {"viseur": Vector3(0, 0.124, -0.07), "chargeur": Vector3(0, -0.094, -0.224), "incl_chargeur": 30.0},
+	"carabine": {"viseur": Vector3(0, 0.12, -0.03), "chargeur": Vector3(0, -0.136, -0.13), "incl_chargeur": 8.0},
+	"pistolet": {"viseur": Vector3(0, 0.085, -0.03), "chargeur": Vector3(0, -0.061, 0.022), "incl_chargeur": -18.0, "rail": Vector3(0, 0.034, -0.075)},
+	"revolver": {"viseur": Vector3(0, 0.072, -0.03)},
+	"fusil_pompe": {"viseur": Vector3(0, 0.086, -0.02)},
+}
+
 
 ## Points de montage calculés sur la géométrie de l'arme (repère de l'arme : canon vers -Z, origine = poignée).
 static func points(arme: String, modele: Node3D) -> Dictionary:
@@ -129,8 +139,10 @@ static func points(arme: String, modele: Node3D) -> Dictionary:
 		"rail": Vector3(bouche.x, bas_r, zr),
 		"poignee": Vector3(bouche.x, bas_p, zp),
 		"chargeur": Vector3(bouche.x, bas_c, zc),
-		"taille": mx - mn, "centre": (mx + mn) * 0.5,
+		"taille": mx - mn, "centre": (mx + mn) * 0.5, "incl_chargeur": 0.0,
 	}
+	for k in POINTS_FIXES.get(arme, {}):
+		out[k] = POINTS_FIXES[arme][k]
 	_points[arme] = out
 	return out
 
@@ -168,7 +180,9 @@ static func habiller(modele: Node3D, arme: String, accs: Dictionary, lumiere := 
 		n.set_meta("accessoire", true)
 		n.position = pts.get(emp, Vector3.ZERO)
 		if emp == "chargeur":
-			n.position.y += 0.01
+			n.rotation.x = deg_to_rad(float(pts.get("incl_chargeur", 0.0)))
+		if emp == "rail" and float(Items.info(arme).get("len", 0.3)) < 0.4:
+			n.scale = Vector3.ONE * 0.7
 		modele.add_child(n)
 
 
@@ -240,8 +254,11 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 			s.position = Vector3(0, 0.03, -0.019)
 			n.add_child(s)
 		"lunette":
+			# colliers autour du tube et leurs embases sur le rail
 			for z in [-0.05, 0.05]:
-				_boite(n, Vector3(0.02, 0.025, 0.018), Vector3(0, 0.0125, z), noir)
+				_cyl(n, 0.0185, 0.012, Vector3(0, 0.04, z), noir)
+				_boite(n, Vector3(0.016, 0.024, 0.012), Vector3(0, 0.012, z), noir)
+			_boite(n, Vector3(0.018, 0.006, 0.13), Vector3(0, 0.003, 0), noir)
 			_cyl(n, 0.015, 0.2, Vector3(0, 0.04, 0), noir)
 			_cyl(n, 0.015, 0.05, Vector3(0, 0.04, -0.12), noir, true, 0.024)
 			_cyl(n, 0.019, 0.04, Vector3(0, 0.04, 0.115), noir, true, 0.015)
@@ -267,8 +284,9 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 			for z in [-0.02, -0.08, -0.14]:
 				_cyl(n, 0.026, 0.02, Vector3(0, 0, z), ruban)
 		"chargeur_etendu":
-			_boite(n, Vector3(0.026, 0.08, 0.05), Vector3(0, -0.04, 0.0), noir)
-			_boite(n, Vector3(0.03, 0.012, 0.056), Vector3(0, -0.084, 0.0), noir)
+			# rallonge sous le chargeur d'origine (le haut touche le bas du chargeur)
+			_boite(n, Vector3(0.026, 0.045, 0.05), Vector3(0, -0.0215, 0.0), noir)
+			_boite(n, Vector3(0.03, 0.01, 0.056), Vector3(0, -0.047, 0.0), noir)
 		"lampe_tactique":
 			_boite(n, Vector3(0.02, 0.012, 0.03), Vector3(0, -0.006, 0), noir)
 			_cyl(n, 0.016, 0.1, Vector3(0, -0.026, -0.02), noir)
