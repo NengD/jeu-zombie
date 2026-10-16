@@ -215,7 +215,9 @@ func _ready() -> void:
 	rec_list.item_activated.connect(func(_i): _craft())
 	craft_box.add_child(rec_list)
 	rec_desc = _label(craft_box, "", 15, Color.WHITE)
-	rec_desc.custom_minimum_size.y = 120
+	rec_desc.custom_minimum_size = Vector2(CELL * 8, 120)
+	rec_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rec_desc.clip_text = false
 	craft_btn = _button(craft_box, "Fabriquer", _craft)
 
 	# --- infobulle, menu contextuel, objet tenu
@@ -261,7 +263,8 @@ func _label(parent: Control, text: String, size: int, col: Color) -> Label:
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.clip_text = true
 	parent.add_child(l)
 	return l
 
@@ -331,6 +334,8 @@ func open(crate: Node) -> void:
 	show_craft = crate == null
 	panel.visible = true
 	tooltip.visible = false
+	panel.size = Vector2.ZERO
+	panel.scale = Vector2.ONE
 	Game.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
@@ -434,7 +439,13 @@ func _process(delta: float) -> void:
 	if not panel.visible:
 		return
 	var vs := get_viewport().get_visible_rect().size
-	panel.position = ((vs - panel.size) / 2.0).floor()
+	# sécurité : la fenêtre doit toujours tenir à l'écran
+	if panel.size.x > vs.x or panel.size.y > vs.y:
+		panel.size = Vector2.ZERO
+		panel.reset_size()
+	var k := minf(1.0, minf((vs.x - 16.0) / maxf(panel.size.x, 1.0), (vs.y - 16.0) / maxf(panel.size.y, 1.0)))
+	panel.scale = Vector2(k, k)
+	panel.position = ((vs - panel.size * k) / 2.0).floor()
 	if tooltip.visible:
 		# l'infobulle ne doit jamais grandir au point de cacher l'inventaire
 		if tooltip.size.x > 340.0 or tooltip.size.y > 500.0:
