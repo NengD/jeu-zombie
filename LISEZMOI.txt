@@ -32,7 +32,7 @@ F1 .............. aide en jeu
 
 INVENTAIRE (Tab)
 Inventaire en grille : chaque objet occupe des cases (conserve 1×1, pistolet 2×1,
-fusil d'assaut 4×2…). Place disponible : poches 5×2 + gilet + sac à dos.
+fusil d'assaut 4×2…). Place disponible : inventaire de base 8×5 + gilet + sac à dos (en plus).
 • Glisser-déposer : ranger, échanger avec un meuble fouillé, équiper un sac/gilet/casque
 • R pendant le glissement : tourner l'objet
 • Double-clic : utiliser / équiper    • Ctrl + clic : transfert rapide

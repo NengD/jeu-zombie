@@ -34,7 +34,7 @@ var alive := true
 var hurt_flash := 0.0
 
 # --- inventaire
-var poches: Grille = Grille.creer("Poches", 5, 2)
+var poches: Grille = Grille.creer("Sur toi", 8, 5)   # inventaire de base ; sacs et gilets ajoutent de la place
 var mags: Dictionary = {}
 var equipped := {"tete": {}, "torse": {}, "dos": {}}
 var hotbar: Array = ["", "", "", "", ""]

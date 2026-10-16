@@ -26,7 +26,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Fouille les meubles (armoires, casiers, frigos…) et les corps des zombies avec [b]F[/b].
 • Surveille ta faim et ta soif : si l'une tombe à zéro, tu perds de la santé.
 • La santé remonte doucement tant que tu es bien nourri et hydraté.
-• Ta place est limitée : poches (5×2), plus le rangement de ton gilet et de ton sac à dos. Trouve de plus grands sacs !
+• Ton inventaire de base fait 8×5 cases. Un gilet et un sac à dos ajoutent de la place en plus : trouve de plus grands sacs !
 
 [b]COMBAT[/b]
 • Les armes à feu font beaucoup de bruit et attirent les zombies de loin. Les armes blanches sont discrètes.

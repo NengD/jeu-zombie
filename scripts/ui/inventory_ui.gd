@@ -186,7 +186,7 @@ func _ready() -> void:
 	# --- colonne inventaire du joueur
 	var c2 := _column(hb, "INVENTAIRE")
 	var sc := ScrollContainer.new()
-	sc.custom_minimum_size = Vector2(CELL * 7 + 24, 720)
+	sc.custom_minimum_size = Vector2(CELL * 8 + 24, 720)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	c2.add_child(sc)
 	player_box = VBoxContainer.new()
