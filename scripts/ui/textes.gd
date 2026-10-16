@@ -89,6 +89,9 @@ const GUIDE := """[b]LES BASES[/b]
 [b]CORPS À CORPS[/b]
 • Estoc au couteau, coup en arc (batte, machette…), coup vertical (hache, masse). Clic droit : parade (80 % de dégâts en moins, repousse le zombie).
 
+[b]COUPS DE GRÂCE[/b]
+• Un gros coup peut renverser un zombie. Près d'un zombie à terre ou d'un rampant : [F] Achever (+10 XP).
+
 [b]ZOMBIES[/b]
 • Coureurs, gros zombies, rampants. Bras et jambes peuvent être arrachés ; sans jambes, le zombie rampe.
 

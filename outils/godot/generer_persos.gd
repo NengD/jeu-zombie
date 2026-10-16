@@ -24,7 +24,7 @@ const ANIMS := {
 	"frappe2": ["ual2", "Sword_Regular_A"], "fouiller": ["ual2", "Chest_Open"],
 	"frappe3": ["ual2", "Sword_Regular_B"], "estoc": ["ual2", "Sword_Regular_C"], "hache": ["ual2", "TreeChopping"],
 	"parade": ["ual2", "Sword_Block"], "pousser": ["ual1", "Push"], "rampe": ["ual1", "Swim_Fwd"],
-	"visee_haut": ["ual1", "Pistol_Aim_Up"], "visee_bas": ["ual1", "Pistol_Aim_Down"],
+	"visee_haut": ["ual1", "Pistol_Aim_Up"], "visee_bas": ["ual1", "Pistol_Aim_Down"], "relever": ["ual2", "LayToIdle"],
 }
 const BOUCLES := ["idle", "marche", "jogging", "course", "accroupi", "accroupi_marche", "arme_idle", "visee", "z_idle", "z_marche", "rampe", "parade", "visee_haut", "visee_bas"]
 

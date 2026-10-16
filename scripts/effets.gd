@@ -58,6 +58,22 @@ static func _texture(nom: String) -> Texture2D:
 				"etincelle":
 					a = clampf(1.0 - d * 1.2, 0.0, 1.0)
 					c = Color(1.0, 0.85, 0.5)
+				"sang":
+					# éclaboussure : tache irrégulière et gouttelettes
+					var ang3 := p.angle()
+					var bord := 0.45
+					for r in rayons:
+						bord += 0.12 * float(r[1]) * cos(3.0 * ang3 + float(r[0]))
+					a = 1.0 - smoothstep(bord - 0.08, bord, d)
+					for r in rayons:
+						var g := Vector2(cos(float(r[0])), sin(float(r[0]))) * (0.55 + 0.35 * float(r[1]))
+						a = maxf(a, 1.0 - smoothstep(0.04, 0.07, p.distance_to(g)))
+					c = Color(0.35, 0.02, 0.02)
+				"flaque":
+					var ang4 := p.angle()
+					var bord2 := 0.75 + 0.1 * sin(3.0 * ang4 + float(rayons[0][0])) + 0.06 * sin(5.0 * ang4 + float(rayons[1][0]))
+					a = (1.0 - smoothstep(bord2 - 0.1, bord2, d)) * 0.92
+					c = Color(0.25, 0.01, 0.01).lerp(Color(0.4, 0.03, 0.02), d)
 			img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
 	var t := ImageTexture.create_from_image(img)
 	_tex[nom] = t
@@ -94,6 +110,14 @@ static func _materiau(nom: String) -> StandardMaterial3D:
 		"trou":
 			m.albedo_texture = _texture("trou")
 			m.roughness = 1.0
+		"sang", "flaque":
+			m.albedo_texture = _texture(nom)
+			m.roughness = 0.25
+			m.metallic_specular = 0.7
+		"goutte":
+			m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			m.albedo_color = Color(0.4, 0.02, 0.02)
+			m.roughness = 0.3
 		"laiton":
 			m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 			m.albedo_color = Color(0.78, 0.6, 0.25)
@@ -268,3 +292,99 @@ static func impact(monde: Node, pos: Vector3, normale: Vector3, metal: bool) -> 
 	if not metal:
 		fumee(monde, pos + nrm * 0.05, nrm, 3, false)
 	Game.play_3d("impact_metal" if metal else "impact_mur", pos, -8.0, 0.2, 35.0)
+
+
+
+# ================================================================ éclair du tir
+## Lumière brève du coup de feu (éclaire murs et sol, surtout la nuit).
+static func eclair(monde: Node, pos: Vector3, nuit: bool) -> void:
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.78, 0.45)
+	l.light_energy = 5.0 if nuit else 2.5
+	l.omni_range = 13.0 if nuit else 8.0
+	l.shadow_enabled = nuit
+	monde.add_child(l)
+	l.global_position = pos
+	_plus_tard(l, 0.055)
+
+
+# ================================================================ sang
+static var _taches: Array = []
+const MAX_TACHES := 70
+
+
+static func _poser_tache(monde: Node, pos: Vector3, nrm: Vector3, taille: float, nom := "sang") -> MeshInstance3D:
+	_taches = _taches.filter(func(t): return is_instance_valid(t))
+	if _taches.size() >= MAX_TACHES:
+		var vieille = _taches.pop_front()
+		if is_instance_valid(vieille):
+			vieille.queue_free()
+	var mi := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(taille, taille)
+	mi.mesh = qm
+	mi.material_override = _materiau(nom)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	monde.add_child(mi)
+	var n := nrm.normalized()
+	var haut := Vector3.UP if absf(n.y) < 0.95 else Vector3.FORWARD
+	mi.global_transform = Transform3D(Basis.looking_at(-n, haut).rotated(n, randf() * TAU), pos + n * (0.008 + randf() * 0.004))
+	_taches.append(mi)
+	_plus_tard(mi, 180.0)
+	return mi
+
+
+## Gerbe de sang : gouttes, tache sur le mur derrière la cible et au sol.
+static func gerbe_sang(monde: Node, pos: Vector3, dir: Vector3, force := 1.0) -> void:
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.emitting = false
+	p.amount = int(10 * force) + 4
+	p.lifetime = 0.7
+	p.explosiveness = 1.0
+	var sm := SphereMesh.new()
+	sm.radius = 0.012
+	sm.height = 0.024
+	sm.radial_segments = 6
+	sm.rings = 3
+	p.mesh = sm
+	p.material_override = _materiau("goutte")
+	p.direction = dir.normalized()
+	p.spread = 30.0
+	p.initial_velocity_min = 1.5
+	p.initial_velocity_max = 4.0 * force
+	p.gravity = Vector3(0, -9.8, 0)
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.6
+	monde.add_child(p)
+	p.global_position = pos
+	p.emitting = true
+	_plus_tard(p, 1.2)
+	var espace: PhysicsDirectSpaceState3D = (monde as Node3D).get_world_3d().direct_space_state if monde is Node3D else null
+	if espace == null:
+		return
+	# mur derrière
+	var q := PhysicsRayQueryParameters3D.create(pos, pos + dir.normalized() * 2.5, Game.LAYER_WORLD)
+	var hit := espace.intersect_ray(q)
+	if not hit.is_empty():
+		_poser_tache(monde, hit.position, hit.normal, randf_range(0.35, 0.6) * force)
+	# sol
+	var q2 := PhysicsRayQueryParameters3D.create(pos + dir.normalized() * randf_range(0.2, 0.9), pos + Vector3.DOWN * 3.0, Game.LAYER_WORLD)
+	var hit2 := espace.intersect_ray(q2)
+	if not hit2.is_empty():
+		_poser_tache(monde, hit2.position, hit2.normal, randf_range(0.25, 0.45) * force)
+
+
+## Flaque de sang qui s'étend sous un corps.
+static func flaque(monde: Node, pos: Vector3) -> void:
+	var espace: PhysicsDirectSpaceState3D = (monde as Node3D).get_world_3d().direct_space_state if monde is Node3D else null
+	if espace == null:
+		return
+	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.5, pos + Vector3.DOWN * 2.0, Game.LAYER_WORLD)
+	var hit := espace.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var mi := _poser_tache(monde, hit.position, hit.normal, 1.3, "flaque")
+	mi.scale = Vector3.ONE * 0.15
+	var tw := mi.create_tween()
+	tw.tween_property(mi, "scale", Vector3.ONE, 5.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)

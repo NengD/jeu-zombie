@@ -109,8 +109,20 @@ COMBAT AU CORPS À CORPS
   devant ne fait plus que 20 % des dégâts, coûte de l'endurance et repousse le
   zombie, qui reste étourdi un instant.
 
+COUPS DE GRÂCE
+- Un gros coup (hache, masse, parade, tir puissant) peut RENVERSER un zombie :
+  il reste au sol quelques secondes puis se relève.
+- Approche-toi d'un zombie à terre ou d'un rampant : [F] Achever. Arme de mêlée
+  ou poing : coup planté vers le bas ; arme à feu : balle à bout portant.
+  +10 XP de combat.
+
+SANG
+- Gerbes de sang, taches sur les murs derrière le zombie et au sol, flaque qui
+  s'étend sous les corps. Les armes de mêlée se tachent au fil des coups
+  (marcher dans l'eau les nettoie).
+
 EFFETS DE TIR
-- Flamme au bout du canon, fumée, douilles éjectées qui rebondissent au sol
+- Flamme au bout du canon et éclair qui illumine les murs (surtout la nuit), fumée, douilles éjectées qui rebondissent au sol
   (cartouche rouge éjectée au coup de pompe du fusil à pompe), impacts sur les
   murs (trous, poussière, étincelles sur le métal).
 

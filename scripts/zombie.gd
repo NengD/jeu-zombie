@@ -47,6 +47,7 @@ var coupes: Array = []      # os coupés
 var demembre: Node = null
 var aspect := {}            # apparence (couleurs des morceaux arrachés)
 var squelette: Skeleton3D = null
+var a_terre := 0.0          # renversé : reste au sol, peut être achevé
 var etourdi := 0.0          # repoussé par une parade ou un coup lourd : ne peut plus attaquer un instant
 
 @onready var modele: Node3D = $Modele
@@ -58,6 +59,7 @@ const ANIMS_UAL := {"idle": "z_idle", "marche": "z_marche", "course": "course", 
 		"touche": "touche", "mort": "mort"}
 
 const ModeleUtil = preload("res://scripts/modele_util.gd")
+const Effets = preload("res://scripts/effets.gd")
 const MODELES := {"civil": "zombie_civil", "police": "zombie_policier", "militaire": "zombie_militaire", "patient": "zombie_patient"}
 const TEINTES_CIVIL := [Color(0.45, 0.38, 0.3), Color(0.32, 0.36, 0.42), Color(0.5, 0.2, 0.18), Color(0.3, 0.38, 0.28), Color(0.55, 0.52, 0.45), Color(0.25, 0.25, 0.28)]
 
@@ -209,6 +211,20 @@ func _physics_process(delta: float) -> void:
 		_dead_process(delta)
 		return
 	var p = Game.player
+	# renversé : immobile au sol jusqu'à ce qu'il se relève
+	if a_terre > 0.0:
+		a_terre -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+		if not is_on_floor():
+			velocity.y -= GRAVITY * delta
+		move_and_slide()
+		if ap:
+			ap.active = true
+			anim_lock = maxf(anim_lock - delta, 0.0)
+		if a_terre <= 0.0:
+			_se_relever()
+		return
 	# endormi si loin du joueur (économise le processeur)
 	if dormant:
 		dormant_t -= delta
@@ -530,6 +546,9 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 		headshot = false
 	if not headshot and not est_boss:
 		_toucher_membre(pos, dmg, from)
+	# un gros coup peut renverser le zombie
+	if dmg >= 40.0 and not est_boss and a_terre <= 0.0 and randf() < (0.1 if kind == "gros" else 0.3) and health - dmg * (1.0 - armor) > 0.0:
+		renverser(randf_range(2.5, 4.0))
 	if headshot:
 		dmg *= 2.5
 	else:
@@ -566,6 +585,7 @@ func _die() -> void:
 			remove_from_group("boss")
 	charge_t = 0.0
 	slam_t = -1.0
+	get_tree().create_timer(0.9).timeout.connect(func(): if is_instance_valid(self): Effets.flaque(get_parent(), global_position))
 	state = State.DEAD
 	remove_from_group("zombies")
 	add_to_group("corpses")
@@ -597,7 +617,7 @@ var grille: Grille = null
 
 func get_prompt() -> String:
 	if state != State.DEAD:
-		return ""
+		return "[F] Achever" if achevable() else ""
 	if searched and grille and grille.vide():
 		return "Corps (vide)"
 	return "[F] Fouiller le corps"
@@ -605,6 +625,8 @@ func get_prompt() -> String:
 
 func interact(player: Node) -> void:
 	if state != State.DEAD:
+		if achevable() and player.has_method("achever"):
+			player.achever(self)
 		return
 	if grille == null:
 		searched = true
@@ -726,6 +748,9 @@ func repousser(dir: Vector3, force: float, duree: float) -> void:
 	var f := force * (0.25 if est_boss else 1.0)
 	velocity += Vector3(dir.x, 0.0, dir.z).normalized() * f
 	etourdi = maxf(etourdi, duree * (0.3 if est_boss else 1.0))
+	if duree >= 0.85 and randf() < (0.12 if kind == "gros" else 0.35):
+		renverser(randf_range(3.0, 4.5))
+		return
 	if anim_lock <= 0.0:
 		_anim("touche", 1.0, 0.35)
 
@@ -847,3 +872,41 @@ func _arracher(os_nom: String, from: Vector3) -> void:
 				bras += 1
 		if bras >= 2:
 			damage *= 0.5
+
+
+
+# ================================================================ à terre / coup de grâce
+func achevable() -> bool:
+	return state != State.DEAD and not est_boss and (a_terre > 0.0 or rampant)
+
+
+## Renversé : tombe au sol quelques secondes (peut être achevé), puis se relève.
+func renverser(duree: float) -> void:
+	if est_boss or state == State.DEAD or rampant:
+		return
+	a_terre = duree
+	dormant = false
+	var cs: CollisionShape3D = $Collision
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.32
+	cap.height = 0.64
+	cs.shape = cap
+	cs.position.y = 0.32
+	if ap:
+		_anim("mort", 1.5, duree)
+	Game.play_3d("coup", global_position + Vector3.UP * 0.5, -2.0, 0.2, 25.0)
+
+
+func _se_relever() -> void:
+	var cs: CollisionShape3D = $Collision
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.33 * corps.x
+	cap.height = 1.8 * corps.y
+	cs.shape = cap
+	cs.position.y = 0.9 * corps.y
+	if ap:
+		if ap.has_animation("relever"):
+			_anim("relever", 1.6, 1.0)
+		else:
+			_anim("idle", 1.0, 0.3)
+	state = State.CHASE if Game.player and Game.player.alive else State.WANDER

@@ -113,6 +113,8 @@ var reload_vide := false          # rechargement à vide (chargeur éjecté, arm
 var reload_cart := 3              # cartouches insérées une à une
 var reload_ev: Array = []         # évènements sonores restants
 var ik_main_g: Node = null        # 3e personne : main gauche posée sur l'arme (cinématique inverse)
+var pose_tps: Node = null         # 3e personne : recul du buste et doigts serrés
+var squelette_j: Skeleton3D = null
 var cible_main_g: Node3D
 var pole_main_g: Node3D
 var scope_vp: SubViewport         # image grossie de la lunette
@@ -244,6 +246,11 @@ func _build_rig() -> void:
 			ik_main_g.call("set_target_node", 0, ik_main_g.get_path_to(cible_main_g))
 			ik_main_g.call("set_pole_node", 0, ik_main_g.get_path_to(pole_main_g))
 			ik_main_g.set("influence", 0.0)
+			# recul et doigts : avant la cinématique inverse (la main gauche reste sur l'arme)
+			pose_tps = preload("res://scripts/pose_tps.gd").new()
+			sk.add_child(pose_tps)
+			sk.move_child(pose_tps, ik_main_g.get_index())
+			squelette_j = sk
 		var prise: Node3D = m.find_child("Prise", true, false)
 		if perso_ual and prise:
 			modele.remove_child(hand)
@@ -405,6 +412,9 @@ func _move(delta: float, can_act: bool) -> void:
 	if mouille:
 		speed = minf(speed, WALK * 0.55)
 		sprinting = false
+		if float(sang_armes.get(current_weapon(), 0.0)) > 0.0:
+			sang_armes[current_weapon()] = maxf(0.0, float(sang_armes[current_weapon()]) - delta * 0.25)
+			_appliquer_sang()
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -610,7 +620,11 @@ func _update_camera(delta: float) -> void:
 	vm_holder.position = vm_holder.position.lerp(cible, minf(1.0, delta * 16.0)) if ads < 0.999 else cible
 	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
 	_maj_melee(delta)
+	_maj_achevement(delta)
 	var pm := _pose_melee()
+	var pa := _pose_achevement()
+	pm[0] = Vector3(pm[0]) + Vector3(pa[0])
+	pm[1] = Vector3(pm[1]) + Vector3(pa[1])
 	var rot: Vector3 = pm[0]
 	# parade : l'arme se met en travers devant soi
 	var est_melee: bool = cwi.get("type", "") == "melee" or cw == "poings"
@@ -666,6 +680,13 @@ func _update_camera(delta: float) -> void:
 func _maj_main_gauche_tps(delta: float, cw: String, cwi: Dictionary, is_gun: bool) -> void:
 	if ik_main_g == null:
 		return
+	if pose_tps:
+		var tient := cw != "poings" and hand_weapon != null and is_instance_valid(hand_weapon) and reload_t <= 0.0
+		pose_tps.serre_d = move_toward(pose_tps.serre_d, 1.0 if tient else 0.0, delta * 6.0)
+		pose_tps.serre_g = clampf(float(ik_main_g.get("influence")), 0.0, 1.0)
+		pose_tps.recul = move_toward(pose_tps.recul, 0.0, delta * 7.0)
+		if squelette_j:
+			pose_tps.droite = (squelette_j.global_basis.orthonormalized().inverse() * global_basis.x).normalized()
 	var actif := is_gun and hand_weapon != null and is_instance_valid(hand_weapon) and reload_t <= 0.0 and Vector2(velocity.x, velocity.z).length() < 5.0
 	var inf: float = ik_main_g.get("influence")
 	inf = move_toward(inf, 1.0 if actif else 0.0, delta * 5.0)
@@ -696,6 +717,109 @@ func _point_visee(id: String, optique: String) -> Dictionary:
 	return {"pt": v + Vector3(0, 0.006, 0.0), "dist": 0.2 if longue else 0.3}
 
 
+## Zombie à terre ou rampant juste devant soi (même si le regard passe au-dessus).
+func _chercher_a_achever() -> void:
+	if achevement_t > 0.0:
+		return
+	var fwd := -global_basis.z
+	for z in get_tree().get_nodes_in_group("zombies"):
+		if not z.achevable():
+			continue
+		var d: Vector3 = z.global_position - global_position
+		if d.length() < 2.2 and absf(d.y) < 1.2 and fwd.dot(Vector3(d.x, 0, d.z).normalized()) > 0.5:
+			prompt = "[F] Achever"
+			interact_target = z
+			return
+
+
+## Coup de grâce : couteau (ou arme de mêlée, poing) planté vers le bas, ou balle à bout portant.
+var achevement_t := 0.0
+var achevement_cible: Node = null
+
+
+func achever(z: Node) -> void:
+	if achevement_t > 0.0 or reload_t > 0.0:
+		return
+	var id := current_weapon()
+	var w := arme_stats(id)
+	if w.get("type", "") == "gun" and int(mags.get(id, 0)) > 0:
+		# balle dans la tête à bout portant
+		head.rotation.x = clampf(head.rotation.x - 0.35, -1.45, 1.45)
+		var t: Vector3 = z._pos_os("Head")
+		if t == Vector3.INF:
+			t = z.global_position + Vector3.UP * 0.3
+		_fire_gun(id, w)
+		z.take_hit(99999.0, t, global_position)
+		Effets.gerbe_sang(get_parent(), t, Vector3.DOWN, 1.4)
+		prog.gagner("combat", 10)
+		return
+	achevement_t = 0.75
+	achevement_cible = z
+	cooldown = 0.8
+	if id == "poings":
+		swing_t = 1.0
+	melee_p = 1.0
+	if perso_ual:
+		_p_anim("estoc", 1.4, 0.75)
+	Game.play_ui("vent_lourd", -6.0, 0.1)
+
+
+func _maj_achevement(delta: float) -> void:
+	if achevement_t <= 0.0:
+		return
+	var avant := achevement_t
+	achevement_t = maxf(0.0, achevement_t - delta)
+	if avant > 0.3 and achevement_t <= 0.3 and is_instance_valid(achevement_cible) and achevement_cible.state != achevement_cible.State.DEAD:
+		var z = achevement_cible
+		var t: Vector3 = z._pos_os("Head")
+		if t == Vector3.INF:
+			t = z.global_position + Vector3.UP * 0.3
+		z.take_hit(99999.0, t, global_position)
+		Effets.gerbe_sang(get_parent(), t, Vector3.DOWN, 1.3)
+		Game.play_ui("coup", 0.0, 0.1)
+		Game.play_ui("impact", -2.0, 0.1)
+		prog.gagner("combat", 10)
+		if current_weapon() != "poings" and Items.info(current_weapon()).get("type", "") == "melee":
+			_salir_arme(current_weapon(), 0.3)
+
+
+## Pose du coup de grâce en vue 1re personne : l'arme se lève puis plonge vers le bas.
+func _pose_achevement() -> Array:
+	if achevement_t <= 0.0:
+		return [Vector3.ZERO, Vector3.ZERO]
+	var p := 1.0 - achevement_t / 0.75
+	return [FpsArms._cles([[0.0, Vector3.ZERO], [0.4, Vector3(1.1, 0.0, 0.3)], [0.6, Vector3(-1.3, 0.0, 0.2)], [0.8, Vector3(-1.25, 0.0, 0.2)], [1.0, Vector3.ZERO]], p),
+		FpsArms._cles([[0.0, Vector3.ZERO], [0.4, Vector3(-0.08, 0.18, 0.1)], [0.6, Vector3(-0.1, -0.2, -0.18)], [0.8, Vector3(-0.1, -0.22, -0.16)], [1.0, Vector3.ZERO]], p)]
+
+
+## Sang sur les armes de mêlée : s'accumule à chaque coup, part dans l'eau.
+var sang_armes := {}
+var mat_sang: StandardMaterial3D = null
+
+
+func _salir_arme(id: String, quantite: float) -> void:
+	sang_armes[id] = clampf(float(sang_armes.get(id, 0.0)) + quantite, 0.0, 1.0)
+	_appliquer_sang()
+
+
+func _appliquer_sang() -> void:
+	var niveau := float(sang_armes.get(current_weapon(), 0.0))
+	if mat_sang == null:
+		mat_sang = StandardMaterial3D.new()
+		mat_sang.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat_sang.albedo_texture = Effets._texture("sang")
+		mat_sang.uv1_triplanar = true
+		mat_sang.uv1_scale = Vector3(6, 6, 6)
+		mat_sang.roughness = 0.3
+	mat_sang.albedo_color = Color(0.55, 0.05, 0.04, clampf(niveau * 1.1, 0.0, 0.95))
+	for modele in [vm_weapon, hand_weapon]:
+		if modele == null or not is_instance_valid(modele):
+			continue
+		for g in modele.find_children("*", "MeshInstance3D", true, false):
+			if not g.has_meta("accessoire") and g.get_parent() and not g.get_parent().has_meta("accessoire"):
+				(g as MeshInstance3D).material_overlay = mat_sang if niveau > 0.01 else null
+
+
 ## Flamme de bouche, fumée, douille éjectée (ou cartouche du fusil à pompe au coup de pompe).
 var pompe_t := 0.0
 
@@ -715,6 +839,7 @@ func _effets_tir(id: String, w: Dictionary) -> void:
 		taille = 0.36
 	if not silencieux:
 		Effets.flamme(modele, bouche, taille, 2 if fps else 1)
+		Effets.eclair(get_parent(), modele.global_transform * bouche, Game.is_night() or not in_zone.is_empty())
 	var g_bouche: Vector3 = modele.global_transform * bouche
 	var avant := -modele.global_basis.z.normalized()
 	Effets.fumee(get_parent(), g_bouche + avant * 0.05, avant, 3 if silencieux else 6)
@@ -964,6 +1089,8 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 		return
 	if not (Game.admin and Game.admin_munitions):
 		mags[id] = int(mags[id]) - 1
+	if pose_tps:
+		pose_tps.recul = clampf(float(w.recoil) * 25.0, 0.5, 1.0)
 	doigt_tir = 1.0
 	cooldown = w.rate
 	var origin := lean_pivot.global_position
@@ -1094,6 +1221,10 @@ func _shoot_ray(from: Vector3, to: Vector3, dmg: float) -> bool:
 	if col.has_method("take_hit"):
 		col.take_hit(dmg, hit.position, global_position)
 		Game.spawn_blood(hit.position, get_parent())
+		var arme_feu: bool = Items.info(current_weapon()).get("type", "") == "gun"
+		Effets.gerbe_sang(get_parent(), hit.position, (to - from).normalized(), 1.0 if arme_feu else 0.6)
+		if not arme_feu and current_weapon() != "poings":
+			_salir_arme(current_weapon(), 0.17)
 		Game.play_3d("impact", hit.position, -4.0, 0.2, 30.0)
 		return true
 	# impact dans le décor (balles seulement, pas les coups de mêlée)
@@ -1220,6 +1351,7 @@ func _refresh_weapon_model() -> void:
 		for g in vm.find_children("*", "GeometryInstance3D", true, false):
 			(g as GeometryInstance3D).layers = 2
 		fps_arms.geo = Accessoires.points(id, vm) if w.type == "gun" else {}
+		_appliquer_sang.call_deferred()
 		var oc := vm.find_child("Oculaire", true, false)
 		if oc:
 			(oc as MeshInstance3D).material_override = oculaire_mat
@@ -1280,12 +1412,16 @@ func _update_interact() -> void:
 	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_INTERACT | Game.LAYER_ZOMBIE, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
+		_chercher_a_achever()
 		return
 	if global_position.distance_to(hit.position) > 3.2:
+		_chercher_a_achever()
 		return
 	var col: Object = hit.collider
 	if col and col.has_method("get_prompt"):
 		var p: String = col.get_prompt()
+		if p == "[F] Achever" and achevement_t > 0.0:
+			p = ""
 		if p != "":
 			prompt = p
 			if col.has_method("interact"):
