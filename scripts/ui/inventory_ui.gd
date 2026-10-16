@@ -333,6 +333,7 @@ func open(crate: Node) -> void:
 	storage = crate
 	show_craft = crate == null
 	panel.visible = true
+	drag_layer.visible = true
 	tooltip.visible = false
 	panel.size = Vector2.ZERO
 	panel.scale = Vector2.ONE
@@ -346,6 +347,9 @@ func close() -> void:
 		_revert_held()
 	panel.visible = false
 	tooltip.visible = false
+	held = null
+	drag_layer.visible = false
+	drag_layer.queue_redraw()
 	Game.ui_open = false
 	get_viewport().gui_release_focus()
 	if storage and is_instance_valid(storage) and storage.has_method("on_closed"):
@@ -425,9 +429,12 @@ func _input(event: InputEvent) -> void:
 			held.grab = Vector2i.ZERO
 			_redraw_all()
 			get_viewport().set_input_as_handled()
-		elif held and event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		elif held and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and (not event.pressed or held.get("lache", false)):
+			# lâcher (ou nouveau clic si le relâchement n'a pas été reçu)
 			_drop_held()
 			get_viewport().set_input_as_handled()
+		elif held and event is InputEventMouseButton and not event.pressed:
+			held["lache"] = true
 		elif held and event is InputEventMouseMotion:
 			drag_layer.queue_redraw()
 	elif event.is_action_pressed("inventaire") and not Game.ui_open and Game.player and Game.player.alive:
@@ -438,6 +445,8 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if not panel.visible:
 		return
+	# l'objet tenu suit la souris ; une fois lâché, il ne doit plus être dessiné
+	drag_layer.queue_redraw()
 	var vs := get_viewport().get_visible_rect().size
 	# sécurité : la fenêtre doit toujours tenir à l'écran
 	if panel.size.x > vs.x or panel.size.y > vs.y:
