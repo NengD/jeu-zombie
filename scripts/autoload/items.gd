@@ -135,8 +135,11 @@ const LOOT := {
 	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["cle_tuyau", 2, 1, 1], ["pied_de_biche", 1.5, 1, 1]],
 	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["fusil_pompe", 0.8, 1, 1]],
 	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["ruban", 4, 1, 1], ["masse", 1.5, 1, 1], ["pied_de_biche", 2, 1, 1]],
+	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["pistolet", 2, 1, 1], ["fusil_pompe", 1.5, 1, 1], ["sac_a_dos", 2, 1, 1], ["point_rouge", 1.5, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["poudre", 4, 1, 3]],
+	"boss": [["fusil_assaut", 6, 1, 1], ["mun_556", 10, 30, 60], ["lunette", 5, 1, 1], ["silencieux", 5, 1, 1], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["lampe_tactique", 4, 1, 1], ["carabine", 3, 1, 1]],
 	"zombie_civil": [["barre", 4, 1, 1], ["tissu", 6, 1, 2], ["bandage", 2, 1, 1], ["antidouleur", 1, 1, 1], ["mun_9mm", 1, 2, 5]],
 	"zombie_police": [["mun_9mm", 10, 4, 12], ["matraque", 3, 1, 1], ["pistolet", 1.5, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
+	"zombie_boss": [["mun_556", 10, 20, 40], ["trousse", 6, 1, 2], ["fusil_assaut", 3, 1, 1], ["gilet_militaire", 3, 1, 1], ["lunette", 3, 1, 1], ["silencieux", 3, 1, 1], ["ration", 6, 1, 3]],
 	"zombie_militaire": [["mun_556", 10, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1], ["fusil_assaut", 0.4, 1, 1]],
 }
 

@@ -88,6 +88,18 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 			a.manches = 1.0
 			a.jambes = 1.0
 			a.casque = rng.randf() < 0.75
+		"boss":
+			a.sexe = "homme"
+			a.peau = Color(0.50, 0.55, 0.47)
+			a.haut = Color(0.18, 0.15, 0.13)
+			a.bas = Color(0.20, 0.18, 0.15)
+			a.manches = 0.0
+			a.jambes = 1.0
+			a.style = 0.0
+			a.sang = 1.0
+			a.sale = 1.0
+			a.barbe = true
+			a.coiffure = COIFFURES_H[0]
 		"patient":
 			a.style = 3.0
 			a.haut = [Color(0.62, 0.75, 0.82), Color(0.80, 0.84, 0.80), Color(0.70, 0.80, 0.72)][rng.randi() % 3]

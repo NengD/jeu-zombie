@@ -88,7 +88,8 @@ var reload_total := 1.0
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
 var accessoires := {}              # arme -> {emplacement: accessoire}
-var prog := Progression.new()      # niveaux, attributs, compétences, talents
+var prog := Progression.new()
+var dernier_lieu := ""      # niveaux, attributs, compétences, talents
 var hand_weapon: Node3D = null     # modèle de l'arme dans la main (vue 3e personne)
 var perso_ual := false             # modèle réaliste (animations UAL)
 var p_anim := ""
@@ -292,8 +293,10 @@ func _update_zone() -> void:
 	var z := Game.find_zone(global_position + Vector3.UP * 0.9)
 	if not is_same(z, in_zone):
 		in_zone = z
-		if not z.is_empty() and z.name != "":
+		if not z.is_empty() and z.name != "" and z.name != dernier_lieu:
 			Game.msg("Lieu : " + z.name)
+		if not z.is_empty():
+			dernier_lieu = z.name
 		if not z.is_empty():
 			# découverte d'un bâtiment : XP d'exploration (plus pour les lieux importants)
 			var cle := "%d_%d" % [int(z.center.x), int(z.center.z)]

@@ -389,5 +389,42 @@ def aiguilles():
     print("aiguilles")
 
 
-for f in [ecorce, feuillage, aiguilles, metal_peint, asphalte, beton, trottoir, brique, enduit, parquet, carrelage, herbe, terre, toit, planches, tole, parpaing, vitre]:
+# ------------------------------------------------------------------ tuiles de toit (tuile 2 m : 8 rangs)
+def tuiles():
+    y, x = np.mgrid[0:N, 0:N].astype(float)
+    rangs = 8
+    rh = N / rangs
+    row = np.floor(y / rh)
+    tw = N / 10
+    xo = (x + (row % 2) * tw / 2) % N
+    col = np.floor(xo / tw)
+    lx = (xo % tw) / tw
+    ly = (y % rh) / rh
+    bombe = np.sin(lx * np.pi)            # arrondi de la tuile
+    ombre = np.clip(ly * 1.4, 0, 1)       # bas de rang dans l'ombre du rang du dessus
+    tab = rng.random(500)
+    var = tab[(row * 10 + col).astype(int) % 500]
+    a = bruit(2.0)
+    mousse = np.clip((bruit(2.6, 0, 0.05) - 0.6) * 4, 0, 1)
+    g = 0.55 + 0.25 * bombe * ombre + 0.15 * (var - 0.5) + 0.1 * (a - 0.5)
+    alb = couleur(np.clip(g, 0, 1), (0.25, 0.08, 0.04), (0.85, 0.42, 0.25))
+    alb = alb * (1 - ombre[..., None] * 0 - (1 - ombre[..., None]) * 0.35)
+    alb = alb * (1 - mousse[..., None] * 0.5) + np.array([0.25, 0.3, 0.12]) * mousse[..., None] * 0.5
+    sauver("tuiles", alb, bombe * 0.8 + ombre * 0.6 + a * 0.1, 5.0)
+
+
+# ------------------------------------------------------------------ roche (grotte) (tuile 3 m)
+def roche():
+    a = bruit(2.4)
+    b = bruit(1.5, 0.03)
+    fiss = np.abs(bruit(2.2, 0.005, 0.1) - 0.5)
+    fiss = np.clip(1 - fiss / 0.02, 0, 1)
+    c = bruit(2.8, 0.0, 0.02)   # grandes taches (lichens, humidité)
+    g = 0.55 + (a - 0.5) * 0.7 + (b - 0.5) * 0.25 - fiss * 0.35
+    alb = couleur(np.clip(g, 0, 1), (0.2, 0.18, 0.16), (0.78, 0.73, 0.65))
+    alb = alb * (0.85 + 0.3 * c[..., None])
+    sauver("roche", np.clip(alb, 0, 1), a * 2.0 + b * 0.6 - fiss * 1.5, 7.0)
+
+
+for f in [tuiles, roche, ecorce, feuillage, aiguilles, metal_peint, asphalte, beton, trottoir, brique, enduit, parquet, carrelage, herbe, terre, toit, planches, tole, parpaing, vitre]:
     f()

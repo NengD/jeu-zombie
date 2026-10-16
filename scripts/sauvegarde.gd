@@ -10,7 +10,7 @@ const Placeable = preload("res://scripts/placeable.gd")
 
 
 static func existe() -> bool:
-	return FileAccess.file_exists(FICHIER)
+	return not lire().is_empty()
 
 
 ## Résumé affiché dans le menu : « Jour 3 — 14:20 (sauvegardé le …) ».
@@ -23,10 +23,11 @@ static func resume() -> String:
 
 
 static func lire() -> Dictionary:
-	if not existe():
+	if not FileAccess.file_exists(FICHIER):
 		return {}
 	var d = JSON.parse_string(FileAccess.get_file_as_string(FICHIER))
-	return d if d is Dictionary else {}
+	# les sauvegardes d'avant les bâtiments à étages ne correspondent plus à la carte
+	return d if d is Dictionary and int(d.get("version", 1)) >= 2 else {}
 
 
 static func supprimer() -> void:
@@ -79,7 +80,7 @@ static func sauver(main: Node) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
 		return false
-	var d := {"version": 1, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
+	var d := {"version": 2, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
 			"date": Time.get_datetime_string_from_system(false, true)}
 	# joueur
 	var eq := {}
@@ -121,6 +122,11 @@ static func sauver(main: Node) -> bool:
 		zs.append({"pos": _v(z.global_position), "type": z.kind, "garde": z.persistent, "rayon": z.home_radius,
 				"pv": z.health, "maison": _v(z.home)})
 	d["zombies"] = zs
+	var ouvertes := []
+	for pt in main.world.portes:
+		if is_instance_valid(pt) and pt.ouverte:
+			ouvertes.append(pt.idx)
+	d["portes"] = ouvertes
 	var f := FileAccess.open(FICHIER, FileAccess.WRITE)
 	if f == null:
 		return false
@@ -141,6 +147,12 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 			c.grille = grille_depuis(cd.get("g"))
 			if c.searched and c.modele == null and c.mat:
 				c.mat.albedo_color = c.mat.albedo_color.darkened(0.35)
+	if d.has("portes"):
+		var ouv := {}
+		for i in d.portes:
+			ouv[int(i)] = true
+		for pt in main.world.portes:
+			pt.basculer(ouv.has(pt.idx), true)
 	Game.day = int(d.get("jour", 1))
 	Game.time_hours = float(d.get("heure", 8.0))
 

@@ -17,7 +17,7 @@ var player: CharacterBody3D = null
 var zones: Array = []      # bâtiments : {aabb, doors, kind, name}
 var pois: Array = []       # points d'intérêt pour la carte : {name, pos, color}
 var map_rects: Array = []  # rectangles de la carte : {rect, color}
-var map_half := 420.0
+var map_half := 700.0
 var city_half := 161.0
 var ui_open := false
 var time_hours := 8.0
@@ -161,6 +161,45 @@ func make_noise(pos: Vector3, radius: float) -> void:
 
 func is_night() -> bool:
 	return time_hours < 6.0 or time_hours >= 20.5
+
+
+## Prochain passage (porte ou escalier) pour aller de la zone « de » à la zone « vers »
+## ({} = dehors). Parcours en largeur du graphe des bâtiments et étages.
+func prochain_lien(de: Dictionary, vers: Dictionary) -> Dictionary:
+	var id_de: int = de.get("id", -1) if not de.is_empty() else -1
+	var id_vers: int = vers.get("id", -1) if not vers.is_empty() else -1
+	if id_de == id_vers:
+		return {}
+	var prec := {id_de: null}
+	var file := [id_de]
+	while not file.is_empty():
+		var cur: int = file.pop_front()
+		if cur == id_vers:
+			break
+		var liens: Array = []
+		if cur == -1:
+			# dehors : on entre par les portes du bâtiment visé
+			if id_vers >= 0:
+				var cible: Dictionary = zones[id_vers]
+				var rez: Dictionary = zones[cible.get("batiment", id_vers)]
+				for l in rez.get("liens", []):
+					if l.type == "porte":
+						liens.append({"pos": l.pos, "a": l.b, "b": l.a, "vers": rez.id, "type": "porte"})
+		else:
+			liens = zones[cur].get("liens", [])
+		for l in liens:
+			var v: int = l.vers
+			if not prec.has(v):
+				prec[v] = [cur, l]
+				file.append(v)
+	if not prec.has(id_vers):
+		return {}
+	var n := id_vers
+	var lien: Dictionary = {}
+	while prec[n] != null:
+		lien = prec[n][1]
+		n = prec[n][0]
+	return lien
 
 
 func find_zone(pos: Vector3) -> Dictionary:

@@ -64,6 +64,22 @@ Supermarché ........... nourriture et boissons
 Armurerie ............. armes et munitions
 Quincaillerie ......... planches, clous, ferraille, haches
 Fermes / station ...... matériaux, nourriture
+Villages (Saint-Aubin au nord, Hameau des Sources à l'ouest)
+                        maisons à toit de tuiles, épicerie, mairie, église, bar
+Carambolages .......... zones infestées sur l'autoroute (repères rouges) :
+                        une trentaine de zombies, coffres de voiture bien remplis
+Grotte du Colosse ..... (repère violet, nord-ouest) le BOSS : un zombie géant
+                        de 2 500 PV qui charge et frappe le sol. Prends une lampe !
+                        Sa cache au fond de la grotte contient le meilleur butin.
+
+BÂTIMENTS ET PORTES
+- Toutes les portes s'ouvrent et se ferment avec F. Les zombies ne savent pas
+  les ouvrir : ils tapent dedans jusqu'à les enfoncer (une porte fermée te fait
+  gagner du temps).
+- Les immeubles se visitent entièrement : un escalier dans un coin relie tous
+  les étages, chaque étage a ses meubles à fouiller… et ses habitants.
+- La carte est bien plus grande (1,4 km de côté).
+- Les anciennes sauvegardes ne sont plus compatibles (nouvelle carte).
 
 ORGANISATION DES FICHIERS
 scenes/player.tscn ...... le joueur (nœud « Modele » = apparence)
@@ -111,7 +127,7 @@ NIVEAUX ET COMPÉTENCES (touche K)
 - Niveau global : chaque action donne de l'XP ; à chaque niveau, 1 point d'attribut :
   Endurance (+10 max, récupération plus rapide), Santé (+10 max), Soif et Faim (baissent moins vite).
 - 3 compétences avec leurs propres niveaux (jusqu'au niveau 10) :
-  Combat (tuer des zombies : 20 XP civil, 35 policier, 50 militaire, avec n'importe quelle arme ;
+  Combat (tuer des zombies : 20 XP civil, 35 policier, 50 militaire, 600 le Colosse, avec n'importe quelle arme ;
   chaque zombie touché au corps à corps ou par balle donne aussi de l'XP),
   Fabrication (fabriquer, poser établis/caisses/barricades),
   Exploration (fouiller meubles et corps, découvrir bâtiments et lieux importants).

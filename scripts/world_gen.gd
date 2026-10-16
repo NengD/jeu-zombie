@@ -6,6 +6,7 @@ extends Node3D
 ## _building() / _car() / arbres par des instances de scènes .glb.
 
 const LootContainer = preload("res://scripts/loot_container.gd")
+const Porte = preload("res://scripts/porte.gd")
 
 const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
@@ -53,6 +54,7 @@ const MATS := {
 	"terre": ["terre", 3.0, 0.95, 0.0], "toit": ["toit", 2.0, 0.95, 0.0],
 	"planches": ["planches", 2.0, 0.85, 0.0], "tole": ["tole", 1.0, 0.5, 0.5],
 	"parpaing": ["parpaing", 2.0, 0.9, 0.0], "vitre": ["vitre", 1.5, 0.08, 0.4],
+	"tuiles": ["tuiles", 2.0, 0.8, 0.0], "roche": ["roche", 4.0, 0.95, 0.0],
 }
 
 # modèles 3D (modeles/props) utilisés pour chaque meuble fouillable
@@ -75,6 +77,8 @@ var mat: StandardMaterial3D
 var mats := {}        # nom -> matériau
 var cur_mat := "uni"  # matériau utilisé par _box() quand aucun n'est précisé
 var decor: Node3D     # objets de décor (modèles 3D)
+var portes: Array = []       # portes des bâtiments (ordre de génération)
+var portes_bat: Array = []   # portes du bâtiment en cours de construction
 var conteneurs: Array = []   # meubles fouillables, dans l'ordre de génération
 var reserved: Array = []   # Rect2 occupés (pour placer les arbres)
 var guards: Array = []     # zombies à placer : {pos, kind, radius}
@@ -414,33 +418,39 @@ func _car(c: Vector3, along_x: bool, col: Color, id := "") -> void:
 
 
 # ================================================================ bâtiments
-func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Array, kind: String, label := "", partition := false, furn := -1, map_col := Color(0.5, 0.5, 0.5)) -> Dictionary:
+func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Array, kind: String, label := "", partition := false, furn := -1, map_col := Color(0.5, 0.5, 0.5), toit := "plat") -> Dictionary:
 	var t := WALL_T
 	var x0 := c.x - w / 2.0
 	var x1 := c.x + w / 2.0
 	var z0 := c.z - d / 2.0
 	var z1 := c.z + d / 2.0
-	h = maxf(h, INT_H + 0.3)
+	# étages : chaque étage fait INT_H de haut ; certains bâtiments n'ont qu'un grand volume
+	var un_seul := kind in ["grange", "station"] or label in ["Hangar", "Supermarché"]
+	var n := 1 if un_seul else clampi(int(floor((maxf(h, INT_H + 0.3) - 0.3) / INT_H + 0.25)), 1, 6)
+	var haut_etage := maxf(h - 0.3, INT_H) if un_seul else INT_H
+	h = n * haut_etage + 0.3
+	var sommet := n * haut_etage
 	# revêtements : façade selon le type de bâtiment, sol intérieur selon l'usage
 	var facade := _facade(kind, h)
-	var col_f := col
 	if facade == "brique":
-		col_f = Color(1, 1, 1).lerp(col, 0.25).lightened(0.1)
+		col = Color(1, 1, 1).lerp(col, 0.25).lightened(0.1)
 	elif facade == "parpaing" or facade == "planches":
-		col_f = col.lightened(0.35)
+		col = col.lightened(0.35)
 	else:
-		col_f = col.lightened(0.2)
-	col = col_f
+		col = col.lightened(0.2)
 	var sol := "parquet"
 	if kind in ["magasin", "hopital", "station", "bureau", "police", "armurerie"]:
 		sol = "carrelage"
 	elif kind in ["militaire", "armurerie_mil", "grange", "quincaillerie"]:
 		sol = "beton"
-	_box(Vector3(c.x, 0.015, c.z), Vector3(w - 0.1, 0.03, d - 0.1), Color(0.9, 0.88, 0.85) if sol != "parquet" else Color(1, 1, 1), false, sol)
+	var col_sol := Color(0.9, 0.88, 0.85) if sol != "parquet" else Color(1, 1, 1)
 	var mat_avant := cur_mat
 	cur_mat = facade
+	# ---------------------------------------------------------------- murs, portes, fenêtres
 	var door_list: Array = []
+	portes_bat = []
 	var outward := {"n": Vector3(0, 0, -1), "s": Vector3(0, 0, 1), "w": Vector3(-1, 0, 0), "e": Vector3(1, 0, 0)}
+	var portes_dc := {}
 	for side in ["n", "s", "w", "e"]:
 		var along_x: bool = side == "n" or side == "s"
 		var fixed: float
@@ -453,68 +463,348 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 		var a1: float = x1 if along_x else z1 - t
 		var has_door: bool = side in doors
 		var dc := (a0 + a1) / 2.0
+		var o: Vector3 = outward[side]
 		if has_door:
 			var spread := maxf(0.0, (a1 - a0) / 2.0 - 2.5)
 			if partition and not along_x:
 				dc = c.z + (d / 4.0) * (1.0 if rng.randf() < 0.5 else -1.0)
 			else:
 				dc += rng.randf_range(-spread, spread) * 0.5
+			portes_dc[side] = dc
 			var dp := Vector3(dc, 0, fixed) if along_x else Vector3(fixed, 0, dc)
-			var o: Vector3 = outward[side]
 			door_list.append({"pos": dp, "out": dp + o * 1.5, "inn": dp - o * 1.5})
-			_wall(along_x, fixed, a0, dc - DOOR_W / 2.0, 0.0, INT_H, col)
-			_wall(along_x, fixed, dc + DOOR_W / 2.0, a1, 0.0, INT_H, col)
-			_wall(along_x, fixed, dc - DOOR_W / 2.0, dc + DOOR_W / 2.0, DOOR_H, INT_H, col.darkened(0.2))
+			_wall(along_x, fixed, a0, dc - DOOR_W / 2.0, 0.0, sommet, col)
+			_wall(along_x, fixed, dc + DOOR_W / 2.0, a1, 0.0, sommet, col)
+			_wall(along_x, fixed, dc - DOOR_W / 2.0, dc + DOOR_W / 2.0, DOOR_H, sommet, col.darkened(0.2))
+			_porte(dp, along_x, o)
 		else:
-			_wall(along_x, fixed, a0, a1, 0.0, INT_H, col)
-		# fenêtres (cadre, vitre, appui), soubassement, bandeaux d'étage
-		var sgn: float = outward[side].z if along_x else outward[side].x
+			_wall(along_x, fixed, a0, a1, 0.0, sommet, col)
+		var sgn: float = o.z if along_x else o.x
 		var face: float = fixed + sgn * (t / 2.0)
+		var face_in: float = fixed - sgn * (t / 2.0)
 		_bande(along_x, face, sgn, a0 - (t if not along_x else 0.0), a1 + (t if not along_x else 0.0), 0.0, 0.45, 0.04, Color(0.7, 0.7, 0.68), "beton", has_door, dc)
-		var y := 1.1
-		var etage := 0
-		while y + 1.0 < h:
-			if etage > 0:
-				_bande(along_x, face, sgn, a0, a1, y - 0.55, y - 0.3, 0.05, Color(0.78, 0.77, 0.74), "beton", false, 0.0)
+		var nb_rangs := n if not un_seul else maxi(1, int(haut_etage / 3.3))
+		for k in nb_rangs:
+			var base := k * (haut_etage if not un_seul else 3.3)
+			var y := base + 1.0
+			if y + 1.2 > sommet:
+				break
+			if k > 0:
+				_bande(along_x, face, sgn, a0, a1, base - 0.2, base + 0.05, 0.05, Color(0.78, 0.77, 0.74), "beton", false, 0.0)
 			var a := a0 + 2.0
 			while a < a1 - 2.0:
-				var skip := has_door and y < INT_H and absf(a - dc) < 2.0
+				var skip := has_door and k == 0 and absf(a - dc) < 2.0
 				if not skip:
 					_fenetre(along_x, face, sgn, a, y, kind)
+					# vitre vue de l'intérieur
+					_sur_facade(along_x, face_in, -sgn, a, y + 0.55, 0.01, 1.3, 1.1, 0.02, Color(0.55, 0.62, 0.7), "vitre")
 				a += 3.6
-			y += 3.4 if y < INT_H else 3.2
-			etage += 1
-	# plafond + étages (volume plein au-dessus du rez-de-chaussée)
-	_box(Vector3(c.x, INT_H + 0.15, c.z), Vector3(w, 0.3, d), Color(0.85, 0.84, 0.8), true, "enduit")
-	if h > INT_H + 0.6:
-		_box(Vector3(c.x, (INT_H + 0.3 + h) / 2.0, c.z), Vector3(w, h - INT_H - 0.3, d), col)
-	# toit-terrasse gravillonné + acrotère
+	# ---------------------------------------------------------------- cage d'escalier
+	var cage := {}
+	if n > 1:
+		cage = _choisir_cage(x0 + t, x1 - t, z0 + t, z1 - t, doors, portes_dc)
+	# ---------------------------------------------------------------- planchers, toit
+	var zones_etages: Array = []
+	for k in n:
+		var base := k * haut_etage
+		var trou := Rect2()
+		if k > 0 and not cage.is_empty():
+			trou = cage.trou
+		if k == 0:
+			_box(Vector3(c.x, 0.015, c.z), Vector3(w - 0.1, 0.03, d - 0.1), col_sol, false, sol)
+		else:
+			# dalle (plafond de l'étage du dessous) + revêtement du sol
+			_dalle(Rect2(x0 + t, z0 + t, w - 2 * t, d - 2 * t), trou, base - 0.26, base - 0.02, Color(0.88, 0.87, 0.84), "enduit", true)
+			_dalle(Rect2(x0 + t, z0 + t, w - 2 * t, d - 2 * t), trou, base - 0.02, base + 0.015, col_sol, sol, false)
+	_box(Vector3(c.x, sommet + 0.15, c.z), Vector3(w, 0.3, d), Color(0.85, 0.84, 0.8), true, "enduit")
+	if toit == "pente":
+		_toit_pente(c, w, d, sommet + 0.3, col, facade)
+	else:
+		_toit_plat(c, w, d, h, x0, x1, z0, z1)
+
+	# ---------------------------------------------------------------- escaliers
+	if not cage.is_empty():
+		for k in n - 1:
+			_escalier(cage, k * haut_etage, haut_etage)
+	# ---------------------------------------------------------------- zones (une par étage), cloisons, meubles
+	var id_bat := Game.zones.size()
+	for k in n:
+		var base := k * haut_etage
+		var placed: Array = []
+		if not cage.is_empty():
+			placed.append(cage.emprise)
+		cur_mat = "enduit"
+		var passages: Array = []
+		if partition and d >= 12.0:
+			var gx := rng.randf_range(x0 + 2.5, x1 - 2.5)
+			passages.append(Vector3(gx, base, c.z))
+			_wall(true, c.z, x0 + t, gx - 1.0, base, base + haut_etage, col.lightened(0.15))
+			_wall(true, c.z, gx + 1.0, x1 - t, base, base + haut_etage, col.lightened(0.15))
+			placed.append(Rect2(x0, c.z - 0.5, gx - 1.3 - x0, 1.0))
+			placed.append(Rect2(gx + 1.3, c.z - 0.5, x1 - gx - 1.3, 1.0))
+			placed.append(Rect2(gx - 1.5, c.z - 2.0, 3.0, 4.0))
+		var zone := {
+			"aabb": AABB(Vector3(x0 + t, base, z0 + t), Vector3(w - 2 * t, haut_etage, d - 2 * t)),
+			"doors": door_list if k == 0 else [], "kind": kind, "name": label, "center": c,
+			"id": Game.zones.size(), "etage": k, "batiment": id_bat, "liens": [], "passages": passages,
+		}
+		if k == 0:
+			for dr in door_list:
+				zone.liens.append({"pos": dr.pos, "a": dr.inn, "b": dr.out, "vers": -1, "type": "porte"})
+		Game.zones.append(zone)
+		zones_etages.append(zone)
+		var nf := furn
+		if nf < 0:
+			nf = clampi(int(w * d / 28.0), 2, 12)
+		if k > 0:
+			nf = maxi(2, int(nf * 0.7))
+		_furnish(zone, kind, nf, placed)
+		if k > 0:
+			var rk := {"hopital": "patient", "police": "police", "militaire": "militaire", "armurerie_mil": "militaire"}
+			_residents(zone, 0.45, 2, rk.get(kind, "civil"))
+	cur_mat = mat_avant
+	# liens d'escalier entre étages (pour que les zombies suivent)
+	if not cage.is_empty():
+		for k in n - 1:
+			var bas: Dictionary = zones_etages[k]
+			var haut: Dictionary = zones_etages[k + 1]
+			# points du chemin : y = 0 -> étage k, y = 1 -> étage k+1
+			var ch: Array = []
+			for q in cage.chemin:
+				ch.append(Vector3(q.x, k * haut_etage + q.y * haut_etage, q.z))
+			var a: Vector3 = ch[0]
+			var b: Vector3 = ch[ch.size() - 1]
+			var m := (a + b) * 0.5
+			var ch_inv := ch.duplicate()
+			ch_inv.reverse()
+			bas.liens.append({"pos": m, "a": a, "b": b, "vers": haut.id, "type": "escalier", "chemin": ch})
+			haut.liens.append({"pos": m, "a": b, "b": a, "vers": bas.id, "type": "escalier", "chemin": ch_inv})
+	var zone0: Dictionary = zones_etages[0]
+	zone0["etages"] = zones_etages
+	zone0["portes"] = portes_bat.duplicate()
+	_reserve(Rect2(x0 - 1.0, z0 - 1.0, w + 2.0, d + 2.0))
+	Game.map_rects.append({"rect": Rect2(x0, z0, w, d), "color": map_col})
+	return zone0
+
+
+## Toit-terrasse gravillonné + acrotère.
+func _toit_plat(c: Vector3, w: float, d: float, h: float, x0: float, x1: float, z0: float, z1: float) -> void:
 	_box(Vector3(c.x, h + 0.02, c.z), Vector3(w - 0.4, 0.04, d - 0.4), Color(0.9, 0.9, 0.9), false, "toit")
 	for e in [[Vector3(c.x, h + 0.3, z0 + 0.15), Vector3(w + 0.2, 0.6, 0.3)], [Vector3(c.x, h + 0.3, z1 - 0.15), Vector3(w + 0.2, 0.6, 0.3)],
 			[Vector3(x0 + 0.15, h + 0.3, c.z), Vector3(0.3, 0.6, d)], [Vector3(x1 - 0.15, h + 0.3, c.z), Vector3(0.3, 0.6, d)]]:
 		_box(e[0], e[1], Color(0.75, 0.74, 0.7), false, "beton")
-	# cloison intérieure
-	var placed: Array = []
-	cur_mat = "enduit"
-	if partition and d >= 12.0:
-		var gx := rng.randf_range(x0 + 2.5, x1 - 2.5)
-		_wall(true, c.z, x0 + t, gx - 1.0, 0.0, INT_H, col.lightened(0.15))
-		_wall(true, c.z, gx + 1.0, x1 - t, 0.0, INT_H, col.lightened(0.15))
-		placed.append(Rect2(x0, c.z - 0.5, gx - 1.3 - x0, 1.0))
-		placed.append(Rect2(gx + 1.3, c.z - 0.5, x1 - gx - 1.3, 1.0))
-		placed.append(Rect2(gx - 1.5, c.z - 2.0, 3.0, 4.0))  # garder le passage libre
-	cur_mat = mat_avant
-	var zone := {
-		"aabb": AABB(Vector3(x0 + t, 0.0, z0 + t), Vector3(w - 2 * t, INT_H, d - 2 * t)),
-		"doors": door_list, "kind": kind, "name": label, "center": c,
-	}
-	Game.zones.append(zone)
-	_reserve(Rect2(x0 - 1.0, z0 - 1.0, w + 2.0, d + 2.0))
-	Game.map_rects.append({"rect": Rect2(x0, z0, w, d), "color": map_col})
-	if furn < 0:
-		furn = clampi(int(w * d / 28.0), 2, 12)
-	_furnish(zone, kind, furn, placed)
-	return zone
+
+
+## Toit à deux pans en tuiles (faîtage dans le sens de la plus grande longueur) + pignons.
+func _toit_pente(c: Vector3, w: float, d: float, y0: float, col: Color, facade: String) -> void:
+	var deb := 0.45
+	var faitage_x := w >= d
+	var demi := (d if faitage_x else w) / 2.0
+	var hauteur := (demi + deb) * tan(deg_to_rad(33.0))
+	var lg := (w if faitage_x else d) / 2.0 + deb
+	var ep := 0.12
+	for cote in [-1.0, 1.0]:
+		# pan : du bord (bas) au faîtage (haut)
+		var bas_c := Vector3(0, y0 - deb * tan(deg_to_rad(33.0)), cote * (demi + deb))
+		var haut_c := Vector3(0, y0 + hauteur - deb * tan(deg_to_rad(33.0)), 0)
+		var p0: Vector3
+		var p1: Vector3
+		var p2: Vector3
+		var p3: Vector3
+		if faitage_x:
+			p0 = c + Vector3(-lg, bas_c.y, bas_c.z)
+			p1 = c + Vector3(lg, bas_c.y, bas_c.z)
+			p2 = c + Vector3(lg, haut_c.y, 0)
+			p3 = c + Vector3(-lg, haut_c.y, 0)
+		else:
+			p0 = c + Vector3(bas_c.z, bas_c.y, -lg)
+			p1 = c + Vector3(bas_c.z, bas_c.y, lg)
+			p2 = c + Vector3(0, haut_c.y, lg)
+			p3 = c + Vector3(0, haut_c.y, -lg)
+		_quad(p0, p1, p2, p3, Color(1, 1, 1), "tuiles", true)
+		# sous-face (visible depuis la rue)
+		_quad(p0 + Vector3.DOWN * ep, p1 + Vector3.DOWN * ep, p2 + Vector3.DOWN * ep, p3 + Vector3.DOWN * ep, Color(0.6, 0.5, 0.4), "planches", false)
+	# pignons triangulaires (dans le matériau de la façade)
+	var yb := y0 - 0.02
+	var yh := y0 + hauteur - deb * tan(deg_to_rad(33.0))
+	for bout in [-1.0, 1.0]:
+		var a: Vector3
+		var b: Vector3
+		var t: Vector3
+		var bord := (w if faitage_x else d) / 2.0 - 0.02
+		if faitage_x:
+			a = c + Vector3(bout * bord, yb, -demi)
+			b = c + Vector3(bout * bord, yb, demi)
+			t = c + Vector3(bout * bord, yh, 0)
+		else:
+			a = c + Vector3(-demi, yb, bout * bord)
+			b = c + Vector3(demi, yb, bout * bord)
+			t = c + Vector3(0, yh, bout * bord)
+		_tri(a, b, t, col, facade)
+		_tri(b, a, t, col, facade)
+
+
+func _st(c: Vector3, m: String) -> SurfaceTool:
+	var k := _chunk(c)
+	var cle := "%d|%d|%s" % [k.x, k.y, m]
+	if not sts.has(cle):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		sts[cle] = st
+	return sts[cle]
+
+
+## Quadrilatère (p0 -> p1 -> p2 -> p3) avec UV en mètres. « recto_verso » : visible des deux côtés.
+func _quad(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, col: Color, m: String, recto_verso := false) -> void:
+	var st := _st((p0 + p2) * 0.5, m)
+	var u := (p1 - p0).normalized()
+	var v := (p3 - p0).normalized()
+	for sens in ([1, -1] if recto_verso else [1]):
+		var n := u.cross(v).normalized() * float(sens)
+		var ordre := [p0, p2, p1, p0, p3, p2] if sens == 1 else [p0, p1, p2, p0, p2, p3]
+		if n.y < 0.0 and not recto_verso:
+			ordre = [p0, p1, p2, p0, p2, p3]
+			n = -n
+		for p in ordre:
+			st.set_normal(n)
+			st.set_tangent(Plane(u.x, u.y, u.z, 1.0))
+			st.set_color(col)
+			st.set_uv(Vector2((p - p0).dot(u), -(p - p0).dot(v)))
+			st.add_vertex(p)
+
+
+func _tri(a: Vector3, b: Vector3, t: Vector3, col: Color, m: String) -> void:
+	var st := _st((a + b + t) / 3.0, m)
+	var u := (b - a).normalized()
+	var n := u.cross(t - a).normalized()
+	for p in [a, t, b]:
+		st.set_normal(-n)
+		st.set_tangent(Plane(u.x, u.y, u.z, 1.0))
+		st.set_color(col)
+		st.set_uv(Vector2((p - a).dot(u), -(p.y - a.y)))
+		st.add_vertex(p)
+
+
+const ESC_LONG := 5.2     # longueur de la volée
+const ESC_PALIER := 1.4   # palier d'arrivée
+const ESC_LARG := 1.25    # largeur d'une voie (volée / passage)
+
+
+## Cherche un coin pour la cage d'escalier, loin des portes.
+func _choisir_cage(ix0: float, ix1: float, iz0: float, iz1: float, doors: Array, portes_dc: Dictionary) -> Dictionary:
+	var lg := ESC_LONG + ESC_PALIER
+	var la := ESC_LARG * 2.0
+	for coin in [[-1, 1], [1, 1], [-1, -1], [1, -1]]:
+		var sx: int = coin[0]
+		var sz: int = coin[1]
+		var xa := ix0 if sx < 0 else ix1 - lg
+		var za := iz1 - la if sz > 0 else iz0
+		var r := Rect2(xa, za, lg, la)
+		var ok := true
+		for side in portes_dc:
+			var dc: float = portes_dc[side]
+			var p: Vector2
+			match side:
+				"n": p = Vector2(dc, iz0)
+				"s": p = Vector2(dc, iz1)
+				"w": p = Vector2(ix0, dc)
+				_: p = Vector2(ix1, dc)
+			if r.grow(2.2).has_point(p):
+				ok = false
+		if not ok:
+			continue
+		# voie A (volée) contre le mur extérieur, voie B (passage) côté intérieur.
+		# La volée part du côté ouvert (accessible depuis la pièce) et monte vers le coin,
+		# où se trouve le palier d'arrivée.
+		var dirx := 1.0 if sx < 0 else -1.0
+		var x_coin := xa if sx < 0 else xa + lg
+		var x_ouvert := x_coin + dirx * lg
+		var z_a := za + ESC_LARG * 0.5 if sz < 0 else za + la - ESC_LARG * 0.5
+		var z_b := z_a + (ESC_LARG if sz < 0 else -ESC_LARG)
+		var x_haut := x_coin + dirx * ESC_PALIER        # haut de la volée
+		var trou_x1 := x_haut + dirx * ESC_LONG * 0.7
+		var trou := Rect2(minf(x_haut, trou_x1), z_a - ESC_LARG * 0.5, absf(trou_x1 - x_haut), ESC_LARG)
+		# chemin pour monter : bas de la volée -> palier (voie A) -> palier (voie B) -> sortie le long du garde-corps
+		var chemin := [Vector3(x_ouvert + dirx * 0.4, 0.0, z_a), Vector3(x_coin + dirx * ESC_PALIER * 0.5, 1.0, z_a),
+				Vector3(x_coin + dirx * ESC_PALIER * 0.5, 1.0, z_b), Vector3(trou_x1 + dirx * 0.7, 1.0, z_b)]
+		return {"x": x_ouvert, "dir": -dirx, "z_a": z_a, "z_b": z_b, "trou": trou, "emprise": r.grow(0.6),
+				"depart": chemin[0], "arrivee": chemin[3], "chemin": chemin}
+	return {}
+
+
+## Volée d'escalier de « base » à « base + haut » : marches visibles + rampe de collision + garde-corps.
+func _escalier(cage: Dictionary, base: float, haut: float) -> void:
+	var nb := 15
+	var run := ESC_LONG / nb
+	var rise := haut / nb
+	var dirx: float = cage.dir
+	for i in nb:
+		var xm: float = cage.x + dirx * (i + 0.5) * run
+		var top := base + (i + 1) * rise
+		_box(Vector3(xm, top - (rise + 0.25) / 2.0, cage.z_a), Vector3(run + 0.01, rise + 0.25, ESC_LARG), Color(0.82, 0.8, 0.76), false, "beton")
+	# rampe invisible inclinée (les personnages montent dessus sans à-coups)
+	var p0 := Vector3(cage.x, base, cage.z_a)
+	var p1 := Vector3(cage.x + dirx * ESC_LONG, base + haut, cage.z_a)
+	var milieu := (p0 + p1) * 0.5
+	var longueur := p0.distance_to(p1)
+	var ang := atan2(haut, ESC_LONG) * dirx
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(longueur, 0.12, ESC_LARG)
+	cs.shape = bs
+	cs.transform = Transform3D(Basis(Vector3(0, 0, 1), ang), milieu + Vector3(0, -0.06, 0))
+	var kch := _chunk(milieu)
+	if not bodies.has(kch):
+		var b := StaticBody3D.new()
+		b.collision_layer = Game.LAYER_WORLD
+		b.collision_mask = 0
+		add_child(b)
+		bodies[kch] = b
+	bodies[kch].add_child(cs)
+	# dessous de la première volée plein (on ne peut pas passer dessous) ;
+	# aux étages, le dessous de la volée est la trémie de celle d'en dessous : on le laisse libre
+	for seg in (3 if base < 0.1 else 0):
+		var f0 := float(seg + 1) / 3.0 - 1.0 / 3.0
+		var hseg := base + haut * f0 - 0.5   # assez bas pour ne pas gêner ceux qui montent
+		if hseg - base > 0.3:
+			var xm2: float = cage.x + dirx * ESC_LONG * (f0 + 1.0 / 6.0)
+			_box(Vector3(xm2, (base + hseg) / 2.0, cage.z_a), Vector3(ESC_LONG / 3.0, hseg - base, ESC_LARG - 0.05), Color(0.8, 0.79, 0.75), true, "enduit")
+	# garde-corps entre la volée et le passage, à l'étage d'arrivée (le long du trémie)
+	var tr: Rect2 = cage.trou
+	var zg: float = (cage.z_a + cage.z_b) * 0.5
+	_box(Vector3(tr.get_center().x, base + haut + 0.5, zg), Vector3(tr.size.x, 1.0, 0.05), Color(0.25, 0.25, 0.27), true, "metal")
+	_box(Vector3(tr.get_center().x, base + haut + 1.0, zg), Vector3(tr.size.x, 0.06, 0.08), Color(0.35, 0.25, 0.18), false, "planches")
+
+
+## Dalle horizontale avec un trou rectangulaire (trémie d'escalier).
+func _dalle(r: Rect2, trou: Rect2, y0: float, y1: float, col: Color, m: String, solide: bool) -> void:
+	var rs: Array = []
+	if trou.size == Vector2.ZERO:
+		rs = [r]
+	else:
+		rs = [Rect2(r.position.x, r.position.y, r.size.x, trou.position.y - r.position.y),
+			Rect2(r.position.x, trou.end.y, r.size.x, r.end.y - trou.end.y),
+			Rect2(r.position.x, trou.position.y, trou.position.x - r.position.x, trou.size.y),
+			Rect2(trou.end.x, trou.position.y, r.end.x - trou.end.x, trou.size.y)]
+	for q in rs:
+		if q.size.x > 0.02 and q.size.y > 0.02:
+			_box(Vector3(q.get_center().x, (y0 + y1) / 2.0, q.get_center().y), Vector3(q.size.x, y1 - y0, q.size.y), col, solide, m)
+
+
+## Porte à deux battants dans une ouverture de façade.
+func _porte(dp: Vector3, along_x: bool, o: Vector3) -> void:
+	var p = Porte.new()
+	add_child(p)
+	p.position = dp
+	# repère de la porte : X le long du mur ; on tourne pour les murs est/ouest
+	p.rotation.y = 0.0 if along_x else PI / 2.0
+	var vers_int := -o
+	var local_z: Vector3 = p.basis.inverse() * vers_int
+	p.setup(DOOR_W, DOOR_H, signf(local_z.z) if absf(local_z.z) > 0.1 else 1.0, [Color(0.55, 0.38, 0.22), Color(0.35, 0.3, 0.28), Color(0.6, 0.6, 0.58), Color(0.3, 0.38, 0.5)][rng.randi() % 4])
+	p.idx = portes.size()
+	portes.append(p)
+	p.basculer(rng.randf() < 0.45, true)
+	portes_bat.append(p)
 
 
 const CADRES := [Color(0.92, 0.92, 0.9), Color(0.25, 0.25, 0.26), Color(0.35, 0.24, 0.16), Color(0.6, 0.6, 0.6)]
@@ -637,6 +927,7 @@ func _furnish(zone: Dictionary, kind: String, count: int, placed: Array) -> void
 		if not ok:
 			continue
 		placed.append(rect)
+		pos.y = ab.position.y
 		var cont := _container(pos, size3, f[2], f[0], kind)
 		var choix: Array = MODELES_MEUBLES.get(f[0], [])
 		if not choix.is_empty():
@@ -668,7 +959,7 @@ func _residents(zone: Dictionary, chance: float, max_n: int, kind := "civil") ->
 
 func _random_in(zone: Dictionary, margin: float) -> Vector3:
 	var ab: AABB = zone.aabb
-	return Vector3(rng.randf_range(ab.position.x + margin, ab.end.x - margin), 0.1, rng.randf_range(ab.position.z + margin, ab.end.z - margin))
+	return Vector3(rng.randf_range(ab.position.x + margin, ab.end.x - margin), ab.position.y + 0.1, rng.randf_range(ab.position.z + margin, ab.end.z - margin))
 
 
 func _poi(label: String, pos: Vector3, col: Color) -> void:
@@ -760,9 +1051,11 @@ func _residential(bc: Vector3, is_spawn: bool) -> void:
 			var h := INT_H + 0.3 if rng.randf() < 0.5 else 6.6
 			var col: Color = HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()]
 			var doors := _doors_toward_roads(qx, qz)
-			var z := _building(c, w, d, h, col, doors, "maison", "", false, -1, Color(0.45, 0.4, 0.35))
+			var z := _building(c, w, d, h, col, doors, "maison", "", false, -1, Color(0.45, 0.4, 0.35), "pente" if rng.randf() < 0.6 else "plat")
 			if is_spawn and first:
 				spawn_zone = z
+				for pp in z.portes:
+					pp.basculer(true, true)
 				var dr: Dictionary = z.doors[0]
 				spawn_point = dr.out + (dr.out - dr.pos).normalized() * 1.0
 				first = false
@@ -889,6 +1182,11 @@ func _countryside() -> void:
 		else:
 			_car(Vector3(t, 0, hz + rng.randf_range(-3, 3)), true, col)
 	_gas_station(Vector3(half + 70.0, 0, hz + 20.0))
+	_village(Vector3(hx + 95.0, 0, 520.0), hx, "Village de Saint-Aubin")
+	_village(Vector3(-470.0, 0, hz - 70.0), hz, "Hameau des Sources", true)
+	_carambolage(Vector3(half + 230.0, 0, hz), true)
+	_carambolage(Vector3(hx, 0, -half - 190.0), false)
+	_grotte(Vector3(-500.0, 0, 470.0), hx)
 	_farm(Vector3(-250, 0, 210), hx, hz, "Ferme des Peupliers")
 	_farm(Vector3(250, 0, 245), hx, hz, "Ferme du Moulin")
 	_farm(Vector3(265, 0, -215), hx, hz, "Ferme Bellevue")
@@ -1036,13 +1334,13 @@ func _military_base(c: Vector3) -> void:
 func _trees() -> void:
 	var m := Game.map_half - 10.0
 	var centers := []
-	for i in 14:
+	for i in 34:
 		centers.append(Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m)))
 	var candidates := trees.duplicate()
 	for cc in centers:
 		for i in 45:
 			candidates.append(cc + Vector3(rng.randfn(0, 22), 0, rng.randfn(0, 22)))
-	for i in 250:
+	for i in 650:
 		candidates.append(Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m)))
 	var park_count := trees.size()
 	var final: Array = []
@@ -1104,7 +1402,7 @@ func _vegetation() -> void:
 		return
 	var m := Game.map_half - 15.0
 	var choix := [["buisson", false], ["buisson2", false], ["rocher", true], ["souche", true], ["tronc_mort", true], ["buisson", false]]
-	for i in 260:
+	for i in 650:
 		var p := Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m))
 		if absf(p.x) < half + 12 and absf(p.z) < half + 12:
 			continue
@@ -1116,3 +1414,226 @@ func _vegetation() -> void:
 	for t in trees:
 		if absf(t.x) < half and absf(t.z) < half and rng.randf() < 0.6:
 			_prop("buisson" if rng.randf() < 0.5 else "buisson2", t + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-3, 3)), rng.randf() * TAU, false, rng.randf_range(0.6, 1.0), 150.0)
+
+
+
+# ================================================================ village
+## Village de maisons (toits en tuiles, jardins, clôtures) relié à l'autoroute.
+## « route » = coordonnée de l'autoroute la plus proche ; « est_ouest » : village au bord de la route est-ouest.
+func _village(c: Vector3, route: float, nom: String, est_ouest := false) -> void:
+	var lg := 190.0
+	# rue principale perpendiculaire à l'autoroute, puis rue transversale au centre du village
+	var axe := Vector3(0, 0, 1) if est_ouest else Vector3(1, 0, 0)
+	var trans := Vector3(1, 0, 0) if est_ouest else Vector3(0, 0, 1)
+	var c_axe := c.z if est_ouest else c.x
+	var sg := signf(c_axe - route)
+	var debut := c - axe * (c_axe - route)          # point sur l'autoroute
+	var fin := c + axe * sg * lg / 2.0
+	_road(Vector2(debut.x, debut.z), Vector2(fin.x, fin.z), 8.0)
+	var t1 := c - trans * 70.0
+	var t2 := c + trans * 70.0
+	_road(Vector2(t1.x, t1.z), Vector2(t2.x, t2.z), 7.0)
+	_poi(nom, c, Color(0.9, 0.7, 0.45))
+	Game.map_rects.append({"rect": Rect2(c.x - 100, c.z - 100, 200, 200), "color": Color(0.3, 0.33, 0.22, 0.35)})
+	var maisons := 0
+	var speciaux := [["Église", "eglise"], ["Épicerie", "magasin"], ["Mairie", "bureau"], ["Bar du village", "magasin"]]
+	var rues := [[debut + axe * sg * 25.0, axe * sg, absf(c_axe - route) + lg / 2.0 - 30.0], [t1 + trans * 5.0, trans, 130.0]]
+	for r in rues:
+		var dep: Vector3 = r[0]
+		var dir: Vector3 = r[1]
+		var long: float = r[2]
+		var cote := Vector3(-dir.z, 0, dir.x)
+		var t := 6.0
+		while t < long:
+			for sd in [-1.0, 1.0]:
+				var w := rng.randf_range(9.0, 12.0)
+				var d := rng.randf_range(8.0, 10.0)
+				var special := maisons % 5 == 2 and not speciaux.is_empty()
+				if special:
+					w += 4.0
+					d += 3.0
+				var demi := maxf(w, d) / 2.0 + 1.5
+				var recul := demi + rng.randf_range(5.5, 7.5)
+				var p: Vector3 = dep + dir * t + cote * sd * recul
+				var rect := Rect2(p.x - demi, p.z - demi, demi * 2.0, demi * 2.0)
+				if _overlaps(rect) or absf(p.x) > Game.map_half - 20 or absf(p.z) > Game.map_half - 20:
+					continue
+				# porte côté rue
+				var vers_rue: Vector3 = -cote * sd
+				var porte := ""
+				if absf(vers_rue.x) > 0.5:
+					porte = "e" if vers_rue.x > 0 else "w"
+				else:
+					porte = "s" if vers_rue.z > 0 else "n"
+				var label := ""
+				var kind := "maison"
+				if special:
+					var sp: Array = speciaux.pop_front()
+					label = sp[0] + " (" + nom.get_slice(" ", nom.get_slice_count(" ") - 1) + ")"
+					kind = sp[1]
+				var h := 6.6 if rng.randf() < 0.65 else INT_H + 0.3
+				if kind == "eglise":
+					h = 8.0
+				var col: Color = HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()].lightened(0.1)
+				var z := _building(p, w, d, h, col, [porte], "maison" if kind == "eglise" else kind, label, false, -1, Color(0.55, 0.42, 0.32), "pente")
+				_residents(z, 0.65, 3)
+				maisons += 1
+				# jardin : herbe, clôture basse en bois avec portillon côté rue
+				var jr := Rect2(p.x - demi, p.z - demi, demi * 2.0, demi * 2.0)
+				_flat(jr, 0.012, Color(0.95, 1.0, 0.9), "herbe")
+				_cloture(jr, vers_rue)
+				for b in 2:
+					var bp := p + Vector3(rng.randf_range(-6.0, 6.0), 0, rng.randf_range(-6.0, 6.0))
+					if absf(bp.x - p.x) > w / 2.0 + 1.2 or absf(bp.z - p.z) > d / 2.0 + 1.2:
+						trees.append(bp)
+			t += rng.randf_range(19.0, 24.0)
+	# horde dans le village
+	for i in 10:
+		guards.append({"pos": c + Vector3(rng.randf_range(-60, 60), 0.1, rng.randf_range(-40, 40)), "kind": "civil", "radius": 25.0})
+
+
+## Clôture en planches autour d'un jardin, ouverte du côté « ouverture ».
+func _cloture(r: Rect2, ouverture: Vector3) -> void:
+	var col := Color(0.75, 0.62, 0.45)
+	var cotes := {"n": [Vector3(r.get_center().x, 0.5, r.position.y), Vector3(r.size.x, 1.0, 0.08), Vector3(0, 0, -1)],
+		"s": [Vector3(r.get_center().x, 0.5, r.end.y), Vector3(r.size.x, 1.0, 0.08), Vector3(0, 0, 1)],
+		"w": [Vector3(r.position.x, 0.5, r.get_center().y), Vector3(0.08, 1.0, r.size.y), Vector3(-1, 0, 0)],
+		"e": [Vector3(r.end.x, 0.5, r.get_center().y), Vector3(0.08, 1.0, r.size.y), Vector3(1, 0, 0)]}
+	for k in cotes:
+		var e: Array = cotes[k]
+		if Vector3(e[2]).dot(ouverture) > 0.5:
+			# deux morceaux de part et d'autre du portillon (2,4 m)
+			var long: float = maxf(e[1].x, e[1].z)
+			var morceau := (long - 2.4) / 2.0
+			var axe := Vector3(1, 0, 0) if e[1].x > e[1].z else Vector3(0, 0, 1)
+			for sd in [-1.0, 1.0]:
+				var ctr: Vector3 = e[0] + axe * sd * (1.2 + morceau / 2.0)
+				var sz: Vector3 = Vector3(morceau, 1.0, 0.08) if axe.x > 0.5 else Vector3(0.08, 1.0, morceau)
+				_box(ctr, sz, col, true, "planches")
+		else:
+			_box(e[0], e[1], col, true, "planches")
+
+
+# ================================================================ zones infestées
+## Carambolage sur l'autoroute : voitures entassées et horde de zombies (meilleur butin dans les coffres).
+func _carambolage(c: Vector3, le_long_x: bool) -> void:
+	for i in 22:
+		var t := rng.randf_range(-45.0, 45.0)
+		var lat := rng.randf_range(-4.5, 4.5)
+		var p := c + (Vector3(t, 0, lat) if le_long_x else Vector3(lat, 0, t))
+		_car(p, le_long_x, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(rng.randf_range(0.2, 0.5)))
+	for i in 6:
+		var t2 := rng.randf_range(-40.0, 40.0)
+		var p2 := c + (Vector3(t2, 0, rng.randf_range(-3, 3)) if le_long_x else Vector3(rng.randf_range(-3, 3), 0, t2))
+		var cont := _container(p2, Vector3(0.9, 0.5, 0.6), Color(0.3, 0.3, 0.3), "Coffre de voiture", "infeste", 3)
+		cont.set_texture("metal_peint")
+	for i in 26:
+		var t3 := rng.randf_range(-50.0, 50.0)
+		var p3 := c + (Vector3(t3, 0.1, rng.randf_range(-8, 8)) if le_long_x else Vector3(rng.randf_range(-8, 8), 0.1, t3))
+		guards.append({"pos": p3, "kind": ["civil", "civil", "police", "militaire"][rng.randi() % 4], "radius": 30.0})
+	_poi("Carambolage (zone infestée)", c, Color(1.0, 0.25, 0.2))
+	Game.map_rects.append({"rect": Rect2(c.x - 55, c.z - 55, 110, 110), "color": Color(0.8, 0.1, 0.1, 0.25)})
+
+
+
+# ================================================================ grotte du boss
+## Colline rocheuse creusée d'un tunnel menant à une grande salle sombre où dort le Colosse.
+## L'entrée est à l'est ; un chemin de terre la relie à l'autoroute nord-sud.
+func _grotte(c: Vector3, route_x: float) -> void:
+	var col := Color(0.85, 0.82, 0.78)
+	var x0 := c.x - 12.0      # salle : 24 × 24 m, 7 m de haut
+	var x1 := c.x + 12.0
+	var z0 := c.z - 12.0
+	var z1 := c.z + 12.0
+	var hs := 7.0
+	var tl := 22.0            # tunnel : 22 m de long, 4,5 m de large, 4 m de haut
+	var tw := 4.5
+	var th := 4.0
+	var ep := 2.0
+	var tx1 := x1 + tl
+	_road(Vector2(tx1 + 2.0, c.z), Vector2(route_x - 6.0, c.z), 5.0, C_DIRT, false)
+	_reserve(Rect2(x0 - 12, z0 - 12, (tx1 - x0) + 24, (z1 - z0) + 24))
+	# sol
+	_flat(Rect2(x0, z0, x1 - x0, z1 - z0), 0.015, col.darkened(0.25), "roche")
+	_flat(Rect2(x1, c.z - tw / 2.0, tl, tw), 0.015, col.darkened(0.25), "roche")
+	# murs de la salle
+	_box(Vector3(x0 - ep / 2.0, hs / 2.0, c.z), Vector3(ep, hs, z1 - z0 + 2 * ep), col, true, "roche")
+	_box(Vector3(c.x, hs / 2.0, z0 - ep / 2.0), Vector3(x1 - x0 + 2 * ep, hs, ep), col, true, "roche")
+	_box(Vector3(c.x, hs / 2.0, z1 + ep / 2.0), Vector3(x1 - x0 + 2 * ep, hs, ep), col, true, "roche")
+	var mz := (z1 - z0 - tw) / 2.0
+	_box(Vector3(x1 + ep / 2.0, hs / 2.0, z0 + mz / 2.0), Vector3(ep, hs, mz), col, true, "roche")
+	_box(Vector3(x1 + ep / 2.0, hs / 2.0, z1 - mz / 2.0), Vector3(ep, hs, mz), col, true, "roche")
+	_box(Vector3(x1 + ep / 2.0, (hs + th) / 2.0, c.z), Vector3(ep, hs - th, tw), col, true, "roche")
+	_box(Vector3(c.x, hs + ep / 2.0, c.z), Vector3(x1 - x0 + 2 * ep, ep, z1 - z0 + 2 * ep), col, true, "roche")
+	# tunnel
+	var tcx := x1 + ep + (tl - ep) / 2.0
+	_box(Vector3(tcx, th / 2.0, c.z - tw / 2.0 - ep / 2.0), Vector3(tl - ep, th, ep), col, true, "roche")
+	_box(Vector3(tcx, th / 2.0, c.z + tw / 2.0 + ep / 2.0), Vector3(tl - ep, th, ep), col, true, "roche")
+	_box(Vector3(tcx, th + ep / 2.0, c.z), Vector3(tl - ep, ep, tw + 2 * ep), col, true, "roche")
+	# masse rocheuse autour (rochers géants purement visuels, hors de l'intérieur)
+	var ext := Rect2(x0 - ep, z0 - ep, (tx1 - x0) + ep, (z1 - z0) + 2 * ep)
+	for i in 46:
+		var k := rng.randf_range(4.5, 8.0)
+		var p := Vector3.ZERO
+		var cote := i % 4
+		match cote:
+			0: p = Vector3(rng.randf_range(ext.position.x, ext.end.x), 0, ext.position.y - k * 0.5)
+			1: p = Vector3(rng.randf_range(ext.position.x, ext.end.x), 0, ext.end.y + k * 0.5)
+			2: p = Vector3(ext.position.x - k * 0.5, 0, rng.randf_range(ext.position.y, ext.end.y))
+			3:
+				# côté est : seulement autour de l'entrée
+				var zz := rng.randf_range(ext.position.y, ext.end.y)
+				if absf(zz - c.z) < tw / 2.0 + k * 0.9:
+					zz = c.z + signf(zz - c.z + 0.01) * (tw / 2.0 + ep + k * 0.9)
+				p = Vector3(tx1 - rng.randf_range(0.0, 4.0), 0, zz)
+		p.y = -k * 0.25
+		_prop("rocher", p, rng.randf() * TAU, false, k, 400.0)
+	# façade : gros rochers de part et d'autre de l'entrée et au-dessus
+	for sd in [-1.0, 1.0]:
+		for j in 3:
+			var kf := rng.randf_range(4.0, 6.0)
+			_prop("rocher", Vector3(tx1 + kf * 0.35 - j * 5.0, -kf * 0.15 + j * 1.5, c.z + sd * (tw / 2.0 + ep + kf * 0.45)), rng.randf() * TAU, false, kf, 400.0)
+	for j in 3:
+		var kt := rng.randf_range(4.0, 5.5)
+		_prop("rocher", Vector3(tx1 - 1.0 - j * 6.0, th + ep - kt * 0.2, c.z + rng.randf_range(-1.0, 1.0)), rng.randf() * TAU, false, kt, 400.0)
+	# chapeau de rochers sur le toit
+	for i in 18:
+		var k2 := rng.randf_range(5.0, 9.0)
+		var t := rng.randf()
+		var p2: Vector3
+		if t < 0.6:
+			p2 = Vector3(rng.randf_range(x0, x1), hs + ep - k2 * 0.3, rng.randf_range(z0, z1))
+		else:
+			p2 = Vector3(rng.randf_range(x1 + 4.0, tx1 - 4.0), th + ep - k2 * 0.35, c.z + rng.randf_range(-3.0, 3.0))
+		_prop("rocher", p2, rng.randf() * TAU, false, k2, 400.0)
+	# intérieur : rochers, ossements (caisses cassées), lueur de braises
+	for i in 7:
+		var pr := Vector3(rng.randf_range(x0 + 1.5, x1 - 1.5), 0, rng.randf_range(z0 + 1.5, z1 - 1.5))
+		if pr.distance_to(c) < 5.0 or absf(pr.z - c.z) < 3.0 and pr.x > x1 - 4.0:
+			continue
+		_prop("rocher", pr, rng.randf() * TAU, true, rng.randf_range(0.8, 1.6), 120.0)
+	for i in 2:
+		var lum := OmniLight3D.new()
+		lum.light_color = Color(1.0, 0.45, 0.2)
+		lum.light_energy = 0.7
+		lum.omni_range = 7.0
+		lum.position = Vector3(x0 + 2.0 + i * 20.0, 0.4, z0 + 2.0 + i * 20.0)
+		decor.add_child(lum)
+		_box(lum.position - Vector3(0, 0.3, 0), Vector3(0.9, 0.15, 0.9), Color(0.15, 0.08, 0.05), false)
+	# trésor du Colosse
+	var coffre := _container(Vector3(x0 + 2.0, 0, c.z), Vector3(1.4, 0.9, 0.9), Color(0.25, 0.3, 0.2), "Cache du Colosse", "boss", 7)
+	if Decor.existe("caisse_mil"):
+		coffre.set_modele("caisse_mil", PI / 2.0)
+	else:
+		coffre.set_texture("metal_peint")
+	for i in 3:
+		var cp := _container(Vector3(rng.randf_range(x0 + 2, x1 - 2), 0, z1 - 1.5), Vector3(1.0, 0.7, 0.7), Color(0.4, 0.3, 0.2), "Caisse abandonnée", "infeste", 3)
+		cp.set_texture("planches")
+	# le boss et sa garde
+	guards.append({"pos": c + Vector3(-2.0, 0.1, 0), "kind": "boss", "radius": 7.0})
+	for i in 5:
+		guards.append({"pos": Vector3(rng.randf_range(x1 + 3.0, tx1 - 2.0), 0.1, c.z + rng.randf_range(-1.2, 1.2)), "kind": "militaire" if i % 2 == 0 else "civil", "radius": 3.0})
+	for i in 6:
+		guards.append({"pos": Vector3(tx1 + rng.randf_range(4, 18), 0.1, c.z + rng.randf_range(-14, 14)), "kind": "civil", "radius": 12.0})
+	_poi("Grotte du Colosse (boss)", Vector3(c.x, 0, c.z), Color(0.75, 0.3, 0.95))
+	Game.map_rects.append({"rect": Rect2(x0 - ep, z0 - ep, (tx1 - x0) + ep, (z1 - z0) + 2 * ep), "color": Color(0.42, 0.4, 0.38)})

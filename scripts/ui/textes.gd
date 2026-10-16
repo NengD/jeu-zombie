@@ -74,7 +74,14 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Supermarché[/b] : nourriture et boissons.
 • [b]Armurerie[/b] : armes et munitions.
 • [b]Quincaillerie[/b] : planches, clous, ferraille, haches.
-• [b]Fermes et station-service[/b] : matériaux, nourriture, cuir."""
+• [b]Fermes et station-service[/b] : matériaux, nourriture, cuir.
+• [b]Villages[/b] (Saint-Aubin au nord, Hameau des Sources à l'ouest) : maisons à toit de tuiles, épicerie, mairie, église.
+• [b]Carambolages[/b] (repères rouges) : zones infestées sur l'autoroute, une trentaine de zombies et des coffres bien remplis.
+• [b]Grotte du Colosse[/b] (repère violet) : le BOSS, un zombie géant de 2 500 PV qui charge et frappe le sol. Prends une lampe ! Sa cache contient le meilleur butin du jeu.
+
+[b]BÂTIMENTS ET PORTES[/b]
+• Toutes les portes s'ouvrent et se ferment avec F. Les zombies ne savent pas les ouvrir : ils tapent dedans jusqu'à les enfoncer.
+• Les immeubles se visitent en entier : un escalier relie tous les étages, chacun avec ses meubles… et ses habitants."""
 
 
 static func touches_texte() -> String:

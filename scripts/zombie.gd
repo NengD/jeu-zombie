@@ -32,6 +32,14 @@ var dormant_t := 0.0
 var dead_t := 0.0
 var searched := false
 var groan_t := 0.0
+var echelle := 1.0          # taille du modèle (le boss est un géant)
+var est_boss := false
+var charge_t := 0.0         # boss : temps de charge restant
+var charge_cd := 6.0        # boss : délai avant la prochaine charge
+var charge_dir := Vector3.ZERO
+var charge_touche := false
+var slam_cd := 4.0          # boss : délai avant le prochain coup au sol
+var slam_t := -1.0          # boss : temps avant l'impact du coup au sol
 
 @onready var modele: Node3D = $Modele
 var ap: AnimationPlayer = null      # animations du modèle Blender (si présent)
@@ -63,6 +71,16 @@ func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
 		"patient":
 			health = 90.0
 			run_speed = 3.3
+		"boss":
+			est_boss = true
+			health = 2500.0
+			armor = 0.3
+			damage = 35.0
+			run_speed = 3.4
+			echelle = 1.8
+	if est_boss:
+		walk_speed = 1.0
+		return
 	if Game.is_night() and randf() < 0.3:
 		run_speed += 1.3  # coureurs nocturnes
 	walk_speed = randf_range(0.8, 1.3)
@@ -78,6 +96,15 @@ func _ready() -> void:
 	think_t = randf() * 0.3
 	Game.noise_made.connect(_on_noise)
 	_apply_look()
+	if est_boss:
+		add_to_group("boss")
+		modele.scale = Vector3.ONE * echelle
+		var cs: CollisionShape3D = $Collision
+		var cap := CapsuleShape3D.new()
+		cap.radius = 0.33 * echelle
+		cap.height = 1.8 * echelle
+		cs.shape = cap
+		cs.position.y = 0.9 * echelle
 
 
 func _apply_look() -> void:
@@ -164,6 +191,10 @@ func _physics_process(delta: float) -> void:
 	var goal := _route(raw)
 	var routed := not goal.is_equal_approx(raw)
 	var speed := run_speed if state == State.CHASE else walk_speed
+	if charge_t > 0.0 or slam_t >= 0.0:
+		goal = global_position + charge_dir * 3.0
+		routed = false
+		speed = 9.0 if charge_t > 0.0 else 0.0
 	var desired := Vector3.ZERO
 	var to_goal := goal - global_position
 	to_goal.y = 0.0
@@ -172,8 +203,9 @@ func _physics_process(delta: float) -> void:
 		stop_dist = 0.05
 	if to_goal.length() > stop_dist:
 		desired = _steer(to_goal.normalized(), delta)
-	velocity.x = move_toward(velocity.x, desired.x * speed, 10.0 * delta)
-	velocity.z = move_toward(velocity.z, desired.z * speed, 10.0 * delta)
+	var accel := 30.0 if charge_t > 0.0 else 10.0
+	velocity.x = move_toward(velocity.x, desired.x * speed, accel * delta)
+	velocity.z = move_toward(velocity.z, desired.z * speed, accel * delta)
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	var face := desired if desired.length() > 0.1 else to_goal
@@ -196,10 +228,12 @@ func _physics_process(delta: float) -> void:
 		_update_anim(delta)
 	else:
 		modele.rotation.x = -lunge * 0.5
+	if est_boss:
+		_boss_update(delta, p)
 	if state == State.CHASE and p and p.alive:
 		var flat := Vector2(p.global_position.x - global_position.x, p.global_position.z - global_position.z).length()
-		if flat < 1.5 and absf(p.global_position.y - global_position.y) < 1.5 and attack_t <= 0.0:
-			attack_t = 1.1
+		if flat < 1.5 * (1.6 if est_boss else 1.0) and absf(p.global_position.y - global_position.y) < 1.5 * echelle and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
+			attack_t = 1.7 if est_boss else 1.1
 			lunge = 1.0
 			_anim("attaque", 1.0, 0.8)
 			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
@@ -247,7 +281,7 @@ func _think() -> void:
 		if lost_t > 4.0:
 			state = State.INVESTIGATE
 	elif state == State.INVESTIGATE:
-		if Vector2(target.x - global_position.x, target.z - global_position.z).length() < 1.5:
+		if Vector2(target.x - global_position.x, target.z - global_position.z).length() < 1.5 and absf(target.y - global_position.y) < 1.5:
 			state = State.WANDER
 			wander_t = randf_range(3.0, 8.0)
 	else:
@@ -298,23 +332,80 @@ func _raw_target() -> Vector3:
 func _route(to: Vector3) -> Vector3:
 	var zt := Game.find_zone(to + Vector3.UP * 0.5)
 	var zs := Game.find_zone(global_position + Vector3.UP * 0.5)
+	# escalier en cours : on suit le chemin jusqu'au bout, même si on change d'étage en route
+	if not chaine.is_empty():
+		return _contourner(zs, _suivre_chaine())
 	if is_same(zs, zt):
+		return _contourner(zs, to)
+	var l := Game.prochain_lien(zs, zt)
+	if l.is_empty():
 		return to
-	if not zs.is_empty():
-		var d := _nearest_door(zs, to)
-		if d.is_empty():
-			return to
-		if _flat_dist(global_position, d.pos) < 1.9:
-			return d.out
-		return d.inn
-	if not zt.is_empty():
-		var d2 := _nearest_door(zt, global_position)
-		if d2.is_empty():
-			return to
-		if _flat_dist(global_position, d2.pos) < 1.9:
-			return d2.inn
-		return d2.out
-	return to
+	if l.type == "escalier":
+		chaine = l.chemin
+		chaine_i = 0
+		chaine_t = 0.0
+		return _contourner(zs, _suivre_chaine())
+	var etape := _route_lien(l)
+	return _contourner(zs, etape)
+
+
+## Dans un bâtiment cloisonné : passe par l'ouverture de la cloison si le mur barre la route.
+func _contourner(zone: Dictionary, cible: Vector3) -> Vector3:
+	var ps: Array = zone.get("passages", [])
+	if ps.is_empty() or absf(global_position.y - zone.aabb.position.y) > 0.3 or absf(cible.y - zone.aabb.position.y) > 0.5:
+		return cible
+	var from := global_position + Vector3.UP * 0.9
+	var q := PhysicsRayQueryParameters3D.create(from, Vector3(cible.x, from.y, cible.z), Game.LAYER_WORLD, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or hit.collider.get_script() != null:
+		return cible   # rien, ou seulement un meuble / une porte : pas besoin de contourner
+	var best: Vector3 = cible
+	var bd := INF
+	for g in ps:
+		var gp: Vector3 = g
+		if _flat_dist(global_position, gp) < 0.7:
+			return cible
+		var dd := _flat_dist(global_position, gp) + _flat_dist(gp, cible)
+		if dd < bd:
+			bd = dd
+			best = Vector3(gp.x, global_position.y, gp.z)
+	return best
+
+
+var chaine: Array = []
+var chaine_i := 0
+var chaine_t := 0.0
+
+
+func _suivre_chaine() -> Vector3:
+	chaine_t += get_physics_process_delta_time()
+	var pt: Vector3 = chaine[chaine_i]
+	# reprise en cours de volée : déjà plus haut / plus bas que le premier point
+	if chaine_i == 0 and absf(global_position.y - pt.y) > 0.35:
+		chaine_i = 1
+		pt = chaine[1]
+	if _flat_dist(global_position, pt) < 0.6 and absf(global_position.y - pt.y) < 0.9:
+		chaine_i += 1
+		if chaine_i >= chaine.size():
+			chaine = []
+			return pt
+		pt = chaine[chaine_i]
+	if chaine_t > 15.0:
+		chaine = []   # bloqué : on abandonne et on recalcule
+	return pt
+
+
+func _route_lien(l: Dictionary) -> Vector3:
+	if l.type == "escalier":
+		# déjà engagé dans la volée (plus haut ou plus bas que le départ) : on continue
+		var a: Vector3 = l.a
+		if absf(global_position.y - a.y) > 0.25 or _flat_dist(global_position, a) < 0.8:
+			return l.b
+		return a
+	# porte : on passe de a (de ce côté) à b (de l'autre côté)
+	if _flat_dist(global_position, l.pos) < _flat_dist(l.a, l.pos) + 0.4:
+		return l.b
+	return l.a
 
 
 func _nearest_door(zone: Dictionary, from: Vector3) -> Dictionary:
@@ -346,6 +437,16 @@ func _steer(dir: Vector3, delta: float) -> Vector3:
 			lunge = 1.0
 			block.take_damage(damage * 1.5, self)
 		return Vector3.ZERO
+	# porte fermée : on l'enfonce (seulement en poursuite ou en alerte)
+	if block is Node and block.get("porte") != null and not block.porte.ouverte:
+		if state == State.CHASE or state == State.INVESTIGATE:
+			lost_t = 0.0
+			if attack_t <= 0.0:
+				attack_t = 1.3
+				lunge = 1.0
+				_anim("attaque", 1.0, 0.8)
+				block.porte.frapper(damage * (2.0 if state == State.CHASE else 1.0))
+			return Vector3.ZERO
 	for a in [0.6, -0.6, 1.2, -1.2, 1.8, -1.8]:
 		var d := dir.rotated(Vector3.UP, a)
 		if _blocked(d) == null:
@@ -356,19 +457,24 @@ func _steer(dir: Vector3, delta: float) -> Vector3:
 
 
 func _blocked(d: Vector3) -> Variant:
-	var from := global_position + Vector3.UP * 0.9
-	var q := PhysicsRayQueryParameters3D.create(from, from + d * 1.2, Game.LAYER_WORLD, [get_rid()])
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	if hit.is_empty():
-		return null
-	return hit.collider
+	# deux rayons : à hauteur de torse et à hauteur de genou (meubles bas)
+	for hauteur in [0.9, 0.35]:
+		var from: Vector3 = global_position + Vector3.UP * hauteur
+		var q := PhysicsRayQueryParameters3D.create(from, from + d * 1.2, Game.LAYER_WORLD, [get_rid()])
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		if not hit.is_empty():
+			# une marche ou la rampe d'un escalier n'est pas un obstacle
+			if hit.normal.y > 0.5:
+				continue
+			return hit.collider
+	return null
 
 
 # ================================================================ dégâts / mort
 func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if state == State.DEAD:
 		return
-	var headshot := pos.y > global_position.y + 1.45
+	var headshot := pos.y > global_position.y + 1.45 * echelle
 	if headshot:
 		dmg *= 2.5
 	else:
@@ -392,12 +498,19 @@ func take_damage(amount: float, _from: Node = null) -> void:
 	take_hit(amount, global_position, global_position)
 
 
-const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50}
+const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50, "boss": 600}
 
 
 func _die() -> void:
 	if Game.player and state != State.DEAD:
 		Game.player.prog.gagner("combat", XP_TYPE.get(kind, 20))
+		if est_boss:
+			Game.player.prog.gagner("exploration", 200)
+			Game.msg("Le Colosse est tombé ! Fouille son corps et la cache au fond de la grotte.")
+			Game.play_3d("grogne1", global_position + Vector3.UP * 2.5, 6.0, 0.0, 120.0)
+			remove_from_group("boss")
+	charge_t = 0.0
+	slam_t = -1.0
 	state = State.DEAD
 	remove_from_group("zombies")
 	add_to_group("corpses")
@@ -440,9 +553,9 @@ func interact(player: Node) -> void:
 		return
 	if grille == null:
 		searched = true
-		grille = Grille.creer("Corps", 4, 4)
+		grille = Grille.creer("Corps", 6 if est_boss else 4, 6 if est_boss else 4)
 		player.prog.gagner("exploration", 4)
-		var found := Items.roll_loot("zombie_" + kind, 2, 0.35)
+		var found := Items.roll_loot("zombie_" + kind, 6 if est_boss else 2, 0.0 if est_boss else 0.35)
 		for id in found:
 			if Items.grid(id).x > 0:
 				grille.ajouter_entree(player.nouvelle_entree(id))
@@ -476,9 +589,71 @@ func _update_anim(delta: float) -> void:
 		anim_lock -= delta
 		return
 	var hs := Vector2(velocity.x, velocity.z).length()
-	if hs > 2.0:
+	hs /= echelle
+	if hs > 2.0 / echelle:
 		_anim("course", clampf(hs / (3.1 if anim_noms else 3.0), 0.6, 1.8))
 	elif hs > 0.15:
 		_anim("marche", clampf(hs / (0.95 if anim_noms else 0.65), 0.5, 2.2))
 	else:
 		_anim("idle")
+
+
+
+# ================================================================ boss
+## Le Colosse : charge le joueur de loin, frappe le sol de près (onde de choc).
+func _boss_update(delta: float, p) -> void:
+	charge_cd -= delta
+	slam_cd -= delta
+	if p == null or not p.alive:
+		charge_t = 0.0
+		slam_t = -1.0
+		return
+	var to_p: Vector3 = p.global_position - global_position
+	to_p.y = 0.0
+	var dist := to_p.length()
+	# charge en cours
+	if charge_t > 0.0:
+		charge_t -= delta
+		if not charge_touche and dist < 2.9 and absf(p.global_position.y - global_position.y) < 2.5:
+			charge_touche = true
+			p.take_damage(30.0, self)
+			if p is CharacterBody3D:
+				p.velocity += charge_dir * 9.0 + Vector3.UP * 4.0
+			Game.play_3d("coup", global_position + Vector3.UP * 2.0, 4.0, 0.1, 60.0)
+			charge_t = minf(charge_t, 0.15)
+		if charge_t < 1.1:
+			for i in get_slide_collision_count():
+				var n := get_slide_collision(i).get_normal()
+				if n.y < 0.5 and n.dot(charge_dir) < -0.6:
+					charge_t = 0.0   # percute un mur : s'arrête net
+		if charge_t <= 0.0:
+			attack_t = 1.2
+		return
+	# coup au sol en préparation
+	if slam_t >= 0.0:
+		slam_t -= delta
+		if slam_t < 0.0:
+			Game.play_3d("construire", global_position + Vector3.UP, 6.0, 0.1, 80.0)
+			Game.make_noise(global_position, 30.0)
+			if dist < 4.8 and absf(p.global_position.y - global_position.y) < 2.0:
+				p.take_damage(25.0 * (1.0 - dist / 9.0), self)
+				if p is CharacterBody3D:
+					p.velocity += to_p.normalized() * 6.0 + Vector3.UP * 5.0
+			attack_t = 1.0
+		return
+	if state != State.CHASE or attack_t > 0.0:
+		return
+	if dist > 6.0 and dist < 16.0 and charge_cd <= 0.0 and _line_of_sight(p):
+		charge_cd = randf_range(6.0, 9.0)
+		charge_t = clampf(dist / 7.0 + 0.5, 1.2, 2.6)
+		charge_touche = false
+		charge_dir = to_p.normalized()
+		rotation.y = atan2(-charge_dir.x, -charge_dir.z)
+		Game.play_3d("grogne2", global_position + Vector3.UP * 2.5, 6.0, 0.0, 90.0)
+		_anim("course", 1.6)
+	elif dist < 3.6 and slam_cd <= 0.0:
+		slam_cd = randf_range(5.0, 8.0)
+		slam_t = 0.7
+		charge_dir = Vector3.ZERO
+		_anim("attaque", 0.7, 1.1)
+		Game.play_3d("grogne3", global_position + Vector3.UP * 2.5, 6.0, 0.0, 90.0)

@@ -47,6 +47,8 @@ var help_panel: PanelContainer
 var pause_panel: PanelContainer
 var death_panel: PanelContainer
 var paused := false
+var boss_box: VBoxContainer
+var boss_barre: ProgressBar
 
 
 func _ready() -> void:
@@ -225,6 +227,7 @@ func _process(delta: float) -> void:
 	cross.hit = maxf(0.0, cross.hit - delta * 4.0)
 	if p == null:
 		return
+	_maj_boss(p)
 	bars.sante.max_value = p.prog.sante_max()
 	bars.endurance.max_value = p.prog.endurance_max()
 	bars.sante.value = p.health
@@ -412,3 +415,50 @@ func _restart() -> void:
 
 func _quit() -> void:
 	get_tree().quit()
+
+
+
+# ================================================================ barre de vie du boss
+func _maj_boss(p) -> void:
+	var boss: Node = null
+	for b in get_tree().get_nodes_in_group("boss"):
+		if b.state != b.State.DEAD and (b.state == b.State.CHASE or b.global_position.distance_to(p.global_position) < 22.0):
+			boss = b
+			break
+	if boss == null:
+		if boss_box:
+			boss_box.visible = false
+		return
+	if boss_box == null:
+		boss_box = VBoxContainer.new()
+		boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		boss_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		boss_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		boss_box.position = Vector2(-260, 18)
+		boss_box.custom_minimum_size = Vector2(520, 0)
+		root.add_child(boss_box)
+		var l := Label.new()
+		l.text = "LE COLOSSE"
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override("font_size", 20)
+		l.add_theme_color_override("font_color", Color(0.95, 0.75, 0.45))
+		l.add_theme_color_override("font_outline_color", Color.BLACK)
+		l.add_theme_constant_override("outline_size", 5)
+		boss_box.add_child(l)
+		boss_barre = ProgressBar.new()
+		boss_barre.show_percentage = false
+		boss_barre.custom_minimum_size = Vector2(520, 16)
+		boss_barre.max_value = 2500.0
+		var f := StyleBoxFlat.new()
+		f.bg_color = Color(0.7, 0.12, 0.1)
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0, 0, 0, 0.6)
+		bg.border_color = Color(0.9, 0.75, 0.45, 0.8)
+		bg.set_border_width_all(1)
+		boss_barre.add_theme_stylebox_override("fill", f)
+		boss_barre.add_theme_stylebox_override("background", bg)
+		boss_box.add_child(boss_barre)
+	boss_box.visible = true
+	boss_box.position.x = root.get_viewport_rect().size.x / 2.0 - 260.0
+	boss_box.position.y = 18.0
+	boss_barre.value = boss.health
