@@ -1,6 +1,6 @@
 extends SceneTree
 # Rend les icônes des armes à partir des modèles 3D (fond transparent).
-const IDS = ["couteau","batte","batte_cloutee","machette","machette_art","hache","matraque","pistolet","revolver","fusil_pompe","fusil_artisanal","carabine","fusil_assaut"]
+const IDS = ["couteau","batte","batte_cloutee","machette","machette_art","hache","matraque","pistolet","revolver","fusil_pompe","fusil_artisanal","carabine","fusil_assaut","pied_de_biche","masse","cle_tuyau"]
 var idx := -1
 var wait := 0
 var vp: SubViewport
@@ -36,7 +36,7 @@ func _process(d):
 	var id = IDS[idx]
 	var sz = root.get_node("Items").size(id)
 	vp.size = Vector2i(sz.x * 128, sz.y * 128)
-	var m = load("res://modeles/%s.glb" % id).instantiate()
+	var m = load("res://modeles/armes/%s.scn" % id).instantiate() if ResourceLoader.exists("res://modeles/armes/%s.scn" % id) else load("res://modeles/%s.glb" % id).instantiate()
 	var piv := Node3D.new(); holder.add_child(piv); piv.add_child(m)
 	if sz.y > sz.x: piv.rotation_degrees = Vector3(90, 0, 0)
 	piv.rotation_degrees.y += 0.0

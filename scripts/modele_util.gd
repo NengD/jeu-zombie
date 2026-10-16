@@ -10,6 +10,14 @@ static func charger(path: String) -> Node3D:
 	return null
 
 
+## Modèle 3D d'une arme : scène normalisée (modèle téléchargé) sinon modèle Blender.
+static func arme(id: String) -> Node3D:
+	var m := charger("res://modeles/armes/%s.scn" % id)
+	if m == null:
+		m = charger("res://modeles/%s.glb" % id)
+	return m
+
+
 static func anim_player(n: Node) -> AnimationPlayer:
 	return n.find_child("AnimationPlayer", true, false) as AnimationPlayer
 

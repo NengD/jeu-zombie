@@ -33,6 +33,9 @@ const DB := {
 	"machette": {"name": "Machette", "type": "melee", "damage": 46.0, "rate": 0.6, "range": 2.0, "stamina": 11.0, "len": 0.6, "color": Color(0.6, 0.62, 0.65), "weight": 0.8},
 	"machette_art": {"name": "Machette artisanale", "type": "melee", "damage": 38.0, "rate": 0.65, "range": 1.9, "stamina": 12.0, "len": 0.55, "color": Color(0.5, 0.45, 0.4), "weight": 0.9},
 	"hache": {"name": "Hache", "type": "melee", "damage": 65.0, "rate": 1.05, "range": 2.1, "stamina": 20.0, "len": 0.75, "color": Color(0.5, 0.15, 0.1), "weight": 1.8},
+	"pied_de_biche": {"name": "Pied-de-biche", "type": "melee", "damage": 34.0, "rate": 0.65, "range": 1.9, "stamina": 10.0, "len": 0.56, "color": Color(0.3, 0.3, 0.32), "weight": 1.5},
+	"masse": {"name": "Masse", "type": "melee", "damage": 80.0, "rate": 1.4, "range": 2.2, "stamina": 28.0, "len": 0.9, "color": Color(0.3, 0.3, 0.3), "weight": 4.0},
+	"cle_tuyau": {"name": "Clé à tuyau", "type": "melee", "damage": 30.0, "rate": 0.6, "range": 1.7, "stamina": 9.0, "len": 0.4, "color": Color(0.5, 0.15, 0.1), "weight": 1.2},
 	"matraque": {"name": "Matraque", "type": "melee", "damage": 30.0, "rate": 0.55, "range": 1.9, "stamina": 9.0, "len": 0.55, "color": Color(0.1, 0.1, 0.1), "weight": 0.6},
 	# --- armes à feu
 	"pistolet": {"name": "Pistolet 9 mm", "type": "gun", "sound": "tir_pistolet", "damage": 34.0, "rate": 0.22, "mag": 15, "ammo": "mun_9mm", "spread": 1.2, "noise": 45.0, "reload": 1.4, "auto": false, "pellets": 1, "range": 90.0, "recoil": 0.025, "len": 0.22, "color": Color(0.15, 0.15, 0.15), "weight": 0.9},
@@ -61,7 +64,7 @@ const DB := {
 # Taille dans l'inventaire (largeur, hauteur en cases). Par défaut 1×1.
 const SIZES := {
 	"eau": [1, 2], "ration": [1, 2], "trousse": [2, 2], "alcool": [1, 2], "planche": [1, 3], "cuir": [2, 1],
-	"couteau": [1, 2], "matraque": [1, 3], "machette": [1, 3], "machette_art": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4],
+	"couteau": [1, 2], "matraque": [1, 3], "machette": [1, 3], "machette_art": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4], "pied_de_biche": [1, 3], "masse": [1, 4], "cle_tuyau": [1, 2],
 	"pistolet": [2, 1], "revolver": [2, 1], "fusil_artisanal": [3, 1], "fusil_pompe": [4, 1], "carabine": [4, 1], "fusil_assaut": [4, 2],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
@@ -108,18 +111,18 @@ const RECIPES := [
 
 # Tables de loot : [id, poids, min, max]
 const LOOT := {
-	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["couteau", 3, 1, 1], ["batte", 2, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["revolver", 0.4, 1, 1]],
+	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["couteau", 3, 1, 1], ["batte", 2, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["pied_de_biche", 1, 1, 1], ["cle_tuyau", 1, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["revolver", 0.4, 1, 1]],
 	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1]],
-	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1]],
+	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["pied_de_biche", 3, 1, 1], ["masse", 1.5, 1, 1], ["cle_tuyau", 3, 1, 1]],
 	"hopital": [["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
 	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_12", 10, 4, 10], ["poudre", 8, 1, 3], ["pistolet", 3, 1, 1], ["revolver", 2, 1, 1], ["fusil_pompe", 2, 1, 1], ["couteau", 4, 1, 1], ["machette", 3, 1, 1]],
 	"police": [["mun_9mm", 12, 6, 18], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["pistolet", 5, 1, 1], ["matraque", 5, 1, 1], ["fusil_pompe", 3, 1, 1], ["carabine", 1.5, 1, 1], ["gilet_police", 3, 1, 1], ["casque_police", 3, 1, 1], ["bandage", 5, 1, 2], ["barre", 4, 1, 2]],
 	"militaire": [["mun_556", 12, 10, 30], ["mun_9mm", 6, 10, 20], ["ration", 10, 1, 2], ["eau", 6, 1, 2], ["trousse", 4, 1, 1], ["fusil_assaut", 2.5, 1, 1], ["gilet_militaire", 2, 1, 1], ["casque_militaire", 3, 1, 1], ["sac_militaire", 2, 1, 1], ["poudre", 4, 1, 3], ["machette", 2, 1, 1]],
 	"armurerie_mil": [["fusil_assaut", 6, 1, 1], ["mun_556", 12, 20, 45], ["gilet_militaire", 5, 1, 1], ["casque_militaire", 5, 1, 1], ["carabine", 2, 1, 1], ["poudre", 5, 2, 4]],
-	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1]],
+	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["cle_tuyau", 2, 1, 1], ["pied_de_biche", 1.5, 1, 1]],
 	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["fusil_pompe", 0.8, 1, 1]],
-	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["ruban", 4, 1, 1]],
+	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["ruban", 4, 1, 1], ["masse", 1.5, 1, 1], ["pied_de_biche", 2, 1, 1]],
 	"zombie_civil": [["barre", 4, 1, 1], ["tissu", 6, 1, 2], ["bandage", 2, 1, 1], ["antidouleur", 1, 1, 1], ["mun_9mm", 1, 2, 5]],
 	"zombie_police": [["mun_9mm", 10, 4, 12], ["matraque", 3, 1, 1], ["pistolet", 1.5, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
 	"zombie_militaire": [["mun_556", 10, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1], ["fusil_assaut", 0.4, 1, 1]],

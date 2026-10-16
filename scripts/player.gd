@@ -593,7 +593,7 @@ func _refresh_weapon_model() -> void:
 	if w.get("type", "") == "gun":
 		muzzle_light.position = Vector3(0, 0.05, -length - 0.1)
 	# modèle 3D de l'arme (Blender) si disponible
-	var vm := ModeleUtil.charger("res://modeles/%s.glb" % id)
+	var vm := ModeleUtil.arme(id)
 	if vm:
 		var tilt_m := 0.0 if w.type == "gun" else 0.9
 		var longue: bool = w.type == "gun" and length > 0.5
@@ -602,7 +602,7 @@ func _refresh_weapon_model() -> void:
 		vm.rotation.x = tilt_m
 		viewmodel.add_child(vm)
 		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
-		var hm := ModeleUtil.charger("res://modeles/%s.glb" % id)
+		var hm := ModeleUtil.arme(id)
 		hand.add_child(hm)
 		return
 	var parts: Array = []
