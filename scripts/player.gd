@@ -713,7 +713,7 @@ func _point_visee(id: String, optique: String) -> Dictionary:
 		"point_rouge":
 			return {"pt": v + Vector3(0, 0.03, -0.021), "dist": 0.17 if longue else 0.24}
 		"lunette":
-			return {"pt": v + Vector3(0, 0.04, 0.1365), "dist": 0.042}
+			return {"pt": v + Vector3(0, 0.03, 0.1365), "dist": 0.042}
 	return {"pt": v + Vector3(0, 0.006, 0.0), "dist": 0.2 if longue else 0.3}
 
 

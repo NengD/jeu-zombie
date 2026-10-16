@@ -207,6 +207,7 @@ func _construire(nom: String, inst: Node3D, tex_cheveux: Texture2D) -> void:
 	sk.reset_bone_poses()
 
 	_proprio(inst, inst)
+	_rendre_autonome(inst)
 	var ps := PackedScene.new()
 	ps.pack(inst)
 	var err := ResourceSaver.save(ps, OUT + nom + ".scn", ResourceSaver.FLAG_COMPRESS)
@@ -337,3 +338,37 @@ func _gonfler(m: Mesh, skin: Skin, sk: Skeleton3D, k: float) -> ArrayMesh:
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 		out.surface_set_material(s, m.surface_get_material(s))
 	return out
+
+
+
+## Le personnage ne doit dépendre d'aucun fichier source (modeles/sources n'est pas livré) :
+## matériaux des maillages remplacés par des copies dont les textures sont intégrées à la scène.
+func _rendre_autonome(n: Node) -> void:
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var m: Mesh = (mi as MeshInstance3D).mesh
+		if m == null:
+			continue
+		for i in m.get_surface_count():
+			var mat: Material = m.surface_get_material(i)
+			if mat == null:
+				continue
+			if (mi as MeshInstance3D).material_override != null:
+				m.surface_set_material(i, null)
+			elif mat is BaseMaterial3D:
+				m.surface_set_material(i, _materiau_integre(mat))
+		var mo = (mi as MeshInstance3D).material_override
+		if mo is BaseMaterial3D:
+			(mi as MeshInstance3D).material_override = _materiau_integre(mo)
+
+
+func _materiau_integre(mat: BaseMaterial3D) -> BaseMaterial3D:
+	var copie: BaseMaterial3D = mat.duplicate()
+	for prop in ["albedo_texture", "normal_texture", "roughness_texture", "metallic_texture", "ao_texture", "emission_texture"]:
+		var t = copie.get(prop)
+		if t is Texture2D and str(t.resource_path) != "" and not str(t.resource_path).begins_with(OUT):
+			var img: Image = t.get_image()
+			if img:
+				if img.is_compressed():
+					img.decompress()
+				copie.set(prop, ImageTexture.create_from_image(img))
+	return copie

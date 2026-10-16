@@ -81,7 +81,7 @@ static var _points := {}
 ## Corrections mesurées sur les vues de profil des modèles : dessus de la carcasse (viseur),
 ## bas du chargeur (et son inclinaison, en degrés, positive = bas du chargeur vers l'avant).
 const POINTS_FIXES := {
-	"fusil_assaut": {"viseur": Vector3(0, 0.124, -0.07), "chargeur": Vector3(0, -0.094, -0.224), "incl_chargeur": 30.0},
+	"fusil_assaut": {"viseur": Vector3(0, 0.124, -0.07), "chargeur": Vector3(0, -0.058, -0.236), "incl_chargeur": 46.0},
 	"carabine": {"viseur": Vector3(0, 0.12, -0.03), "chargeur": Vector3(0, -0.136, -0.13), "incl_chargeur": 8.0},
 	"pistolet": {"viseur": Vector3(0, 0.085, -0.03), "chargeur": Vector3(0, -0.061, 0.022), "incl_chargeur": -18.0, "rail": Vector3(0, 0.034, -0.075)},
 	"revolver": {"viseur": Vector3(0, 0.072, -0.03)},
@@ -254,24 +254,27 @@ static func modele_accessoire(id: String, lumiere := false) -> Node3D:
 			s.position = Vector3(0, 0.03, -0.019)
 			n.add_child(s)
 		"lunette":
-			# colliers autour du tube et leurs embases sur le rail
+			# lunette basse : colliers serrés autour du tube, embases courtes posées sur le rail
+			var h := 0.03
 			for z in [-0.05, 0.05]:
-				_cyl(n, 0.0185, 0.012, Vector3(0, 0.04, z), noir)
-				_boite(n, Vector3(0.016, 0.024, 0.012), Vector3(0, 0.012, z), noir)
-			_boite(n, Vector3(0.018, 0.006, 0.13), Vector3(0, 0.003, 0), noir)
-			_cyl(n, 0.015, 0.2, Vector3(0, 0.04, 0), noir)
-			_cyl(n, 0.015, 0.05, Vector3(0, 0.04, -0.12), noir, true, 0.024)
-			_cyl(n, 0.019, 0.04, Vector3(0, 0.04, 0.115), noir, true, 0.015)
-			_cyl(n, 0.009, 0.02, Vector3(0, 0.062, 0), noir, false)
+				_cyl(n, 0.0178, 0.01, Vector3(0, h, z), noir)
+				_boite(n, Vector3(0.014, h - 0.012, 0.01), Vector3(0, (h - 0.012) / 2.0, z), noir)
+			_boite(n, Vector3(0.016, 0.004, 0.125), Vector3(0, 0.002, 0), noir)
+			_cyl(n, 0.015, 0.2, Vector3(0, h, 0), noir)
+			_cyl(n, 0.015, 0.05, Vector3(0, h, -0.12), noir, true, 0.023)
+			_cyl(n, 0.018, 0.04, Vector3(0, h, 0.115), noir, true, 0.015)
+			_cyl(n, 0.008, 0.009, Vector3(0, h + 0.019, 0), noir, false)
+			var tour := _cyl(n, 0.008, 0.009, Vector3(0.019, h, 0), noir, false)
+			tour.rotation.z = PI / 2.0
 			var verre := _mat(Color(0.15, 0.25, 0.35), 0.8, 0.05)
-			_cyl(n, 0.022, 0.003, Vector3(0, 0.04, -0.146), verre)
+			_cyl(n, 0.021, 0.003, Vector3(0, h, -0.146), verre)
 			# oculaire (côté œil) : reçoit l'image grossie quand on vise
 			var oc := MeshInstance3D.new()
 			oc.name = "Oculaire"
 			var qm := QuadMesh.new()
 			qm.size = Vector2(0.038, 0.038)
 			oc.mesh = qm
-			oc.position = Vector3(0, 0.04, 0.1365)
+			oc.position = Vector3(0, 0.03, 0.1365)
 			var om := _mat(Color(0.05, 0.08, 0.1), 0.6, 0.05)
 			oc.material_override = om
 			n.add_child(oc)
