@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Placeable = preload("res://scripts/placeable.gd")
+const ModeleUtil = preload("res://scripts/modele_util.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
@@ -20,6 +21,8 @@ const SHOULDER := 0.75
 const FOV := 75.0
 const FOV_AIM := 50.0
 const BASE_CARRY := 25.0
+const VM_SCALE := 1.45                  # taille des armes 3D en vue 1re personne
+const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main (vue 3e personne)
 const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8)}
 
 # --- état de survie
@@ -80,6 +83,10 @@ var viewmodel: Node3D
 var vm_holder: Node3D
 var muzzle_light: OmniLight3D
 var hand: Node3D
+var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
+var p_anim := ""
+var p_lock := 0.0
+var shoot_pose_t := 0.0
 
 
 func _ready() -> void:
@@ -146,6 +153,26 @@ func _build_rig() -> void:
 	hand = Node3D.new()
 	hand.position = Vector3(0.3, 1.15, -0.35)
 	modele.add_child(hand)
+	# modèle Blender du survivant (si présent)
+	var m := ModeleUtil.charger("res://modeles/survivant.glb")
+	if m:
+		for c in modele.get_children():
+			if c != hand:
+				c.queue_free()
+		modele.add_child(m)
+		pap = ModeleUtil.anim_player(m)
+		if pap:
+			ModeleUtil.boucler(pap, ["idle", "marche", "course", "accroupi", "accroupi_marche", "visee"])
+			pap.playback_default_blend_time = 0.15
+		var sk := ModeleUtil.squelette(m)
+		if sk and sk.find_bone("main.R") >= 0:
+			var ba := BoneAttachment3D.new()
+			ba.bone_name = "main.R"
+			sk.add_child(ba)
+			modele.remove_child(hand)
+			ba.add_child(hand)
+			hand.position = Vector3(0, 0.07, 0.0)
+			hand.rotation_degrees = HAND_ROT
 
 
 # ================================================================ entrées
@@ -331,7 +358,10 @@ func _update_camera(delta: float) -> void:
 	lean_pivot.rotation.z = -lean * 0.22
 	modele.rotation.z = -lean * 0.25
 	head.position.y = move_toward(head.position.y, EYE_CROUCH if crouching else EYE_STAND, delta * 4.0)
-	modele.scale.y = move_toward(modele.scale.y, 0.7 if crouching else 1.0, delta * 3.0)
+	if pap == null:
+		modele.scale.y = move_toward(modele.scale.y, 0.7 if crouching else 1.0, delta * 3.0)
+	else:
+		_update_player_anim(delta)
 	spring.spring_length = TPS_DIST * tps_blend
 	spring.position = Vector3(SHOULDER * shoulder_side * tps_blend, 0.2 * tps_blend, 0)
 	var fps := tps_blend < 0.5
@@ -347,7 +377,8 @@ func _update_camera(delta: float) -> void:
 	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
 	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
 	viewmodel.rotation = Vector3(-sin(swing_t * PI) * 1.1 + vm_kick * 0.2, sin(swing_t * PI) * 0.5, 0)
-	hand.rotation.x = -sin(swing_t * PI) * 1.4
+	if pap == null:
+		hand.rotation.x = -sin(swing_t * PI) * 1.4
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	muzzle_light.light_energy = 6.0 if muzzle_t > 0.0 else 0.0
 
@@ -358,9 +389,7 @@ func _set_model_shadow_only(on: bool) -> void:
 	if s == _shadow_only_state:
 		return
 	_shadow_only_state = s
-	for c in modele.get_children():
-		if c is GeometryInstance3D:
-			c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	ModeleUtil.ombres(modele, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if on else GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 
 
 # ================================================================ combat
@@ -466,6 +495,7 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * 0.3)
 	vm_kick = 1.0
 	muzzle_t = 0.05
+	shoot_pose_t = 1.5
 	Game.play_ui(w.get("sound", "tir_pistolet"), -3.0, 0.05)
 	Game.make_noise(global_position, float(w.noise))
 
@@ -478,6 +508,7 @@ func _melee(w: Dictionary) -> void:
 	stamina = maxf(0.0, stamina - cost)
 	cooldown = w.rate
 	swing_t = 1.0
+	_p_anim("frappe", 1.3, 0.45)
 	Game.play_ui("coup", -6.0, 0.15)
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(float(w.range) + 1.0)
@@ -562,6 +593,21 @@ func _refresh_weapon_model() -> void:
 	var w := Items.info(id)
 	var col: Color = w.get("color", Color.GRAY)
 	var length: float = w.get("len", 0.0)
+	if w.get("type", "") == "gun":
+		muzzle_light.position = Vector3(0, 0.05, -length - 0.1)
+	# modèle 3D de l'arme (Blender) si disponible
+	var vm := ModeleUtil.charger("res://modeles/%s.glb" % id)
+	if vm:
+		var tilt_m := 0.0 if w.type == "gun" else 0.9
+		var longue: bool = w.type == "gun" and length > 0.5
+		vm.scale = Vector3.ONE * (VM_SCALE * 0.72 if longue else VM_SCALE)
+		vm.position = Vector3(0.02, 0.02, 0.18) if longue else Vector3.ZERO
+		vm.rotation.x = tilt_m
+		viewmodel.add_child(vm)
+		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		var hm := ModeleUtil.charger("res://modeles/%s.glb" % id)
+		hand.add_child(hm)
+		return
 	var parts: Array = []
 	if id == "poings":
 		parts = [[Vector3(-0.05, 0, 0), Vector3(0.09, 0.09, 0.2), Color(0.8, 0.62, 0.5)]]
@@ -880,3 +926,40 @@ func _confirm_placement() -> void:
 	Game.msg("Posé : " + Items.nom(placing))
 	Game.make_noise(global_position, 8.0)
 	cancel_placement()
+
+
+# ================================================================ animations du survivant
+func _p_anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
+	if pap == null or not pap.has_animation(nom):
+		return
+	if verrou > 0.0:
+		p_lock = verrou
+		pap.play(nom, 0.08)
+		pap.seek(0.0)
+		p_anim = nom
+	elif p_anim != nom:
+		pap.play(nom)
+		p_anim = nom
+	pap.speed_scale = vitesse
+
+
+func _update_player_anim(delta: float) -> void:
+	shoot_pose_t = maxf(0.0, shoot_pose_t - delta)
+	if p_lock > 0.0:
+		p_lock -= delta
+		return
+	var hs := Vector2(velocity.x, velocity.z).length()
+	var is_gun: bool = Items.info(current_weapon()).get("type", "") == "gun"
+	if crouching:
+		if hs > 0.3:
+			_p_anim("accroupi_marche", clampf(hs / 1.6, 0.6, 1.6))
+		else:
+			_p_anim("accroupi")
+	elif hs > 5.0:
+		_p_anim("course", clampf(hs / 6.5, 0.7, 1.5))
+	elif hs > 0.3:
+		_p_anim("marche", clampf(hs / 2.2, 0.6, 2.0))
+	elif is_gun and (aiming or shoot_pose_t > 0.0):
+		_p_anim("visee")
+	else:
+		_p_anim("idle")

@@ -34,6 +34,13 @@ var searched := false
 var groan_t := 0.0
 
 @onready var modele: Node3D = $Modele
+var ap: AnimationPlayer = null      # animations du modèle Blender (si présent)
+var anim_lock := 0.0                # durée pendant laquelle une animation ponctuelle joue
+var cur_anim := ""
+
+const ModeleUtil = preload("res://scripts/modele_util.gd")
+const MODELES := {"civil": "zombie_civil", "police": "zombie_policier", "militaire": "zombie_militaire", "patient": "zombie_patient"}
+const TEINTES_CIVIL := [Color(0.45, 0.38, 0.3), Color(0.32, 0.36, 0.42), Color(0.5, 0.2, 0.18), Color(0.3, 0.38, 0.28), Color(0.55, 0.52, 0.45), Color(0.25, 0.25, 0.28)]
 
 
 func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
@@ -71,6 +78,22 @@ func _ready() -> void:
 
 
 func _apply_look() -> void:
+	var m := ModeleUtil.charger("res://modeles/%s.glb" % MODELES.get(kind, "zombie_civil"))
+	if m:
+		for c in modele.get_children():
+			c.queue_free()
+		modele.add_child(m)
+		ModeleUtil.distance_visible(m, 160.0)
+		if kind == "civil":
+			ModeleUtil.teinter(m, "Haut", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
+			ModeleUtil.teinter(m, "Manche", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
+		ap = ModeleUtil.anim_player(m)
+		if ap:
+			ModeleUtil.boucler(ap, ["idle", "marche", "course"])
+			ap.playback_default_blend_time = 0.2
+			_anim("idle")
+			ap.seek(randf() * 2.0)
+		return
 	var clothes := Color(0.3, 0.32, 0.28).lerp(Color(0.45, 0.35, 0.3), randf())
 	var skin := Color(0.45, 0.55, 0.4).lerp(Color(0.55, 0.55, 0.45), randf())
 	match kind:
@@ -120,6 +143,8 @@ func _physics_process(delta: float) -> void:
 	if p:
 		dist = global_position.distance_to(p.global_position)
 	dormant = dist > 90.0 and state != State.CHASE
+	if ap:
+		ap.active = not dormant
 	if dormant:
 		return
 	think_t -= delta
@@ -158,12 +183,16 @@ func _physics_process(delta: float) -> void:
 	# attaque
 	attack_t -= delta
 	lunge = move_toward(lunge, 0.0, delta * 3.0)
-	modele.rotation.x = -lunge * 0.5
+	if ap:
+		_update_anim(delta)
+	else:
+		modele.rotation.x = -lunge * 0.5
 	if state == State.CHASE and p and p.alive:
 		var flat := Vector2(p.global_position.x - global_position.x, p.global_position.z - global_position.z).length()
 		if flat < 1.5 and absf(p.global_position.y - global_position.y) < 1.5 and attack_t <= 0.0:
 			attack_t = 1.1
 			lunge = 1.0
+			_anim("attaque", 1.0, 0.8)
 			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
 			p.take_damage(damage, self)
 	# bruit de grognement (attire les autres de près)
@@ -341,6 +370,8 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	lost_t = 0.0
 	dormant = false
 	var killed := health <= 0.0
+	if not killed and anim_lock <= 0.0:
+		_anim("touche", 1.0, 0.35)
 	Game.hit_confirmed.emit(headshot, killed)
 	if killed:
 		_die()
@@ -357,6 +388,10 @@ func _die() -> void:
 	collision_layer = Game.LAYER_INTERACT
 	collision_mask = Game.LAYER_WORLD
 	velocity = Vector3.ZERO
+	if ap:
+		ap.active = true
+		_anim("mort", 1.0, 99.0)
+		return
 	var tw := create_tween()
 	tw.tween_property(modele, "rotation:x", -PI / 2.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(modele, "position:y", 0.25, 0.45)
@@ -392,3 +427,31 @@ func interact(player: Node) -> void:
 	for id in found:
 		player.add_item(id, found[id])
 	Game.msg("Sur le corps : " + Items.describe(found))
+
+
+# ================================================================ animations
+func _anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
+	if ap == null or not ap.has_animation(nom):
+		return
+	if verrou > 0.0:
+		anim_lock = verrou
+		ap.play(nom, 0.1)
+		ap.seek(0.0)
+		cur_anim = nom
+	elif cur_anim != nom:
+		ap.play(nom)
+		cur_anim = nom
+	ap.speed_scale = vitesse
+
+
+func _update_anim(delta: float) -> void:
+	if anim_lock > 0.0:
+		anim_lock -= delta
+		return
+	var hs := Vector2(velocity.x, velocity.z).length()
+	if hs > 2.0:
+		_anim("course", clampf(hs / 3.0, 0.6, 1.8))
+	elif hs > 0.15:
+		_anim("marche", clampf(hs / 0.65, 0.5, 2.2))
+	else:
+		_anim("idle")
