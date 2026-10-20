@@ -7,8 +7,13 @@ LANCER LE JEU
   Garde « JeuZombie.pck » à côté : il contient tout le jeu.
   Si Windows affiche « Windows a protégé votre ordinateur » : « Informations
   complémentaires » > « Exécuter quand même » (exe non signé).
-• Pour les développeurs : double-clic sur « Lancer_le_jeu.bat » (dernière version
-  du code, demande Godot 4.7.2), ou ouvre le projet dans Godot et appuie sur F5.
+• Sous Linux : même dépôt, puis dans un terminal ouvert dans le dossier :
+      sh Jouer_linux.sh
+  (ou ./JeuZombie.x86_64). Il faut une carte graphique compatible Vulkan
+  (pilotes Mesa ou NVIDIA à jour). Le .pck est le même que pour Windows.
+• Pour les développeurs : double-clic sur « Lancer_le_jeu.bat » (Windows) ou
+  « sh Lancer_le_jeu.sh » (Linux) pour la dernière version du code (demande
+  Godot 4.7.2), ou ouvre le projet dans Godot et appuie sur F5.
 Le jeu démarre sur le menu principal : Jouer, Paramètres (touches, sensibilité,
 volume), Guide (astuces) et Quitter.
    La carte est différente à chaque partie.
