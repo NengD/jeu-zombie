@@ -30,12 +30,15 @@ func construire_marchand(metier: String, nom_vendeur: String, rng: RandomNumberG
 	add_child(vendeur)
 	vendeur.position = _sol(Vector2(0.0, -1.0))
 	vendeur.rotation.y = PI
-	var lampe := OmniLight3D.new()
-	lampe.light_color = Color(1.0, 0.82, 0.55)
-	lampe.light_energy = 1.4
-	lampe.omni_range = 7.0
-	lampe.position = vendeur.position + Vector3(0, 2.2, 0.3)
-	add_child(lampe)
+	_lumiere(vendeur.position + Vector3(0, 2.2, 0.3), 7.0, 1.4)
+	# sol de terre battue, lanternes (allumées la nuit) : quatre poteaux et l'entrée
+	_sol_terre()
+	for a in [PI * 0.25, PI * 0.75, PI * 1.25, PI * 1.75]:
+		_lampadaire(Vector2(cos(a), sin(a)) * (RAYON - 1.6))
+	var pas_e := TAU / NB_PANS
+	for s in [-1.0, 1.0]:
+		var ae: float = PI / 2.0 + s * pas_e
+		_lumiere(_sol(Vector2(cos(ae), sin(ae)) * (RAYON - 0.4)) + Vector3(0, 2.9, 0), 9.0, 1.6)
 	# tentes de part et d'autre, brasero près de l'entrée
 	var toiles := [Color(0.33, 0.36, 0.22), Color(0.45, 0.4, 0.3), Color(0.2, 0.3, 0.45)]
 	_tente(Vector2(-6.8, -3.0), toiles[rng.randi() % toiles.size()])
@@ -53,6 +56,93 @@ func construire_marchand(metier: String, nom_vendeur: String, rng: RandomNumberG
 	var g := _garde(Vector3(0.0, 0.0, -RAYON + 2.2), global_rotation.y, rng)
 	g.position.y = _sol(Vector2(0.0, -RAYON + 2.2)).y + HAUT_MIRADOR
 	g.portee = 40.0
+
+
+var lampes: Array = []          # lumières allumées seulement la nuit
+static var _tex_terre: Texture2D = null
+
+
+## Sol de terre battue : décalque de terre au bord irrégulier, projeté sur le terrain du camp.
+func _sol_terre() -> void:
+	if _tex_terre == null:
+		_tex_terre = _texture_terre()
+	if _tex_terre == null:
+		return
+	var d := Decal.new()
+	d.texture_albedo = _tex_terre
+	d.size = Vector3(RAYON * 2.3, 3.0, RAYON * 2.3)
+	d.position = _sol(Vector2.ZERO) + Vector3(0, 0.4, 0)
+	d.normal_fade = 0.55          # seulement le sol (pas les jambes ni les murs)
+	d.upper_fade = 0.15
+	d.lower_fade = 0.3
+	d.albedo_mix = 0.92
+	d.modulate = Color(0.82, 0.74, 0.62)
+	d.distance_fade_enabled = true
+	d.distance_fade_begin = 140.0
+	d.distance_fade_length = 20.0
+	add_child(d)
+
+
+## Texture de terre (textures/terre_albedo.jpg) avec un masque rond au bord irrégulier.
+static func _texture_terre() -> Texture2D:
+	if not ResourceLoader.exists("res://textures/terre_albedo.jpg"):
+		return null
+	var src: Image = (load("res://textures/terre_albedo.jpg") as Texture2D).get_image()
+	if src == null:
+		return null
+	if src.is_compressed():
+		src.decompress()
+	src.convert(Image.FORMAT_RGBA8)
+	var n := 512
+	src.resize(n, n)
+	var bruit := FastNoiseLite.new()
+	bruit.seed = 7
+	bruit.frequency = 0.012
+	for y in n:
+		for x in n:
+			var v := Vector2(x - n / 2.0, y - n / 2.0) / (n / 2.0)
+			var r := v.length() + bruit.get_noise_2d(x, y) * 0.12
+			var c := src.get_pixel(x, y)
+			c.a = clampf((0.95 - r) / 0.12, 0.0, 1.0)
+			src.set_pixel(x, y, c)
+	src.generate_mipmaps()
+	return ImageTexture.create_from_image(src)
+
+
+## Poteau de bois avec une lanterne (et sa lumière, allumée la nuit).
+func _lampadaire(p: Vector2, hauteur := 2.4) -> void:
+	var base := _sol(p)
+	var bois := _materiau(Color(0.35, 0.25, 0.16))
+	_boite(self, Vector3(0.12, hauteur, 0.12), base + Vector3(0, hauteur / 2.0, 0), bois)
+	_boite_collision(Vector3(0.12, hauteur, 0.12), Transform3D(Basis.IDENTITY, base + Vector3(0, hauteur / 2.0, 0)))
+	var lan := Decor.instance("lanterne")
+	if lan:
+		lan.position = base + Vector3(0, hauteur, 0)
+		add_child(lan)
+		Decor.distance(lan, 140.0)
+	_lumiere(base + Vector3(0, hauteur + 0.15, 0), 8.0, 1.5)
+
+
+func _lumiere(pos: Vector3, portee_l: float, energie: float) -> OmniLight3D:
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.78, 0.48)
+	l.light_energy = energie
+	l.omni_range = portee_l
+	l.omni_attenuation = 1.2
+	l.shadow_enabled = false
+	l.position = pos
+	l.visible = false
+	add_child(l)
+	lampes.append(l)
+	return l
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	var nuit := Game.is_night()
+	if lampes.size() > 0 and (lampes[0] as OmniLight3D).visible != nuit:
+		for l in lampes:
+			(l as OmniLight3D).visible = nuit
 
 
 func _garde(p: Vector3, regard: float, rng: RandomNumberGenerator) -> Node3D:

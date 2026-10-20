@@ -63,6 +63,7 @@ var lbl_ammo: Label
 var lbl_prompt: Label
 var lbl_info: Label
 var lbl_alerte: Label        # alerte de horde (haut de l'écran)
+var lbl_cache: Label         # « Caché » sous le réticule quand on est dans un buisson
 var hot_panels: Array = []
 var hot_labels: Array = []
 var hot_icons: Array = []
@@ -151,6 +152,11 @@ func _ready() -> void:
 	lbl_prompt = _label("", 20)
 	lbl_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(lbl_prompt)
+	lbl_cache = _label("", 20)
+	lbl_cache.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_cache.label_settings.font_color = Color(0.65, 0.95, 0.6)
+	lbl_cache.visible = false
+	root.add_child(lbl_cache)
 	lbl_alerte = _label("", 34)
 	lbl_alerte.label_settings.outline_size = 10
 	lbl_alerte.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -250,6 +256,12 @@ func _process(delta: float) -> void:
 	var vs := root.get_viewport_rect().size
 	var p = Game.player
 	_layout(vs)
+	# caché dans un buisson : les zombies te voient beaucoup moins
+	lbl_cache.visible = p.alive and not Game.ui_open and p.cache_buisson
+	if lbl_cache.visible:
+		lbl_cache.text = "Caché (accroupi)" if p.crouching else "Caché"
+		lbl_cache.size = Vector2(300, 30)
+		lbl_cache.position = vs / 2.0 + Vector2(-150, 42)
 	_maj_alerte(vs, p)
 	# messages
 	for m in messages.duplicate():
