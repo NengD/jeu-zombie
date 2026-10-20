@@ -1,3 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# imports générés des modèles sources D_U (refaits par Godot)
+outils/sources_du/*.import
+outils/sources_du/*_0.png

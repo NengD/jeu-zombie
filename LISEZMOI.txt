@@ -2,8 +2,13 @@ JEU ZOMBIE — PROTOTYPE 1
 ========================
 
 LANCER LE JEU
-• Double-clic sur « Lancer_le_jeu.bat » (dernière version du code), ou
-• ouvre le projet dans Godot et appuie sur F5.
+• Le plus simple : télécharge le dépôt GitHub (bouton « Code » > « Download ZIP »,
+  ou git clone), dézippe, puis double-clic sur « JeuZombie.exe ».
+  Garde « JeuZombie.pck » à côté : il contient tout le jeu.
+  Si Windows affiche « Windows a protégé votre ordinateur » : « Informations
+  complémentaires » > « Exécuter quand même » (exe non signé).
+• Pour les développeurs : double-clic sur « Lancer_le_jeu.bat » (dernière version
+  du code, demande Godot 4.7.2), ou ouvre le projet dans Godot et appuie sur F5.
 Le jeu démarre sur le menu principal : Jouer, Paramètres (touches, sensibilité,
 volume), Guide (astuces) et Quitter.
    La carte est différente à chaque partie.
@@ -24,7 +29,6 @@ H ............... se soigner (bandage / trousse)
 F ............... fouiller un meuble ou un corps, utiliser un établi
 Tab ou I ........ inventaire et fabrication
 M ............... carte
-V ............... vue 1re / 3e personne (1re obligatoire dans les bâtiments)
 L ............... lampe torche (ou lampe tactique de l'arme)
 T ............... inspecter l'arme / poser des accessoires
 K ............... personnage : niveaux, attributs, compétences

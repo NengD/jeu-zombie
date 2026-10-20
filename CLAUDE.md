@@ -5,7 +5,7 @@
 - Après chaque modification, donner une **courte liste d'améliorations possibles** pour le jeu (3 à 6 idées).
 - On peut utiliser des modèles 3D trouvés sur internet **s'ils sont gratuits** (CC0 ou CC BY ; créditer l'auteur dans `CREDITS.txt` et dans l'aide en jeu `scripts/ui/textes.gd`).
 - Quand l'utilisateur dit « finis… je vais éteindre », terminer proprement et s'arrêter.
-- À la fin de chaque demande terminée (et vérifiée), faire un commit et un **push sur GitHub** (`NengD/jeu-zombie`, branche `main`) pour que le dépôt ait toujours la version la plus récente. Message de commit court en français. Ne pas pousser les fichiers générés (`.godot/`, `build/`).
+- À la fin de chaque demande terminée (et vérifiée), faire un commit et un **push sur GitHub** (`NengD/jeu-zombie`, branche `main`) pour que le dépôt ait toujours la version la plus récente. Message de commit court en français. Ne pas pousser les fichiers générés (`.godot/`). L'exe et le .pck ne sont refaits et poussés que sur demande.
 
 ## Économiser les tokens (priorité)
 - Ne lire que les parties utiles des fichiers (Grep, puis Read avec offset/limit) ; ne pas relire un fichier déjà lu.
@@ -17,7 +17,7 @@
 
 ## Projet
 - Jeu de survie zombie en monde ouvert, **Godot 4.7.2** (GDScript), dossier de projet : `E:\_jeu perso\JeuZombie\jeu-zombie`.
-- Exe : `E:\_jeu perso\JeuZombie\build\JeuZombie.exe` + `JeuZombie.pck` (les deux ensemble). Pas de modèles d'export installés : on refait le `.pck` avec `godot --headless --path . --export-pack "Windows Desktop" ../build/JeuZombie.pck` (après `--import`) ; l'exe est une copie de `Godot_v4.7.2-stable_win64.exe`, qui charge tout seul le `.pck` du même nom.
+- Jeu jouable : `JeuZombie.exe` + `JeuZombie.pck` **à la racine du dépôt**, suivis par **Git LFS** (fichiers > 100 Mo ; quota gratuit 10 Go). On télécharge le dépôt et on lance l'exe (modèle officiel `windows_release_x86_64`, il charge tout seul le `.pck` du même nom). Les refaire avec `bash outils/construire_exe.sh` **seulement quand l'utilisateur le demande** (« refais l'exe ») : chaque version ajoute ~145 Mo au stockage LFS. Modèle d'export installé dans `%APPDATA%/Godot/export_templates/4.7.2.stable/` (Windows release seulement). Un lanceur maison (exe C#) a été essayé : supprimé par McAfee, ne pas refaire.
 - Dépôt GitHub : `NengD/jeu-zombie` (branche `main`).
 - Téléchargements de l'utilisateur (modèles .glb) : `E:\_jeu perso\JeuZombie\telechargement`.
 
