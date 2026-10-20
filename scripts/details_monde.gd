@@ -257,6 +257,9 @@ func _herbe_ici(x: float, z: float, obstacles: Array = []) -> bool:
 	for r in obstacles:
 		if (r as Rect2).has_point(Vector2(x, z)):
 			return false
+	for c in Game.sans_herbe:
+		if Vector2(x - c[0].x, z - c[0].z).length() < float(c[1]):
+			return false
 	return true
 
 

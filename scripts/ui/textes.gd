@@ -71,7 +71,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Les zombies s'en prennent aussi aux bandits ; un bandit grièvement blessé court se mettre à l'abri derrière
   les sacs de sable ou une épave, et tire de là.
 • [b]Primes[/b] : chaque marchand indique où sont les camps et paie une prime (100 € + 40 € par bandit)
-  quand un camp est entièrement nettoyé. Viens la toucher au marché.
+  quand un camp est entièrement nettoyé. Viens la toucher chez un marchand.
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 
@@ -113,8 +113,9 @@ const GUIDE := """[b]LES BASES[/b]
 
 [b]ARGENT ET MARCHANDS[/b]
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
-• Le [b]Marché des survivants[/b] (sur la carte, près de ta maison de départ) a trois marchands : armurier,
-  quincaillier et médecin. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
+• Trois [b]campements de marchands[/b] (points verts sur la carte, juste à la sortie de la ville) : médecin, quincaillier
+  et armurier. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
+  un vrai refuge. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)

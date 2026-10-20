@@ -19,6 +19,7 @@ var pois: Array = []       # points d'intérêt pour la carte : {name, pos, colo
 var map_rects: Array = []  # rectangles de la carte : {rect, color}
 var relief = null          # relief de la campagne (scripts/relief.gd)
 var buissons := {}         # cases de 8 m -> [[position, rayon], …] : on s'y cache (vue des zombies réduite)
+var sans_herbe: Array = []  # [centre, rayon] des campements (sol tassé, pas d'herbe haute)
 var carte_relief: Texture2D = null
 var grotte_rect := Rect2()   # emprise de la grotte (ambiance, écho)
 var sols: Array = []          # [{r: Rect2, s: "beton"/"terre"}] : routes, chemins, dalles (bruits de pas)

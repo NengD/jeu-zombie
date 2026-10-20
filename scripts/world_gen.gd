@@ -2085,3 +2085,41 @@ func _grotte_details(c: Vector3, x0: float, x1: float, z0: float, z1: float, hs:
 		mi.material_override = mat_os
 		mi.position = p5
 		decor.add_child(mi)
+
+
+## Dégage un cercle (camp construit après la génération) : arbres masqués, décor et collisions retirés.
+func degager(centre: Vector3, r: float) -> void:
+	var c2 := Vector2(centre.x, centre.z)
+	var dedans := func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(c2) < r
+	for n in get_children():
+		# arbres : instances des MultiMesh mises à l'échelle zéro
+		if n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh:
+			var mm: MultiMesh = (n as MultiMeshInstance3D).multimesh
+			for k in mm.instance_count:
+				var xf := mm.get_instance_transform(k)
+				if dedans.call(xf.origin):
+					mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3.ZERO), xf.origin))
+		# collisions (troncs, rochers…) : formes dont le centre est dans le cercle
+		elif n is StaticBody3D:
+			for cs in n.get_children():
+				if cs is CollisionShape3D and dedans.call((cs as CollisionShape3D).position) and _petite_forme((cs as CollisionShape3D).shape):
+					cs.queue_free()
+	if decor:
+		for d in decor.get_children():
+			if d is Node3D and dedans.call((d as Node3D).position):
+				d.queue_free()
+	for cle in Game.buissons:
+		var liste: Array = Game.buissons[cle]
+		for i in range(liste.size() - 1, -1, -1):
+			if dedans.call(liste[i][0]):
+				liste.remove_at(i)
+
+
+## Forme d'un petit objet (tronc, rocher, caisse) — jamais le sol, un mur ou un bâtiment.
+func _petite_forme(s: Shape3D) -> bool:
+	if s is CylinderShape3D:
+		return (s as CylinderShape3D).radius < 1.5
+	if s is BoxShape3D:
+		var t: Vector3 = (s as BoxShape3D).size
+		return t.x < 5.0 and t.z < 5.0 and t.y < 5.0
+	return false

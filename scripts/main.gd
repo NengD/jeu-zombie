@@ -73,44 +73,85 @@ func _ready() -> void:
 		Game.msg("Partie chargée — jour %d." % Game.day)
 
 
-## Marché des survivants : trois stands (armurier, quincaillier, médecin) dans la rue,
-## pas loin de la maison de départ. Même emplacement et mêmes vendeurs pour une même carte.
+## Campements des marchands (médecin, quincaillier, armurier) : chacun dans son propre camp gardé,
+## juste à la sortie de la ville, le plus proche du départ en premier (médecin), à au moins 90 m l'un de l'autre.
+## Même emplacement et mêmes vendeurs pour une même carte.
+const CampMarchand = preload("res://scripts/camp_marchand.gd")
+var camps_marchands: Array = []
+
+
 func _creer_marche() -> void:
-	var sortie: Vector3 = world.spawn_point
-	var dehors: Vector3 = world.spawn_point - world.spawn_zone.center
-	dehors.y = 0.0
-	dehors = dehors.normalized()
-	var cote := dehors.cross(Vector3.UP).normalized()
-	var centre = null
-	for d in [9.0, 12.0, 15.0, 6.0]:
-		for s in [12.0, -12.0, 18.0, -18.0, 0.0]:
-			var c: Vector3 = sortie + dehors * d + cote * s
-			var ok := true
-			for k in [-1, 0, 1]:
-				for z in [-1.8, 0.0, 1.8]:
-					var pt: Vector3 = c + cote * (k * 4.0) + dehors * z
-					if not Game.find_zone(pt + Vector3.UP).is_empty():
-						ok = false
-					if Game.relief and Game.relief.dans_eau(pt.x, pt.z):
-						ok = false
-			if ok:
-				centre = c
-				break
-		if centre != null:
+	Game.sans_herbe.clear()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = Game.graine_monde + 777
+	var depart: Vector3 = world.spawn_point
+	var ch: float = Game.city_half
+	var lim: float = Game.map_half - 40.0
+	# points candidats tout autour de la ville, juste au-delà de sa bordure
+	var candidats: Array = []
+	for i in 1500:
+		var c := Vector3(rng.randf_range(-ch - 90.0, ch + 90.0), 0, rng.randf_range(-ch - 90.0, ch + 90.0))
+		if maxf(absf(c.x), absf(c.z)) < ch + 24.0 or absf(c.x) > lim or absf(c.z) > lim:
+			continue
+		candidats.append(c)
+	candidats.sort_custom(func(a, b): return a.distance_to(depart) < b.distance_to(depart))
+	var places: Array = []
+	for c in candidats:
+		if places.size() >= 3:
 			break
-	if centre == null:
-		centre = sortie + dehors * 8.0
+		var trop_pres := false
+		for p in places:
+			if Vector2(c.x - p.x, c.z - p.z).length() < 90.0:
+				trop_pres = true
+		if trop_pres or not _terrain_libre(c, 14.0):
+			continue
+		c.y = Game.hauteur(c.x, c.z)
+		places.append(c)
 	var noms := ["Marc", "Sophie", "Karim", "Lucie", "Hugo", "Inès", "Paul", "Nadia", "Yann", "Chloé"]
-	var metiers := ["armurier", "quincaillier", "medecin"]
-	for k in 3:
-		var pt: Vector3 = centre + cote * ((k - 1) * 4.0)
-		pt.y = Game.hauteur(pt.x, pt.z)
-		var v = Vendeur.new()
-		v.setup(metiers[k], noms[absi(Game.graine_monde + k * 3) % noms.size()])
-		add_child(v)
-		v.global_position = pt
-		v.rotation.y = atan2(dehors.x, dehors.z)   # le client se tient côté maison
-	Game.pois.append({"name": "Marché des survivants", "pos": centre, "color": Color(0.4, 0.9, 0.5)})
+	var metiers := ["medecin", "quincaillier", "armurier"]
+	var titres := {"medecin": "du médecin", "quincaillier": "du quincaillier", "armurier": "de l'armurier"}
+	for k in places.size():
+		world.degager(places[k], CampMarchand.RAYON + 1.5)
+		Game.sans_herbe.append([places[k], CampMarchand.RAYON + 0.8])
+		var camp = CampMarchand.new()
+		camp.name = "CampMarchand%d" % k
+		add_child(camp)
+		camp.global_position = places[k]
+		var vers: Vector3 = depart - places[k]
+		camp.rotation.y = atan2(vers.x, vers.z)   # entrée (+Z) tournée vers la ville
+		var nom: String = noms[absi(Game.graine_monde + k * 3) % noms.size()]
+		camp.construire_marchand(metiers[k], nom, rng)
+		camps_marchands.append(camp)
+		Game.pois.append({"name": "Camp %s (%s)" % [titres[metiers[k]], nom], "pos": places[k], "color": Color(0.4, 0.9, 0.5)})
+
+
+## Terrain sec, plutôt plat et sans bâtiment dans un rayon donné (camps).
+func _terrain_libre(c: Vector3, r: float) -> bool:
+	# ni route, ni ville, ni ferme (rectangles réservés par la génération du monde)
+	if world.has_method("_overlaps") and world._overlaps(Rect2(c.x - r, c.z - r, 2.0 * r, 2.0 * r)):
+		return false
+	var hmin := 9999.0
+	var hmax := -9999.0
+	for k in 37:
+		var a := k * TAU / (24.0 if k < 24 else 12.0)
+		var rr := 0.0 if k == 36 else (r if k < 24 else r * 0.5)
+		var pt := c + Vector3(cos(a), 0, sin(a)) * rr
+		if Game.relief and Game.relief.dans_eau(pt.x, pt.z):
+			return false
+		if not Game.find_zone(pt + Vector3.UP).is_empty():
+			return false
+		var h: float = Game.hauteur(pt.x, pt.z)
+		hmin = minf(hmin, h)
+		hmax = maxf(hmax, h)
+	return hmax - hmin < 2.0
+
+
+## Le point est-il dans la zone protégée d'un campement de marchand ?
+func pres_camp_marchand(pos: Vector3, marge := 0.0) -> bool:
+	for c in camps_marchands:
+		if is_instance_valid(c) and Vector2(pos.x - c.global_position.x, pos.z - c.global_position.z).length() < c.RAYON + marge:
+			return true
+	return false
 
 
 ## Camps de bandits répartis sur la carte, hors des villes, loin du départ et entre eux.
@@ -131,6 +172,8 @@ func _creer_camps() -> void:
 			break
 		var c := Vector3(rng.randf_range(-lim, lim), 0, rng.randf_range(-lim, lim))
 		if Vector2(c.x - depart.x, c.z - depart.z).length() < 160.0 or Game.in_city(c):
+			continue
+		if pres_camp_marchand(c, 140.0):
 			continue
 		var trop_pres := false
 		for p in places:
@@ -255,6 +298,8 @@ const DIST_SOMMEIL := 215.0
 
 
 func placer_zombie(pos: Vector3, kind: String, rayon: float, pv: float, maison: Vector3, ref: Vector3) -> void:
+	if pres_camp_marchand(pos, 12.0):
+		return   # pas de zombie dans un campement gardé
 	if pos.distance_to(ref) > DIST_REVEIL:
 		zombies_virtuels.append({"pos": pos, "kind": kind, "rayon": rayon, "pv": pv, "maison": maison})
 		return
@@ -522,6 +567,8 @@ func _spawn_roamer() -> bool:
 		if not Game.find_zone(p + Vector3.UP).is_empty():
 			continue
 		if not Game.in_city(p) and randf() < 0.6:
+			continue
+		if pres_camp_marchand(p, 35.0):
 			continue
 		var pq := PhysicsPointQueryParameters3D.new()
 		pq.position = p + Vector3.UP * 0.9

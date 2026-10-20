@@ -182,9 +182,9 @@ func _sacs(p: Vector2, ang: float) -> void:
 	abris.append(to_global(s.position))
 
 
-## Bidon-brasero avec des flammes et une lumière vacillante.
-func _brasero() -> void:
-	var b := _prop("brasero", Vector2.ZERO, 0.0)
+## Bidon-brasero avec des flammes et une lumière vacillante (au centre du camp par défaut).
+func _brasero(p := Vector2.ZERO) -> void:
+	var b := _prop("brasero", p, 0.0)
 	var haut := Decor.taille("brasero").y
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = Effets._texture("flamme")
@@ -193,7 +193,7 @@ func _brasero() -> void:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	m.albedo_color = Color(1.0, 0.6, 0.25)
-	var base := _sol(Vector2.ZERO) + Vector3(0, haut, 0)
+	var base := _sol(p) + Vector3(0, haut, 0)
 	for k in 3:
 		var f := MeshInstance3D.new()
 		var q := QuadMesh.new()
@@ -211,7 +211,7 @@ func _brasero() -> void:
 	feu.position = base + Vector3(0, 0.6, 0)
 	add_child(feu)
 	if b == null:
-		feu.position.y = _sol(Vector2.ZERO).y + 1.0
+		feu.position.y = _sol(p).y + 1.0
 
 
 func _process(_delta: float) -> void:

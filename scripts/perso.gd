@@ -28,6 +28,7 @@ const MODELES := {
 	"survivant": ["h_adventurer"],
 	"vendeur": ["h_worker", "h_farmer", "f_worker", "h_suit", "f_adventurer"],
 	"bandit": ["h_punk", "h_casual_hoodie", "h_farmer", "f_punk", "f_adventurer", "h_adventurer"],
+	"garde": ["h_swat", "f_soldier", "h_adventurer", "h_worker"],
 	"civil": ["h_casual_2", "h_casual_hoodie", "h_beach", "h_farmer", "h_worker", "h_suit", "h_punk",
 			"f_casual", "f_formal", "f_punk", "f_worker", "f_suit", "f_adventurer"],
 	"police": ["h_swat", "h_suit"],
@@ -140,7 +141,7 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 		"manches": [0.35, 0.33, 1.0, 0.0][rng.randi() % 4],
 		"jambes": 1.0 if rng.randf() < 0.85 else 0.42,
 		"style": 0.0 if rng.randf() < 0.6 else 4.0,
-		"zombie": not kind in ["survivant", "bandit", "vendeur"],
+		"zombie": not kind in ["survivant", "bandit", "vendeur", "garde"],
 		"sang": rng.randf_range(0.4, 1.0),
 		"sale": rng.randf_range(0.3, 0.9),
 		"graine": rng.randf() * 100.0,
@@ -175,6 +176,18 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 			a.manches = 1.0
 			a.jambes = 1.0
 			a.casquette = rng.randf() < 0.5
+		"garde":
+			# survivant chargé de la sécurité du camp : tenue kaki ou sombre, souvent casqué
+			a.zombie = false
+			a.sang = 0.0
+			a.sale = rng.randf_range(0.3, 0.6)
+			a.haut = [Color(0.32, 0.34, 0.22), Color(0.22, 0.24, 0.2), Color(0.38, 0.33, 0.24)][rng.randi() % 3]
+			a.bas = [Color(0.2, 0.22, 0.16), Color(0.14, 0.15, 0.17), Color(0.3, 0.27, 0.2)][rng.randi() % 3]
+			a.chaussures = Color(0.08, 0.07, 0.06)
+			a.manches = 1.0
+			a.jambes = 1.0
+			a.casque = rng.randf() < 0.5
+			a.casquette = not a.casque and rng.randf() < 0.5
 		"police":
 			a.style = 1.0
 			a.haut = Color(0.10, 0.14, 0.26)

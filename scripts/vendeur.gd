@@ -1,5 +1,5 @@
 extends StaticBody3D
-## Marchand du marché des survivants : un stand (table, auvent, marchandises) et son vendeur.
+## Marchand d'un campement gardé (scripts/camp_marchand.gd) : un stand (table, auvent, marchandises) et son vendeur.
 ## [F] ouvre la boutique : acheter son stock, revendre ses objets à 40 % du prix.
 
 const Perso = preload("res://scripts/perso.gd")
