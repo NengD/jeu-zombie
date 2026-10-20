@@ -517,7 +517,12 @@ func _update_camera(delta: float) -> void:
 			allowed = maxf(0.0, from.distance_to(hit.position) - 0.3)
 	lean_pivot.position.x = signf(lean) * minf(absf(lean) * 0.55, allowed)
 	lean_pivot.rotation.z = -lean * 0.22
-	modele.rotation.z = -lean * 0.25
+	# le buste se penche (pieds au sol) ; ancien modèle sans squelette : tout le corps bascule
+	if pieds_ik:
+		pieds_ik.penche = lean * 0.45
+		modele.rotation.z = 0.0
+	else:
+		modele.rotation.z = -lean * 0.25
 	head.position.y = move_toward(head.position.y, EYE_CROUCH if crouching else EYE_STAND, delta * 4.0)
 	if pap == null:
 		modele.scale.y = move_toward(modele.scale.y, 0.7 if crouching else 1.0, delta * 3.0)
@@ -2026,6 +2031,12 @@ func _p_anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
 	pap.speed_scale = vitesse
 
 
+## Vitesse de lecture d'une animation de déplacement : la cadence des pas suit la racine carrée de la vitesse
+## (pas plus longs quand on va vite) et reste entre 0,7 et 1,4 fois la vitesse naturelle de l'animation.
+func _cadence(hs: float, naturelle: float) -> float:
+	return clampf(sqrt(hs / naturelle), 0.7, 1.4)
+
+
 func _update_player_anim(delta: float) -> void:
 	shoot_pose_t = maxf(0.0, shoot_pose_t - delta)
 	if p_lock > 0.0:
@@ -2037,15 +2048,15 @@ func _update_player_anim(delta: float) -> void:
 		# vitesses naturelles des animations UAL : marche 0,94 m/s, jogging 2,4, sprint 3,1, accroupi 0,77
 		if crouching:
 			if hs > 0.3:
-				_p_anim("accroupi_marche", clampf(hs / 0.77, 0.6, 2.2))
+				_p_anim("accroupi_marche", _cadence(hs, 0.77))
 			else:
 				_p_anim("accroupi")
 		elif hs > 4.6:
-			_p_anim("course", clampf(hs / 3.1, 0.8, 2.2))
+			_p_anim("course", _cadence(hs, 3.1))
 		elif hs > 1.9:
-			_p_anim("jogging", clampf(hs / 2.4, 0.7, 1.8))
+			_p_anim("jogging", _cadence(hs, 2.4))
 		elif hs > 0.3:
-			_p_anim("marche", clampf(hs / 0.94, 0.6, 2.2))
+			_p_anim("marche", _cadence(hs, 0.94))
 		elif bloque:
 			_p_anim("parade")
 		elif is_gun and reload_t > 0.0 and reload_total > 0.0:

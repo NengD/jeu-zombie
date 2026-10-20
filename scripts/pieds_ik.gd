@@ -16,6 +16,8 @@ var _axe_mollet := {}              # direction genou -> cheville dans le repère
 var _ecart := {"_l": 0.0, "_r": 0.0}   # décalage vertical lissé de chaque pied (m)
 var _normale := {"_l": Vector3.UP, "_r": Vector3.UP}
 var _bassin := 0.0
+var penche := 0.0                  # se pencher (A / E) : inclinaison du buste en radians (+ = à droite), pieds au sol
+var _vertebres: Array[int] = []
 
 
 func _ready() -> void:
@@ -23,6 +25,9 @@ func _ready() -> void:
 	if sk == null:
 		return
 	_os["pelvis"] = sk.find_bone("pelvis")
+	for n in ["spine_01", "spine_02", "spine_03"]:
+		if sk.find_bone(n) >= 0:
+			_vertebres.append(sk.find_bone(n))
 	for c in ["_l", "_r"]:
 		for n in ["thigh", "calf", "foot"]:
 			_os[n + c] = sk.find_bone(n + c)
@@ -63,6 +68,12 @@ func _process_modification_with_delta(delta: float) -> void:
 		_normale[c] = (_normale[c] as Vector3).lerp(n, k).normalized()
 	_bassin = lerpf(_bassin, minf(minf(_ecart._l, _ecart._r), 0.0), k)
 	var talon := coup_pied >= 0.0 and coup_pied <= 1.0
+	if absf(penche) > 0.001 and not _vertebres.is_empty():
+		# buste penché sur le côté autour de l'axe avant (le bassin et les jambes ne bougent pas)
+		var axe := (inv_sk.basis * -corps.global_basis.z).normalized()
+		for v in _vertebres:
+			var gv := sk.get_bone_global_pose(v)
+			sk.set_bone_global_pose(v, Transform3D(Basis(axe, penche / _vertebres.size()) * gv.basis, gv.origin))
 	if not talon and absf(_bassin) < 0.002 and absf(_ecart._l) < 0.002 and absf(_ecart._r) < 0.002:
 		return
 	var haut_sk := (inv_sk.basis * Vector3.UP)   # 1 m vers le haut dans l'espace du squelette (échelle comprise)
