@@ -449,11 +449,14 @@ func _think() -> void:
 		return
 	var to_p: Vector3 = p.global_position - global_position
 	var dist := to_p.length()
+	# vue : réduite la nuit (sauf lampe allumée), accroupi, caché dans un buisson
 	var sight := 24.0
 	if Game.is_night():
-		sight = 10.0 + (10.0 if p.flashlight_on else 0.0)
+		sight = 8.0 + (12.0 if p.flashlight_on else 0.0)
 	if p.crouching:
-		sight *= 0.55
+		sight *= 0.5
+	if p.get("cache_buisson"):
+		sight *= 0.45
 	if p.prog.a("discret"):
 		sight *= 0.7
 	if not p.in_zone.is_empty() and not is_same(p.in_zone, Game.find_zone(global_position + Vector3.UP)):
@@ -461,8 +464,9 @@ func _think() -> void:
 	var sees := false
 	if dist < sight:
 		var fwd := -global_basis.z
-		var facing := fwd.dot(to_p.normalized()) > 0.1
-		if dist < 3.0 or facing or state == State.CHASE:
+		# accroupi : il faut être bien devant le zombie, et plus près, pour qu'il le remarque
+		var facing := fwd.dot(to_p.normalized()) > (0.45 if p.crouching else 0.1)
+		if dist < (1.8 if p.crouching else 3.0) or facing or state == State.CHASE:
 			sees = _line_of_sight(p)
 	voit_joueur = sees
 	if sees:

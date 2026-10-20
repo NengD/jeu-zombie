@@ -12,7 +12,7 @@ const Grenade = preload("res://scripts/grenade.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
-const CROUCH_SPEED := 2.2
+const CROUCH_SPEED := 2.9
 const AIM_SPEED := 2.8
 const JUMP := 4.8
 const GRAVITY := 14.0
@@ -35,8 +35,12 @@ var hunger := 100.0
 var thirst := 100.0
 var argent := 40                  # porte-monnaie (€), dépensé chez les marchands
 var stamina := 100.0
+var pause_endurance := 0.0          # délai avant que l'endurance remonte (après un effort)
+var cache_buisson := false           # le joueur est dans un buisson (les zombies le voient moins)
+var buisson_t := 0.0
 var alive := true
 var hurt_flash := 0.0
+var impacts_recus: Array = []         # [position de l'attaquant, temps restant] pour les flèches de dégâts du HUD
 
 # --- inventaire
 var poches: Grille = Grille.creer("Sur toi", 8, 5)   # inventaire de base ; sacs et gilets ajoutent de la place
@@ -125,6 +129,7 @@ var p_anim := ""
 var p_lock := 0.0
 var shoot_pose_t := 0.0
 var bloom := 0.0                  # dispersion en plus après des tirs rapprochés (retombe vite)
+var arme_prete_t := 0.0             # vient de finir de recharger (HUD : munitions en vert)
 var chargeur_main: Node3D = null  # chargeur porté par la main gauche pendant le rechargement
 var pts_bras := {}                 # points de prise de l'arme tenue (FpsArms.hand_points)
 var pieds_ik: Node = null           # pieds posés au sol + coup de talon (scripts/pieds_ik.gd)
@@ -327,9 +332,18 @@ func _physics_process(delta: float) -> void:
 	if placing != "":
 		_update_placement()
 	hurt_flash = maxf(0.0, hurt_flash - delta * 1.5)
+	for imp in impacts_recus:
+		imp[1] -= delta
+	while not impacts_recus.is_empty() and impacts_recus[0][1] <= 0.0:
+		impacts_recus.pop_front()
 
 
 func _update_stats(delta: float) -> void:
+	# caché dans un buisson ? (vue des zombies réduite) — vérifié 5 fois par seconde
+	buisson_t -= delta
+	if buisson_t <= 0.0:
+		buisson_t = 0.2
+		cache_buisson = Game.dans_buisson(global_position)
 	if Game.admin and Game.admin_besoins:
 		hunger = 100.0
 		thirst = 100.0
@@ -337,14 +351,23 @@ func _update_stats(delta: float) -> void:
 		return
 	hunger = maxf(0.0, hunger - delta * 0.055 * prog.faim_mult())
 	thirst = maxf(0.0, thirst - delta * 0.085 * prog.soif_mult())
+	# endurance : après un effort, courte pause (0,7 s) puis récupération rapide (à l'arrêt surtout)
+	pause_endurance = maxf(0.0, pause_endurance - delta)
 	if sprinting:
 		stamina = maxf(0.0, stamina - delta * 16.0 * (0.65 if prog.a("marathonien") else 1.0))
-	else:
-		stamina = minf(prog.endurance_max(), stamina + delta * (14.0 if velocity.length() < 0.5 else 9.0) * prog.recup_endurance())
+		pause_endurance = maxf(pause_endurance, 0.5)
+	elif pause_endurance <= 0.0:
+		stamina = minf(prog.endurance_max(), stamina + delta * (24.0 if velocity.length() < 0.5 else 14.0) * prog.recup_endurance())
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
 	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
 		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0))
+
+
+## Dépense d'endurance (coup, saut, parade) : la récupération attend un court instant.
+func _depenser_endurance(n: float) -> void:
+	stamina = maxf(0.0, stamina - n)
+	pause_endurance = 0.7
 
 
 func _update_zone() -> void:
@@ -401,7 +424,7 @@ func _move(delta: float, can_act: bool) -> void:
 				_set_crouch(false)
 			else:
 				velocity.y = JUMP
-				stamina -= 8.0
+				_depenser_endurance(8.0)
 	else:
 		velocity.y -= GRAVITY * delta
 	move_and_slide()
@@ -580,6 +603,7 @@ func _update_camera(delta: float) -> void:
 	_maj_laser(cw)
 	_maj_bras(delta, cw, cwi, is_gun, k_ads)
 	bloom = move_toward(bloom, 0.0, delta * 2.2)
+	arme_prete_t = maxf(0.0, arme_prete_t - delta)
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	muzzle_light.light_energy = 6.0 if muzzle_t > 0.0 else 0.0
 	# secousse de la caméra à l'impact
@@ -1237,9 +1261,10 @@ func _melee(w: Dictionary) -> void:
 	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0)
 	if prog.a("critique") and randf() < 0.2:
 		dmg *= 2.0
+	# à bout de souffle : coup moins fort, de façon progressive (60 % des dégâts à endurance nulle)
 	if stamina < cost:
-		dmg *= 0.5
-	stamina = maxf(0.0, stamina - cost)
+		dmg *= lerpf(0.6, 1.0, clampf(stamina / cost, 0.0, 1.0))
+	_depenser_endurance(cost)
 	var id := current_weapon()
 	if id == "poings":
 		cooldown = w.rate
@@ -1394,7 +1419,7 @@ func _maj_melee(delta: float) -> void:
 func _lacher_charge(w: Dictionary, duree: float) -> void:
 	melee_charge = clampf((charge_t - CHARGE_MIN) / (CHARGE_MAX - CHARGE_MIN), 0.0, 1.0)
 	melee_degats *= 1.0 + 1.2 * melee_charge
-	stamina = maxf(0.0, stamina - float(w.stamina) * 0.6 * melee_charge)
+	_depenser_endurance(float(w.stamina) * 0.6 * melee_charge)
 	cooldown = (1.0 - melee_p) * duree
 	Game.play_ui("vent_lourd", -4.0, 0.1)
 
@@ -1465,18 +1490,28 @@ func _finish_reload() -> void:
 	var take := mini(need, count(w.ammo))
 	remove_item(w.ammo, take)
 	mags[id] = int(mags.get(id, 0)) + take
+	# arme prête : clic net (aigu) et compteur de munitions en vert un instant (HUD)
+	Game.play_ui("culasse", -2.0, 0.03, 1.45)
+	arme_prete_t = 0.8
 
 
-func take_damage(amount: float, _from: Node = null) -> void:
+## origine : point d'où vient le coup (balle d'un bandit, explosion) quand il n'y a pas d'attaquant au corps à corps.
+func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> void:
 	if not alive:
 		return
+	# indicateur de direction des dégâts (HUD)
+	var src: Vector3 = (_from as Node3D).global_position if _from is Node3D else origine
+	if src != Vector3.INF:
+		impacts_recus.append([src, 1.2])
+		if impacts_recus.size() > 6:
+			impacts_recus.pop_front()
 	# parade réussie si l'attaquant est devant soi
 	if bloque and _from is Node3D:
 		var vers: Vector3 = (_from as Node3D).global_position - global_position
 		vers.y = 0.0
 		if vers.normalized().dot(-global_basis.z) > 0.25:
 			if stamina >= 10.0:
-				stamina -= 12.0
+				_depenser_endurance(12.0)
 				amount *= 0.2
 				Game.play_ui("parade", -2.0, 0.1)
 				rec_rvel += Vector3(-2.0, 0.0, 1.0)

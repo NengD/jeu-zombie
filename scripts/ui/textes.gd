@@ -5,7 +5,7 @@ const TOUCHES := [
 	["Se déplacer", "Z Q S D"],
 	["Sprinter", "Maj"],
 	["Sauter", "Espace"],
-	["S'accroupir (plus discret)", "C ou Ctrl"],
+	["S'accroupir (discret, surtout dans un buisson)", "C ou Ctrl"],
 	["Se pencher à gauche / à droite", "A / E"],
 	["Frapper / tirer", "Clic gauche"],
 	["Coup puissant (arme de mêlée)", "Maintenir clic gauche"],
@@ -105,7 +105,7 @@ const GUIDE := """[b]LES BASES[/b]
   qui les traversent, barbelés (4 ferrailles + 2 clous, établi) qui les ralentissent fortement. Ils s'usent à chaque zombie :
   en mode construction (B), vise-les et appuie sur G pour les réparer (les barricades aussi).
 • [b]Hordes[/b] : à partir du 2e jour, à la tombée de la nuit, une horde peut marcher sur ta base (au moins 4 pièces).
-  Une alerte s'affiche 45 secondes avant son arrivée : rentre et prépare-toi ! Si tu es loin,
+  Une alerte s'affiche 60 secondes avant son arrivée et dit de quel côté elle vient (on l'entend grogner de ce côté) : rentre et prépare-toi ! Si tu es loin,
   elle abîme tes murs ; les pièges autour de la base réduisent les dégâts.
 
 [b]PROJECTEURS[/b] (3 ferrailles + 1 ruban + 1 tissu, établi — ou chez le quincaillier)

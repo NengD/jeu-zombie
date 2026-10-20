@@ -11,6 +11,7 @@ class Crosshair extends Control:
 	var melee := false  # arme de mêlée / mains nues : simple point
 	var ennemi := false # le réticule passe sur un zombie ou un bandit
 	var bloque := Vector2(-1, -1)   # point d'impact réel quand un obstacle coupe la ligne de tir
+	var impacts: Array = []         # [angle (0 = devant, sens horaire), opacité] des coups reçus
 
 	func _draw() -> void:
 		var c := size / 2.0
@@ -25,6 +26,16 @@ class Crosshair extends Control:
 			draw_line(c + Vector2(0, -g - 8), c + Vector2(0, -g), col, 2.0)
 			draw_line(c + Vector2(0, g), c + Vector2(0, g + 8), col, 2.0)
 			draw_circle(c, 1.5, col)
+		# arcs rouges autour du centre, du côté d'où viennent les coups
+		var r_imp := minf(size.x, size.y) * 0.17
+		for imp in impacts:
+			var a: float = imp[0]
+			var ic := Color(0.95, 0.12, 0.08, 0.9 * float(imp[1]))
+			draw_arc(c, r_imp, a - PI / 2.0 - 0.32, a - PI / 2.0 + 0.32, 14, ic, 7.0, true)
+			var pointe := c + Vector2(sin(a), -cos(a)) * (r_imp + 16.0)
+			var g2 := Vector2(cos(a), sin(a)) * 9.0
+			var base := c + Vector2(sin(a), -cos(a)) * (r_imp + 5.0)
+			draw_colored_polygon(PackedVector2Array([pointe, base + g2, base - g2]), ic)
 		if bloque.x >= 0.0:
 			# croix orange : la balle s'arrêtera là (mur, rebord, voiture…)
 			var oc := Color(1.0, 0.6, 0.15, 0.9)
@@ -74,7 +85,10 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	flash = ColorRect.new()
-	flash.color = Color(0.6, 0, 0, 0)
+	flash.color = Color.WHITE
+	var mat_vignette := ShaderMaterial.new()
+	mat_vignette.shader = preload("res://shaders/vignette_degats.gdshader")
+	flash.material = mat_vignette
 	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(flash)
@@ -255,7 +269,23 @@ func _process(delta: float) -> void:
 	bars.faim.value = p.hunger
 	bars.soif.value = p.thirst
 	bars.endurance.value = p.stamina
-	flash.color.a = maxf(p.hurt_flash * 0.35, (1.0 - p.health / p.prog.sante_max()) * 0.18 if p.health < 35.0 else 0.0)
+	# bords rouges : montent sous 60 % de santé, battent sous 25 % ; éclair à chaque coup reçu
+	var k_sante: float = p.health / p.prog.sante_max()
+	var force := clampf((0.6 - k_sante) / 0.6, 0.0, 1.0) * 0.75
+	if k_sante < 0.25 and p.alive:
+		force += 0.12 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.006))
+	var mv := flash.material as ShaderMaterial
+	mv.set_shader_parameter("force", force)
+	mv.set_shader_parameter("eclair", clampf(p.hurt_flash, 0.0, 1.0))
+	# flèches de dégâts : direction de chaque attaquant récent, vue depuis la caméra (haut de l'écran = devant)
+	cross.impacts.clear()
+	if p.camera:
+		var cb: Basis = p.camera.global_basis
+		for imp in p.impacts_recus:
+			var v: Vector3 = (imp[0] as Vector3) - p.camera.global_position
+			var dx := v.dot(cb.x)
+			var dz := v.dot(-cb.z)
+			cross.impacts.append([atan2(dx, dz), clampf(float(imp[1]) / 0.6, 0.0, 1.0)])
 	var wid: String = p.current_weapon()
 	var w := Items.info(wid)
 	lbl_weapon.text = Items.nom(wid)
@@ -263,11 +293,19 @@ func _process(delta: float) -> void:
 		if p.reload_t > 0.0:
 			lbl_ammo.text = "Rechargement…"
 		else:
-			lbl_ammo.text = "%d / %d" % [int(p.mags.get(wid, 0)), p.count(w.ammo)]
+			lbl_ammo.text = ("PRÊT  " if p.arme_prete_t > 0.0 else "") + "%d / %d" % [int(p.mags.get(wid, 0)), p.count(w.ammo)]
 	elif w.get("type", "") == "lancer":
 		lbl_ammo.text = "× %d" % p.count(wid)
 	else:
 		lbl_ammo.text = ""
+	# munitions en vert juste après le rechargement, en orange quand le chargeur est presque vide
+	var col_mun := Color.WHITE
+	if w.get("type", "") == "gun" and p.reload_t <= 0.0:
+		if p.arme_prete_t > 0.0:
+			col_mun = Color(0.45, 1.0, 0.45)
+		elif int(p.mags.get(wid, 0)) <= maxi(1, int(int(w.get("mag", 10)) * 0.2)):
+			col_mun = Color(1.0, 0.6, 0.2)
+	lbl_ammo.label_settings.font_color = col_mun
 	for i in 5:
 		var id: String = p.hotbar[i]
 		var txt := "—"

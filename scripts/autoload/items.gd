@@ -260,9 +260,20 @@ func prix(id: String) -> int:
 
 
 ## Prix de revente d'une unité (les marchands rachètent à 40 %).
+## Un objet fabricable ne se revend jamais plus de 80 % du prix de ses ingrédients :
+## acheter, fabriquer puis revendre ne rapporte rien (pas d'argent infini).
 func prix_vente(id: String) -> int:
 	var p := prix(id)
-	return 0 if p <= 0 else maxi(1, int(p * 0.4))
+	if p <= 0:
+		return 0
+	var v := int(p * 0.4)
+	for r in RECIPES:
+		if r.out == id:
+			var cout := 0.0
+			for ing in r.needs:
+				cout += prix(ing) * int(r.needs[ing])
+			v = mini(v, int(cout * 0.8 / maxf(1.0, float(r.qty))))
+	return maxi(1, v)
 
 
 func nom(id: String) -> String:
@@ -328,6 +339,10 @@ func armes_a_feu() -> Array:
 
 
 ## Tire au hasard le contenu d'un conteneur. rolls = nombre de tirages.
+## Quantité de munitions trouvées (toutes les tables) : un peu rares, pour que la mêlée reste utile.
+const FACTEUR_MUNITIONS := 0.7
+
+
 func roll_loot(table: String, rolls: int, empty_chance: float = 0.2) -> Dictionary:
 	var out := {}
 	if not LOOT.has(table) or randf() < empty_chance:
@@ -342,6 +357,8 @@ func roll_loot(table: String, rolls: int, empty_chance: float = 0.2) -> Dictiona
 			pick -= float(e[1])
 			if pick <= 0.0:
 				var n := randi_range(int(e[2]), int(e[3]))
+				if info(e[0]).get("type", "") == "ammo":
+					n = maxi(1, roundi(n * FACTEUR_MUNITIONS))
 				out[e[0]] = int(out.get(e[0], 0)) + n
 				break
 	return out

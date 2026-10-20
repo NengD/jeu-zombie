@@ -81,7 +81,7 @@ static func exploser(monde: Node, pos: Vector3, degats_max: float, r: float) -> 
 			var abrite := not espace.intersect_ray(q2).is_empty()
 			if dp < r and not abrite:
 				var kp := 1.0 - dp / r
-				p.take_damage(degats_max * 0.6 * kp * kp)
+				p.take_damage(degats_max * 0.6 * kp * kp, null, pos)
 			# souffle : la caméra tremble même à l'abri
 			if "rec_rvel" in p:
 				var f := clampf(1.0 - dp / (r * 1.6), 0.0, 1.0)

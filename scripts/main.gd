@@ -325,10 +325,13 @@ func _nuit_tombe() -> void:
 	annoncer_horde(base)
 
 
-## Alerte : la horde arrive dans 45 s (le temps de rentrer et de se préparer).
-const HORDE_DELAI := 45.0
+## Alerte : la horde arrive dans 60 s (le temps de rentrer et de se préparer), on sait de quel côté elle vient :
+## direction annoncée, rappels, distance jusqu'à la base, grognements qui montent de ce côté-là.
+const HORDE_DELAI := 60.0
 var horde_compte := -1.0
 var horde_base: Node3D = null
+var horde_angle := NAN          # direction d'arrivée (choisie à l'alerte, gardée pour l'attaque)
+var horde_grogne_t := 0.0
 
 
 func annoncer_horde(base: Node3D) -> void:
@@ -339,7 +342,9 @@ func annoncer_horde(base: Node3D) -> void:
 		return
 	horde_base = base
 	horde_compte = HORDE_DELAI
-	Game.msg("!! ALERTE : une horde approche de ta base ! Arrivée dans %d secondes." % int(HORDE_DELAI))
+	horde_angle = randf() * TAU
+	horde_grogne_t = 6.0
+	Game.msg("!! ALERTE : une horde approche de ta base par %s ! Arrivée dans %d secondes." % [_nom_direction(horde_angle), int(HORDE_DELAI)])
 	Game.play_ui("grogne1", 4.0, 0.05, 0.55)
 	Game.play_ui("grogne3", 0.0, 0.05, 0.7)
 
@@ -349,10 +354,18 @@ func _compte_horde(delta: float) -> void:
 		return
 	var avant := horde_compte
 	horde_compte -= delta
-	for rappel in [30.0, 15.0, 5.0]:
+	for rappel in [45.0, 30.0, 15.0, 5.0]:
 		if avant > rappel and horde_compte <= rappel:
-			Game.msg("!! La horde arrive dans %d secondes !" % int(rappel))
+			Game.msg("!! La horde arrive par %s dans %d secondes !" % [_nom_direction(horde_angle), int(rappel)])
 			Game.play_ui("grogne%d" % randi_range(1, 3), 2.0, 0.1, 0.6)
+	# grognements lointains venant du côté où la horde arrivera, de plus en plus souvent
+	horde_grogne_t -= delta
+	if horde_grogne_t <= 0.0 and horde_base and is_instance_valid(horde_base) and not is_nan(horde_angle):
+		horde_grogne_t = lerpf(3.0, 9.0, horde_compte / HORDE_DELAI)
+		var c := _centre_base(horde_base)
+		var d := Vector3(cos(horde_angle), 0.0, sin(horde_angle))
+		var loin := lerpf(22.0, 45.0, horde_compte / HORDE_DELAI)
+		Game.play_3d("grogne%d" % randi_range(1, 3), c + d * loin + Vector3.UP, 4.0, 0.15, 90.0)
 	if horde_compte <= 0.0:
 		horde_compte = -1.0
 		if horde_base and is_instance_valid(horde_base):
@@ -363,7 +376,12 @@ func _compte_horde(delta: float) -> void:
 ## Texte d'alerte affiché en haut de l'écran (vide s'il n'y a rien).
 func texte_alerte() -> String:
 	if horde_compte > 0.0:
-		return "!! HORDE EN APPROCHE — %d s" % ceili(horde_compte)
+		var t := "!! HORDE EN APPROCHE — %d s — par %s" % [ceili(horde_compte), _nom_direction(horde_angle)]
+		if horde_base and is_instance_valid(horde_base):
+			var db: float = player.global_position.distance_to(_centre_base(horde_base))
+			if db > 15.0:
+				t += "\nRentre à ta base : %d m" % int(db)
+		return t
 	var n := 0
 	for z in get_tree().get_nodes_in_group("horde"):
 		if is_instance_valid(z) and z.assaut and z.state != 3:
@@ -384,7 +402,8 @@ func declencher_horde(base: Node3D) -> void:
 	if player.global_position.distance_to(centre) > 90.0:
 		_horde_simulee(base, centre, nb)
 		return
-	var ang := randf() * TAU
+	var ang := horde_angle if not is_nan(horde_angle) else randf() * TAU
+	horde_angle = NAN
 	var poses := 0
 	for k in nb * 4:
 		if poses >= nb:
@@ -606,3 +625,12 @@ func _creer_ambiance() -> void:
 	meteo.name = "Meteo"
 	add_child(meteo)
 	meteo.installer(world, Game.graine_monde)
+
+
+## Nom de la direction (avec l'article) pour un angle d'arrivée autour de la base : x = cos, z = sin, le nord est -Z.
+func _nom_direction(ang: float) -> String:
+	if is_nan(ang):
+		return "un côté inconnu"
+	var noms := ["le nord", "le nord-est", "l'est", "le sud-est", "le sud", "le sud-ouest", "l'ouest", "le nord-ouest"]
+	var cap := fposmod(atan2(cos(ang), -sin(ang)), TAU)   # 0 = nord, sens horaire
+	return noms[int(round(cap / (TAU / 8.0))) % 8]

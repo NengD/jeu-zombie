@@ -359,14 +359,17 @@ func _tirer(delta: float) -> void:
 	rafale -= 1
 	tir_t = (float(w.get("rate", 0.3)) * 1.8) if rafale > 0 else randf_range(1.3, 2.6)
 	chargeur -= 1
-	# précision : baisse avec la distance, la nuit et quand la cible court
+	# précision : forte de près, chute vite avec la distance (mieux vaut les contourner que les combattre de loin) ;
+	# baisse aussi la nuit, quand la cible court ou se tient accroupie
 	var dist := global_position.distance_to(cible.global_position)
-	var chance := 0.55 - dist * 0.02
+	var chance := 0.66 - dist * 0.027
 	if Game.is_night():
 		chance -= 0.12
 	if cible.velocity.length() > 4.0:
 		chance -= 0.15
-	chance = clampf(chance, 0.08, 0.6)
+	if cible.get("crouching"):
+		chance -= 0.08
+	chance = clampf(chance, 0.04, 0.65)
 	var famille: String = w.get("famille", "")
 	var son := "tir_pompe" if famille == "pompe" else ("tir_pistolet" if famille in ["pistolet", "smg"] else "tir_fusil")
 	var bouche := global_position + Vector3.UP * 1.45 - global_basis.z * 0.6
@@ -378,9 +381,11 @@ func _tirer(delta: float) -> void:
 	_anim("tir", 1.0, 0.25)
 	var plombs := int(w.get("pellets", 1))
 	var degats := float(w.get("damage", 20.0)) * (0.22 if plombs > 1 else 0.35) * plombs
+	# dégâts : +30 % à bout portant (< 6 m), -20 % au loin (> 22 m)
+	degats *= remap(clampf(dist, 6.0, 22.0), 6.0, 22.0, 1.3, 0.8)
 	if randf() < chance:
 		if cible == Game.player:
-			cible.take_damage(degats)
+			cible.take_damage(degats, null, global_position)
 		elif cible.has_method("take_hit"):
 			cible.take_hit(degats * 1.5, vise, global_position)
 	else:

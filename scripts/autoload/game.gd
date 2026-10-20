@@ -18,6 +18,7 @@ var zones: Array = []      # bâtiments : {aabb, doors, kind, name}
 var pois: Array = []       # points d'intérêt pour la carte : {name, pos, color}
 var map_rects: Array = []  # rectangles de la carte : {rect, color}
 var relief = null          # relief de la campagne (scripts/relief.gd)
+var buissons := {}         # cases de 8 m -> [[position, rayon], …] : on s'y cache (vue des zombies réduite)
 var carte_relief: Texture2D = null
 var grotte_rect := Rect2()   # emprise de la grotte (ambiance, écho)
 var sols: Array = []          # [{r: Rect2, s: "beton"/"terre"}] : routes, chemins, dalles (bruits de pas)
@@ -227,6 +228,25 @@ func msg(text: String) -> void:
 
 func make_noise(pos: Vector3, radius: float) -> void:
 	noise_made.emit(pos, radius * (1.0 - 0.3 * pluie))   # la pluie couvre les bruits
+
+
+func ajouter_buisson(pos: Vector3, rayon: float) -> void:
+	var c := Vector2i(floori(pos.x / 8.0), floori(pos.z / 8.0))
+	if not buissons.has(c):
+		buissons[c] = []
+	buissons[c].append([pos, rayon])
+
+
+## Le point est-il à l'intérieur d'un buisson ?
+func dans_buisson(pos: Vector3) -> bool:
+	var c := Vector2i(floori(pos.x / 8.0), floori(pos.z / 8.0))
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			for b in buissons.get(c + Vector2i(dx, dz), []):
+				var bp: Vector3 = b[0]
+				if Vector2(pos.x - bp.x, pos.z - bp.z).length() < float(b[1]):
+					return true
+	return false
 
 
 func is_night() -> bool:

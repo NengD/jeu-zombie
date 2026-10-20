@@ -374,6 +374,9 @@ func _prop(id: String, pos: Vector3, ang: float, solide := true, k := 1.0, dist 
 	n.scale = Vector3.ONE * k
 	decor.add_child(n)
 	Decor.distance(n, dist)
+	if id.begins_with("buisson"):
+		var tb := Decor.taille(id) * k
+		Game.ajouter_buisson(pos, maxf(tb.x, tb.z) * 0.5)
 	if solide:
 		var t := Decor.taille(id) * k
 		var cs := CollisionShape3D.new()
@@ -1440,6 +1443,7 @@ func _trees() -> void:
 
 ## Buissons, rochers, souches et troncs morts dans la campagne ; buissons dans les jardins.
 func _vegetation() -> void:
+	Game.buissons.clear()
 	if not Decor.existe("buisson"):
 		return
 	var m := Game.map_half - 15.0
