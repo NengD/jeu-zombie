@@ -21,6 +21,27 @@ const COIFFURES_F := ["cheveux_long", "cheveux_buns", "cheveux_buzzed_female", "
 
 static var _scenes := {}
 
+# ---------------------------------------------------------------- personnages low-poly (Quaternius)
+## Modèles par type de personnage (outils/godot/generer_persos_modulaires.gd -> modeles/persos_mod/).
+const MOD := "res://modeles/persos_mod/%s.scn"
+const MODELES := {
+	"survivant": ["h_adventurer"],
+	"vendeur": ["h_worker", "h_farmer", "f_worker", "h_suit", "f_adventurer"],
+	"bandit": ["h_punk", "h_casual_hoodie", "h_farmer", "f_punk", "f_adventurer", "h_adventurer"],
+	"civil": ["h_casual_2", "h_casual_hoodie", "h_beach", "h_farmer", "h_worker", "h_suit", "h_punk",
+			"f_casual", "f_formal", "f_punk", "f_worker", "f_suit", "f_adventurer"],
+	"police": ["h_swat", "h_suit"],
+	"militaire": ["h_swat", "f_soldier"],
+	"patient": ["h_beach", "f_casual"],
+	"boss": ["h_worker"],
+}
+const PEAU_ZOMBIE := [Color(0.55, 0.62, 0.48), Color(0.62, 0.64, 0.55), Color(0.5, 0.56, 0.5), Color(0.66, 0.6, 0.52)]
+static var _mats := {}   # matériaux recolorés, partagés (clé = matériau + couleur)
+
+
+static func modulaires() -> bool:
+	return ResourceLoader.exists(MOD % "h_adventurer")
+
 
 static func _scene(sexe: String) -> PackedScene:
 	if not _scenes.has(sexe):
@@ -30,7 +51,75 @@ static func _scene(sexe: String) -> PackedScene:
 
 
 static func disponible() -> bool:
-	return _scene("homme") != null
+	return modulaires() or _scene("homme") != null
+
+
+## Personnage low-poly : modèle selon le type, peau, cheveux et vêtements recolorés.
+static func _creer_modulaire(a: Dictionary) -> Node3D:
+	var liste: Array = MODELES.get(a.get("type", "civil"), MODELES.civil)
+	if a.get("type", "") in ["coureur", "gros", "rampant"]:
+		liste = MODELES.civil
+	var r := RandomNumberGenerator.new()
+	r.seed = int(a.graine * 1000.0)
+	var id: String = a.get("modele", liste[r.randi() % liste.size()])
+	var ps: PackedScene = _scenes.get(id)
+	if ps == null:
+		ps = load(MOD % id)
+		_scenes[id] = ps
+	var n: Node3D = ps.instantiate()
+	var zombie: bool = a.zombie
+	var teinte := Color(r.randf_range(0.8, 1.15), r.randf_range(0.8, 1.15), r.randf_range(0.8, 1.15)) if a.get("type", "") != "survivant" else Color.WHITE
+	var peau: Color = PEAU_ZOMBIE[r.randi() % PEAU_ZOMBIE.size()] if zombie else a.peau
+	var sang_mat: ShaderMaterial = null
+	if zombie or a.get("sang", 0.0) > 0.0:
+		sang_mat = _materiau_sang()
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var m3: MeshInstance3D = mi
+		for s in m3.mesh.get_surface_count():
+			var base: Material = m3.mesh.surface_get_material(s)
+			if not base is StandardMaterial3D:
+				continue
+			var nom := String(base.resource_name)
+			var c: Color = (base as StandardMaterial3D).albedo_color
+			if nom.begins_with("Skin"):
+				c = peau.darkened(0.12) if nom == "Skin_Darker" else peau
+			elif nom.begins_with("Hair") or nom in ["Eyebrows", "Moustache"]:
+				c = a.cheveux_col.lightened(0.15)
+				if zombie:
+					c = c.darkened(0.3)
+			elif nom == "Eye":
+				c = Color(0.85, 0.8, 0.55) if zombie else c
+			else:
+				c = Color(c.r * teinte.r, c.g * teinte.g, c.b * teinte.b)
+				if zombie:
+					# vêtements sales et délavés
+					c = c.lerp(Color(c.v, c.v, c.v), 0.4).lerp(Color(0.28, 0.24, 0.18), 0.25 * a.sale).darkened(0.15)
+			m3.set_surface_override_material(s, _recolore(base, c))
+		if sang_mat:
+			m3.material_overlay = sang_mat
+			m3.set_instance_shader_parameter("sang", a.sang if zombie else 0.0)
+			m3.set_instance_shader_parameter("graine", a.graine)
+	return n
+
+
+static func _recolore(base: Material, c: Color) -> Material:
+	var cle := "%d_%s" % [base.get_instance_id(), c.to_html()]
+	if not _mats.has(cle):
+		var m: StandardMaterial3D = base.duplicate()
+		m.albedo_color = c
+		m.roughness = maxf(m.roughness, 0.75)
+		_mats[cle] = m
+	return _mats[cle]
+
+
+static var _sang: ShaderMaterial = null
+
+
+static func _materiau_sang() -> ShaderMaterial:
+	if _sang == null:
+		_sang = ShaderMaterial.new()
+		_sang.shader = load("res://shaders/sang_perso.gdshader")
+	return _sang
 
 
 ## Apparence aléatoire pour un type de personnage : survivant, civil, police, militaire, patient.
@@ -40,6 +129,7 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 		rng.randomize()
 	var f := rng.randf() < (0.45 if kind in ["civil", "patient"] else 0.2)
 	var a := {
+		"type": kind,
 		"sexe": "femme" if f else "homme",
 		"peau": PEAUX[rng.randi() % PEAUX.size()],
 		"cheveux_col": CHEVEUX[rng.randi() % CHEVEUX.size()],
@@ -50,7 +140,7 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 		"manches": [0.35, 0.33, 1.0, 0.0][rng.randi() % 4],
 		"jambes": 1.0 if rng.randf() < 0.85 else 0.42,
 		"style": 0.0 if rng.randf() < 0.6 else 4.0,
-		"zombie": kind != "survivant",
+		"zombie": not kind in ["survivant", "bandit", "vendeur"],
 		"sang": rng.randf_range(0.4, 1.0),
 		"sale": rng.randf_range(0.3, 0.9),
 		"graine": rng.randf() * 100.0,
@@ -74,6 +164,17 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 			a.sang = 0.0
 			a.sale = 0.25
 			a.barbe = true
+		"bandit":
+			# vivant, vêtements sombres ou de récup', parfois une casquette
+			a.zombie = false
+			a.sang = 0.0
+			a.sale = rng.randf_range(0.4, 0.8)
+			a.haut = [Color(0.12, 0.12, 0.12), Color(0.28, 0.19, 0.12), Color(0.22, 0.26, 0.17), Color(0.32, 0.1, 0.08)][rng.randi() % 4]
+			a.bas = [Color(0.1, 0.1, 0.12), Color(0.16, 0.2, 0.3), Color(0.24, 0.22, 0.16)][rng.randi() % 3]
+			a.chaussures = Color(0.08, 0.07, 0.06)
+			a.manches = 1.0
+			a.jambes = 1.0
+			a.casquette = rng.randf() < 0.5
 		"police":
 			a.style = 1.0
 			a.haut = Color(0.10, 0.14, 0.26)
@@ -124,6 +225,8 @@ static func apparence(kind: String, rng: RandomNumberGenerator = null) -> Dictio
 
 ## Instancie le modèle et applique l'apparence. Renvoie null si les modèles sont absents.
 static func creer(a: Dictionary) -> Node3D:
+	if modulaires():
+		return _creer_modulaire(a)
 	var ps := _scene(a.get("sexe", "homme"))
 	if ps == null:
 		return null

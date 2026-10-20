@@ -1,5 +1,5 @@
 extends CharacterBody3D
-## Joueur : déplacements, vue 1re / 3e personne (1re forcée en intérieur),
+## Joueur : déplacements, vue 1re personne,
 ## se pencher, combat (armes blanches + armes à feu), survie, inventaire,
 ## craft et pose d'objets de base.
 
@@ -19,18 +19,21 @@ const GRAVITY := 14.0
 const MOUSE_SENS := 0.0022
 const EYE_STAND := 1.62
 const EYE_CROUCH := 1.05
-const TPS_DIST := 2.9
-const SHOULDER := 0.75
-const FOV := 75.0
+const FOV := 70.0
+const CAM_DIST := 2.7                  # recul de la caméra 3e personne
+const CAM_DIST_VISEE := 1.6          # recul en visant (zoom sur l'épaule)
+const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
+const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
-const VM_SCALE := 1.45                  # taille des armes 3D en vue 1re personne
-const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main (vue 3e personne)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8)}
+const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
+const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0
 var hunger := 100.0
 var thirst := 100.0
+var argent := 40                  # porte-monnaie (€), dépensé chez les marchands
 var stamina := 100.0
 var alive := true
 var hurt_flash := 0.0
@@ -43,15 +46,11 @@ var hotbar: Array = ["", "", "", "", ""]
 var slot := 0
 
 # --- caméra / mouvement
-var want_tps := false
-var tps_blend := 0.0
-var shoulder_side := 1.0
 var lean := 0.0
 var crouching := false
 var aiming := false
 var sprinting := false
 var step_t := 0.0
-var bob_t := 0.0
 var flashlight_on := false
 var in_zone: Dictionary = {}
 
@@ -59,24 +58,34 @@ var in_zone: Dictionary = {}
 var cooldown := 0.0
 var reload_t := 0.0
 var fire_queued := 0.0
-var swing_t := 0.0
-# --- mêlée : coups propres à chaque arme, parade
-const STYLE_MELEE := {"couteau": "estoc", "hache": "vertical", "masse": "vertical"}
-const DUREE_MELEE := {"estoc": 0.38, "arc": 0.52, "vertical": 0.78}
-const IMPACT_MELEE := {"estoc": 0.36, "arc": 0.45, "vertical": 0.55}
+# --- mêlée : un coup simple vers l'avant (armé, frappe, retour), parade
+const ARME_COUP := 0.3            # progression où l'arme est ramenée en arrière (tenue pendant la charge)
+const IMPACT_COUP := 0.45         # progression où le coup porte
+const LAMES := ["hache", "machette", "couteau_km2000"]
+const CONTONDANTES := ["batte", "batte_cloutee", "matraque"]
+const BALAYAGE := ["batte", "batte_cloutee", "machette"]   # alternent coup vers l'avant et balayage latéral
+var coup_lateral := false         # le coup en cours est un balayage (de droite à gauche)
+var increvable_jour := -1         # jour où le talent Increvable a servi
 var melee_p := 1.0                # progression du coup (0 → 1)
-var melee_style := "arc"
 var melee_degats := 0.0
 var melee_frappe := true          # le coup a déjà porté
 var bloque := false               # parade (clic droit avec une arme de mêlée)
+var secousse := 0.0               # secousse de la caméra à l'impact
+# coup puissant : maintenir le clic garde l'arme armée, relâcher frappe plus fort
+const CHARGE_MIN := 0.2           # durée de maintien (s) au-delà de laquelle le coup est chargé
+const CHARGE_MAX := 1.0           # charge complète
+var charge_actif := false
+var charge_t := 0.0
+var melee_charge := 0.0           # charge du coup en cours (0..1)
+var vitesse_coup := 1.0           # vitesse de l'animation du corps pendant le coup
 var bloque_k := 0.0
-var vm_kick := 0.0
 var muzzle_t := 0.0
 
 # --- interaction / construction
 var prompt := ""
 var interact_target: Node = null
 var placing := ""
+var constructeur: Node            # mode construction (touche B)
 var ghost: MeshInstance3D
 var ghost_mat: StandardMaterial3D
 var ghost_rot := 0.0
@@ -88,49 +97,37 @@ var ghost_pos := Vector3.ZERO
 @onready var collision: CollisionShape3D = $Collision
 var head: Node3D
 var lean_pivot: Node3D
-var spring: SpringArm3D
 var camera: Camera3D
+var bras_camera: SpringArm3D       # porte la caméra 3e personne
+var bras_ik: Node = null           # bras calculés pour tenir l'arme (scripts/bras_ik.gd)
 var flashlight: SpotLight3D
-var viewmodel: Node3D
-var vm_holder: Node3D
 var muzzle_light: OmniLight3D
-var fps_arms: Node3D
-var vm_weapon: Node3D = null
 var reload_total := 1.0
 # --- tenue de l'arme en vue 1re personne
-var sway := Vector2.ZERO          # inertie de l'arme quand on tourne la tête
-var sway_v := Vector2.ZERO
-var rec_pos := Vector3.ZERO       # recul (ressort amorti)
 var rec_vel := Vector3.ZERO
 var rec_rot := Vector3.ZERO
 var rec_rvel := Vector3.ZERO
-var draw_t := 0.0                 # sortie de l'arme (1 → 0)
 var ads := 0.0                    # 0 = à la hanche, 1 = en visée
 var sprint_k := 0.0
 var air_vy := 0.0
-var doigt_tir := 0.0               # index sur la détente (0..1)
 var coup_gauche := false           # alternance des coups de poing
 var reload_vide := false          # rechargement à vide (chargeur éjecté, armement)
 var reload_cart := 3              # cartouches insérées une à une
 var reload_ev: Array = []         # évènements sonores restants
-var ik_main_g: Node = null        # 3e personne : main gauche posée sur l'arme (cinématique inverse)
-var pose_tps: Node = null         # 3e personne : recul du buste et doigts serrés
-var squelette_j: Skeleton3D = null
-var cible_main_g: Node3D
-var pole_main_g: Node3D
-var scope_vp: SubViewport         # image grossie de la lunette
-var scope_cam: Camera3D
-var oculaire_mat: ShaderMaterial
 var hand: Node3D
 var pap: AnimationPlayer = null   # animations du survivant (modèle Blender)
 var accessoires := {}              # arme -> {emplacement: accessoire}
 var prog := Progression.new()
 var dernier_lieu := ""      # niveaux, attributs, compétences, talents
-var hand_weapon: Node3D = null     # modèle de l'arme dans la main (vue 3e personne)
+var hand_weapon: Node3D = null     # arme dans la main du modèle (ombre ; sert aussi à suivre les coups de mêlée)
 var perso_ual := false             # modèle réaliste (animations UAL)
 var p_anim := ""
 var p_lock := 0.0
 var shoot_pose_t := 0.0
+var bloom := 0.0                  # dispersion en plus après des tirs rapprochés (retombe vite)
+var chargeur_main: Node3D = null  # chargeur porté par la main gauche pendant le rechargement
+var pts_bras := {}                 # points de prise de l'arme tenue (FpsArms.hand_points)
+var pieds_ik: Node = null           # pieds posés au sol + coup de talon (scripts/pieds_ik.gd)
 
 
 func _ready() -> void:
@@ -140,13 +137,20 @@ func _ready() -> void:
 	prog.niveau_competence.connect(func(c, n): Game.msg("%s niveau %d : nouveau talent à débloquer — touche K" % [Progression.NOMS[c], n]); Game.play_ui("construire", -2.0, 0.0, 1.5))
 	collision_layer = Game.LAYER_PLAYER
 	collision_mask = Game.LAYER_WORLD | Game.LAYER_ZOMBIE
+	floor_max_angle = deg_to_rad(50.0)   # escaliers construits (pente de 45°)
+	constructeur = preload("res://scripts/constructeur.gd").new()
+	constructeur.player = self
+	add_child(constructeur)
 	collision.shape = collision.shape.duplicate()
 	floor_snap_length = 0.3
 	_build_rig()
 	# équipement de départ
 	equipped.dos = nouvelle_entree("sac_toile")
-	add_item("couteau", 1)
-	add_item("hachette", 1)
+	add_item("couteau_km2000", 1)
+	add_item("batte", 1)
+	add_item("marteau", 1)
+	add_item("planche", 8)
+	add_item("clous", 12)
 	add_item("conserve", 2)
 	add_item("eau", 2)
 	add_item("bandage", 2)
@@ -163,20 +167,22 @@ func _build_rig() -> void:
 	add_child(head)
 	lean_pivot = Node3D.new()
 	head.add_child(lean_pivot)
-	spring = SpringArm3D.new()
-	spring.collision_mask = Game.LAYER_WORLD
-	spring.margin = 0.15
+	# caméra 3e personne : bras à ressort au-dessus de l'épaule droite (se raccourcit contre les murs)
+	bras_camera = SpringArm3D.new()
+	bras_camera.collision_mask = Game.LAYER_WORLD
+	bras_camera.margin = 0.12
 	var sph := SphereShape3D.new()
-	sph.radius = 0.2
-	spring.shape = sph
-	spring.spring_length = 0.0
-	spring.add_excluded_object(get_rid())
-	lean_pivot.add_child(spring)
+	sph.radius = 0.18
+	bras_camera.shape = sph
+	bras_camera.spring_length = CAM_DIST
+	bras_camera.position = CAM_EPAULE
+	bras_camera.add_excluded_object(get_rid())
+	lean_pivot.add_child(bras_camera)
 	camera = Camera3D.new()
 	camera.fov = FOV
 	camera.near = 0.05
 	camera.far = 700.0
-	spring.add_child(camera)
+	bras_camera.add_child(camera)
 	camera.current = true
 	flashlight = SpotLight3D.new()
 	flashlight.spot_range = 32.0
@@ -185,35 +191,13 @@ func _build_rig() -> void:
 	flashlight.light_color = Color(1.0, 0.95, 0.85)
 	flashlight.shadow_enabled = true
 	flashlight.visible = false
-	flashlight.position = Vector3(0.15, -0.1, 0)
-	camera.add_child(flashlight)
-	vm_holder = Node3D.new()
-	vm_holder.position = Vector3(0.24, -0.2, -0.42)
-	vm_holder.scale = Vector3.ONE * 0.6
-	camera.add_child(vm_holder)
-	fps_arms = FpsArms.new()
-	camera.add_child(fps_arms)
-	# lunette : une seconde caméra au champ étroit rend l'image affichée dans l'oculaire
-	scope_vp = SubViewport.new()
-	scope_vp.size = Vector2i(512, 512)
-	scope_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(scope_vp)
-	scope_cam = Camera3D.new()
-	scope_cam.cull_mask = 0xFFFFF & ~2    # sans l'arme ni les bras
-	scope_cam.near = 0.3
-	scope_cam.far = 900.0
-	scope_vp.add_child(scope_cam)
-	scope_cam.current = true
-	oculaire_mat = ShaderMaterial.new()
-	oculaire_mat.shader = preload("res://shaders/lunette.gdshader")
-	oculaire_mat.set_shader_parameter("vue", scope_vp.get_texture())
-	viewmodel = Node3D.new()
-	vm_holder.add_child(viewmodel)
+	flashlight.position = Vector3(0.3, -0.25, -0.35)   # à l'épaule du personnage (pas derrière lui)
+	lean_pivot.add_child(flashlight)
 	muzzle_light = OmniLight3D.new()
 	muzzle_light.omni_range = 7.0
 	muzzle_light.light_color = Color(1.0, 0.8, 0.45)
 	muzzle_light.light_energy = 0.0
-	vm_holder.add_child(muzzle_light)
+	add_child(muzzle_light)   # placée au bout du canon de l'arme tenue (_refresh_weapon_model)
 	hand = Node3D.new()
 	hand.position = Vector3(0.3, 1.15, -0.35)
 	modele.add_child(hand)
@@ -234,30 +218,20 @@ func _build_rig() -> void:
 			ModeleUtil.boucler(pap, ["idle", "marche", "course", "accroupi", "accroupi_marche", "visee"])
 			pap.playback_default_blend_time = 0.15
 		var sk := ModeleUtil.squelette(m)
-		if sk and ClassDB.class_exists("TwoBoneIK3D") and sk.find_bone("upperarm_l") >= 0:
-			cible_main_g = Node3D.new()
-			add_child(cible_main_g)
-			pole_main_g = Node3D.new()
-			add_child(pole_main_g)
-			ik_main_g = ClassDB.instantiate("TwoBoneIK3D")
-			sk.add_child(ik_main_g)
-			ik_main_g.set("setting_count", 1)
-			ik_main_g.call("set_root_bone_name", 0, "upperarm_l")
-			ik_main_g.call("set_middle_bone_name", 0, "lowerarm_l")
-			ik_main_g.call("set_end_bone_name", 0, "hand_l")
-			ik_main_g.call("set_target_node", 0, ik_main_g.get_path_to(cible_main_g))
-			ik_main_g.call("set_pole_node", 0, ik_main_g.get_path_to(pole_main_g))
-			ik_main_g.set("influence", 0.0)
-			# recul et doigts : avant la cinématique inverse (la main gauche reste sur l'arme)
-			pose_tps = preload("res://scripts/pose_tps.gd").new()
-			sk.add_child(pose_tps)
-			sk.move_child(pose_tps, ik_main_g.get_index())
-			squelette_j = sk
 		var prise: Node3D = m.find_child("Prise", true, false)
 		if perso_ual and prise:
 			modele.remove_child(hand)
 			prise.add_child(hand)
 			hand.transform = Transform3D.IDENTITY
+			# pieds posés sur le sol (avant les bras : le bassin peut descendre)
+			pieds_ik = preload("res://scripts/pieds_ik.gd").new()
+			var pieds = pieds_ik
+			pieds.corps = self
+			pieds.masque = Game.LAYER_WORLD
+			sk.add_child(pieds)
+			bras_ik =preload("res://scripts/bras_ik.gd").new()
+			bras_ik.corps = self
+			sk.add_child(bras_ik)
 		elif sk and sk.find_bone("main.R") >= 0:
 			var ba := BoneAttachment3D.new()
 			ba.bone_name = "main.R"
@@ -277,13 +251,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM if aiming else 1.0)
-		if aiming and scope_vp.render_target_update_mode != SubViewport.UPDATE_DISABLED:
-			sens *= 0.3
-		sway_v += Vector2(event.relative.x, event.relative.y) * 0.0012
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
 		return
-	if placing != "":
+	if placing == "construction":
+		if constructeur.entree(event):
+			get_viewport().set_input_as_handled()
+			return
+	if placing != "" and placing != "construction":
 		if event.is_action_pressed("tirer"):
 			_confirm_placement()
 		elif event.is_action_pressed("viser") or event.is_action_pressed("pause"):
@@ -308,10 +283,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_cycle_weapon(1)
 	elif event.is_action_pressed("arme_prec"):
 		_cycle_weapon(-1)
-	elif event.is_action_pressed("vue"):
-		want_tps = not want_tps
-		if want_tps and not in_zone.is_empty():
-			Game.msg("Vue 3e personne indisponible à l'intérieur.")
+	elif event.is_action_pressed("construire"):
+		constructeur.basculer()
 	elif event.is_action_pressed("lampe"):
 		flashlight_on = not flashlight_on
 		flashlight.visible = flashlight_on
@@ -371,7 +344,7 @@ func _update_stats(delta: float) -> void:
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
 	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
-		health = minf(prog.sante_max(), health + 0.25 * delta)
+		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0))
 
 
 func _update_zone() -> void:
@@ -417,6 +390,8 @@ func _move(delta: float, can_act: bool) -> void:
 		if float(sang_armes.get(current_weapon(), 0.0)) > 0.0:
 			sang_armes[current_weapon()] = maxf(0.0, float(sang_armes[current_weapon()]) - delta * 0.25)
 			_appliquer_sang()
+	if _adrenaline():
+		speed *= 1.2
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -433,7 +408,6 @@ func _move(delta: float, can_act: bool) -> void:
 	# bruit des pas
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and hspeed > 0.5:
-		bob_t += delta * hspeed * 1.6
 		step_t -= delta
 		if step_t <= 0.0:
 			step_t = 0.36 if sprinting else (0.7 if crouching else 0.55)
@@ -525,9 +499,6 @@ func _set_crouch(on: bool) -> void:
 
 
 func _update_camera(delta: float) -> void:
-	# 3e personne seulement à l'extérieur
-	var tps_now := want_tps and in_zone.is_empty()
-	tps_blend = move_toward(tps_blend, 1.0 if tps_now else 0.0, delta * 4.0)
 	# se pencher
 	var lean_target := 0.0
 	if not Game.ui_open:
@@ -536,8 +507,6 @@ func _update_camera(delta: float) -> void:
 		if Input.is_action_pressed("pencher_droite"):
 			lean_target += 1.0
 	lean = move_toward(lean, lean_target, delta * 5.0)
-	if absf(lean) > 0.05:
-		shoulder_side = signf(lean)
 	var allowed := 0.55
 	if absf(lean) > 0.01:
 		var from := head.global_position
@@ -554,189 +523,157 @@ func _update_camera(delta: float) -> void:
 		modele.scale.y = move_toward(modele.scale.y, 0.7 if crouching else 1.0, delta * 3.0)
 	else:
 		_update_player_anim(delta)
-	spring.spring_length = TPS_DIST * tps_blend
-	spring.position = Vector3(SHOULDER * shoulder_side * tps_blend, 0.2 * tps_blend, 0)
-	var fps := tps_blend < 0.5
-	_set_model_shadow_only(fps)
-	vm_holder.visible = fps
-	hand.visible = not fps
+	_set_model_shadow_only(false)
+	hand.visible = true
 	var cw := current_weapon()
 	var cwi := Items.info(cw)
 	var is_gun: bool = cwi.get("type", "") == "gun"
-	var optique := str(accessoires.get(cw, {}).get("viseur", "")) if is_gun else ""
 	var vise := aiming and is_gun and reload_t <= 0.0 and placing == ""
 	ads = move_toward(ads, 1.0 if vise else 0.0, delta * (5.5 if vise else 7.0))
 	var k_ads := smoothstep(0.0, 1.0, ads)
 	var fov_vise := FOV_AIM * float(arme_stats(cw).get("fov_visee", 1.0)) if is_gun else FOV_AIM
-	camera.fov = lerpf(FOV, fov_vise, k_ads)
-	# --- lunette : image grossie rendue seulement quand on vise
-	var a_lunette := Accessoires.est_lunette(optique)
-	var lunette := a_lunette and fps and ads > 0.6
-	scope_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if lunette else SubViewport.UPDATE_DISABLED
-	oculaire_mat.set_shader_parameter("actif", 1.0 if lunette else 0.0)
-	if lunette:
-		scope_cam.global_transform = camera.global_transform
-		scope_cam.fov = camera.fov / maxf(float(arme_stats(cw).get("zoom", 4.0)), 1.5)
-	camera.near = 0.012 if (a_lunette and ads > 0.2) else 0.05
-	# --- position de l'arme : hanche, sprint, visée alignée sur le viseur
+	camera.fov = lerpf(FOV, lerpf(FOV, fov_vise, 0.6), k_ads)
+	# --- caméra 3e personne : se rapproche de l'épaule en visant (aussi avec une arme de mêlée en parade)
+	var k_cam := maxf(k_ads, smoothstep(0.0, 1.0, bloque_k) * 0.4)
+	bras_camera.spring_length = lerpf(CAM_DIST, CAM_DIST_VISEE, k_cam) * (0.85 if crouching else 1.0)
+	bras_camera.position = CAM_EPAULE.lerp(CAM_EPAULE_VISEE, k_cam)
 	var hs := Vector2(velocity.x, velocity.z).length()
 	sprint_k = move_toward(sprint_k, 1.0 if (sprinting and hs > 3.0 and is_on_floor() and reload_t <= 0.0) else 0.0, delta * 5.0)
-	var hanche := Vector3(0.24, -0.2, -0.42)
-	var visee := Vector3(0.0, -0.1, -0.32)
-	if is_gun and vm_weapon and is_instance_valid(vm_weapon):
-		var pv := _point_visee(cw, optique)
-		var base_xf := Transform3D(Basis.from_scale(vm_holder.scale)) * vm_weapon.transform
-		visee = Vector3(0, 0, -float(pv.dist)) - base_xf * Vector3(pv.pt)
-	var cible := hanche.lerp(visee, k_ads)
-	# montée à l'épaule : l'arme décrit un petit arc et pivote pendant la transition
-	var arc := sin(k_ads * PI)
-	cible += Vector3(0.035, -0.045, 0.035) * arc
-	cible += Vector3(-0.04, -0.05, 0.05) * sprint_k
-	# balancement de marche (en huit), respiration, inertie
-	var t := Time.get_ticks_msec() / 1000.0
-	var amp := clampf(hs / WALK, 0.0, 1.7) * (1.0 - 0.85 * k_ads) if is_on_floor() else 0.0
-	var bob := Vector3(sin(bob_t) * 0.014, -absf(cos(bob_t)) * 0.012, 0.0) * amp
-	var souffle := Vector3(sin(t * 1.3) * 0.0016, sin(t * 2.6) * 0.0022, 0.0) * (1.0 - 0.55 * k_ads)
-	sway_v = sway_v.lerp(Vector2.ZERO, minf(1.0, delta * 12.0))
-	var sway_cible := sway_v.clamp(Vector2(-0.12, -0.12), Vector2(0.12, 0.12))
-	sway = sway.lerp(sway_cible, minf(1.0, delta * 9.0))
-	var k_sway := 1.0 - 0.8 * k_ads
-	# atterrissage
+	# atterrissage : petite secousse
 	if is_on_floor() and air_vy < -3.0:
-		rec_vel += Vector3(0, clampf(air_vy * 0.06, -0.9, 0.0), 0)
 		rec_rvel += Vector3(clampf(air_vy * 0.25, -3.0, 0.0), 0, 0)
 	air_vy = velocity.y if not is_on_floor() else 0.0
-	# ressorts du recul (petits pas de temps : stable même à faible nombre d'images par seconde)
-	var raideur := 170.0
-	var amort := 17.0
+	# ressort du recul (petits pas de temps : stable même à faible nombre d'images par seconde)
 	var reste := minf(delta, 0.25)
 	while reste > 0.0:
 		var dt := minf(reste, 1.0 / 240.0)
 		reste -= dt
-		rec_vel += (-rec_pos * raideur - rec_vel * amort) * dt
-		rec_pos += rec_vel * dt
-		rec_rvel += (-rec_rot * raideur - rec_rvel * amort) * dt
+		rec_rvel += (-rec_rot * 170.0 - rec_rvel * 17.0) * dt
 		rec_rot += rec_rvel * dt
-	# sortie de l'arme
-	draw_t = move_toward(draw_t, 0.0, delta * 2.6)
-	var sortie := smoothstep(0.0, 1.0, draw_t)
-	vm_holder.position = vm_holder.position.lerp(cible, minf(1.0, delta * 16.0)) if ads < 0.999 else cible
-	swing_t = move_toward(swing_t, 0.0, delta * 3.5)
+	# léger recul de la caméra à chaque tir
+	camera.rotation = Vector3(rec_rot.x * 0.25, 0.0, 0.0)
 	_maj_melee(delta)
 	_maj_achevement(delta)
-	var pm := _pose_melee()
-	var pa := _pose_achevement()
 	lancer_t = maxf(0.0, lancer_t - delta)
-	var pl := _pose_lancer()
-	pm[0] = Vector3(pm[0]) + Vector3(pa[0]) + Vector3(pl[0])
-	pm[1] = Vector3(pm[1]) + Vector3(pa[1]) + Vector3(pl[1])
-	if vm_weapon and is_instance_valid(vm_weapon) and cwi.get("type", "") == "lancer":
-		vm_weapon.visible = not (lancer_t > 0.0 and lancer_t < LANCER_DUREE * 0.45)
-	var rot: Vector3 = pm[0]
-	# parade : l'arme se met en travers devant soi
+	goupille_t = maxf(0.0, goupille_t - delta)
+	if hand_weapon and is_instance_valid(hand_weapon) and cwi.get("type", "") == "lancer":
+		hand_weapon.visible = not (lancer_t > 0.0 and lancer_t < LANCER_DUREE * 0.45)
+	# parade (clic droit avec une arme de mêlée)
 	var est_melee: bool = cwi.get("type", "") == "melee" or cw == "poings"
 	bloque = est_melee and aiming and melee_p >= 1.0 and placing == ""
 	bloque_k = move_toward(bloque_k, 1.0 if bloque else 0.0, delta * 8.0)
-	var kb := smoothstep(0.0, 1.0, bloque_k)
-	rot += Vector3(0.25, -0.35, 1.25) * kb
-	rot += Vector3(sway.y * 0.9, sway.x * 0.9, -sway.x * 0.7) * k_sway
-	rot += Vector3(0.0, 0.0, sin(bob_t) * 0.02 * amp)
-	rot += rec_rot
-	rot += Vector3(-0.28, 0.55, 0.2) * sprint_k * (1.0 if is_gun else 0.3)
-	rot += Vector3(-1.0, 0.25, 0.3) * sortie
-	rot += Vector3(0.09, -0.16, 0.32) * arc
-	var pos := bob + souffle + rec_pos + Vector3(-sway.x * 0.02, sway.y * 0.015, 0.0) * k_sway + Vector3(pm[1])
-	pos += Vector3(-0.16, 0.1, 0.02) * kb
-	# réarmement manuel après le tir (culasse à verrou, levier de sous-garde)
+	# réarmement manuel après le tir (culasse à verrou, levier) : éjection de la douille à mi-course
 	if pompe_t > 0.0:
 		pompe_t = maxf(0.0, pompe_t - delta)
-		var pc := 1.0 - pompe_t / CYCLE_DUREE
-		var kp := sin(pc * PI)
-		if cwi.get("levier", false):
-			# levier : l'arme bascule légèrement pendant que la main droite actionne le levier
-			pos += Vector3(0.0, -0.025, 0.03) * kp
-			rot += Vector3(-0.12, 0.0, 0.08) * kp
-		else:
-			pos += Vector3(-0.01, -0.01, 0.02) * kp
-			rot += Vector3(0.05, 0.06, 0.12) * kp
-		if not cycle_ejecte and pc > 0.5:
+		if not cycle_ejecte and 1.0 - pompe_t / CYCLE_DUREE > 0.5:
 			cycle_ejecte = true
 			_ejecter(cw, false)
-		fps_arms.pompe = pc
-	else:
-		fps_arms.pompe = 0.0
-	pos += Vector3(0.0, -0.18, 0.06) * sortie
-	vm_kick = move_toward(vm_kick, 0.0, delta * 6.0)
-	# rechargement + bras en vue 1re personne
-	var p_rel := -1.0
+	# rechargement : sons au bon moment
 	if reload_t > 0.0 and reload_total > 0.0:
-		p_rel = 1.0 - reload_t / reload_total
-		_reload_evenements(p_rel)
-	if p_rel >= 0.0 and vm_weapon:
-		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, FpsArms.hand_points(cw, cwi, fps_arms.geo), reload_vide, reload_cart)
-		rot += pose.rot
-		pos += pose.off
-		_chargeur_visible(pose.get("mag_arme", true))
-	else:
-		_chargeur_visible(true)
-	viewmodel.rotation = rot
-	viewmodel.position = pos
-	fps_arms.visible = fps
-	_maj_main_gauche_tps(delta, cw, cwi, is_gun)
-	_update_lampes(fps)
-	_maj_laser(fps, cw)
-	if fps:
-		var wxf = null
-		if vm_weapon and is_instance_valid(vm_weapon):
-			wxf = camera.global_transform.affine_inverse() * vm_weapon.global_transform
-		var appuie := is_gun and not Game.ui_open and Input.is_action_pressed("tirer") and reload_t <= 0.0
-		doigt_tir = move_toward(doigt_tir, 1.0 if appuie else 0.0, delta * 9.0)
-		fps_arms.update(cw, cwi, wxf, p_rel, swing_t, reload_vide, reload_cart, doigt_tir, coup_gauche)
-	if pap == null:
-		hand.rotation.x = -sin(swing_t * PI) * 1.4
+		_reload_evenements(1.0 - reload_t / reload_total)
+	_update_lampes()
+	_maj_laser(cw)
+	_maj_bras(delta, cw, cwi, is_gun, k_ads)
+	bloom = move_toward(bloom, 0.0, delta * 2.2)
 	muzzle_t = maxf(0.0, muzzle_t - delta)
 	muzzle_light.light_energy = 6.0 if muzzle_t > 0.0 else 0.0
+	# secousse de la caméra à l'impact
+	secousse = move_toward(secousse, 0.0, delta * 4.0)
+	camera.rotation += Vector3(randf_range(-1.0, 1.0) * 0.02, randf_range(-1.0, 1.0) * 0.02, randf_range(-1.0, 1.0) * 0.012) * secousse * secousse
 
 
-## 3e personne : la main gauche du personnage vient tenir le garde-main (ou soutenir la poignée du pistolet).
-func _maj_main_gauche_tps(delta: float, cw: String, cwi: Dictionary, is_gun: bool) -> void:
-	if ik_main_g == null:
+## Bras du personnage : arme à feu au torse, en joue vers le réticule ou en rechargement
+## (main gauche au chargeur, à la poche, à la culasse) ; arme de mêlée à deux mains : main gauche sur le manche.
+## Désactivé pendant les coups à mains nues, le lancer et les animations verrouillées.
+func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: float) -> void:
+	if bras_ik == null:
 		return
-	if pose_tps:
-		var tient := cw != "poings" and hand_weapon != null and is_instance_valid(hand_weapon) and reload_t <= 0.0
-		pose_tps.serre_d = move_toward(pose_tps.serre_d, 1.0 if tient else 0.0, delta * 6.0)
-		pose_tps.serre_g = clampf(float(ik_main_g.get("influence")), 0.0, 1.0)
-		pose_tps.recul = move_toward(pose_tps.recul, 0.0, delta * 7.0)
-		if squelette_j:
-			pose_tps.droite = (squelette_j.global_basis.orthonormalized().inverse() * global_basis.x).normalized()
-	var actif := is_gun and hand_weapon != null and is_instance_valid(hand_weapon) and reload_t <= 0.0 and Vector2(velocity.x, velocity.z).length() < 5.0
-	var inf: float = ik_main_g.get("influence")
-	inf = move_toward(inf, 1.0 if actif else 0.0, delta * 5.0)
-	ik_main_g.set("influence", inf)
-	ik_main_g.set("active", inf > 0.001)
-	if not actif:
+	var arme_ok := alive and hand_weapon != null and is_instance_valid(hand_weapon)
+	var deux_mains: bool = cwi.get("type", "") == "melee" and cw in FpsArms.TWO_HANDED_MELEE
+	# à deux mains seulement pendant le coup, la charge et la parade (au repos : arme portée d'une main)
+	# lancer : bras gauche tendu vers la cible pendant l'élan (jusqu'au lâcher)
+	var bras_tendu: bool = cwi.get("type", "") == "lancer" and lancer_t > LANCER_DUREE - 0.4
+	if achevement_t <= 0.0 and bras_ik.poids <= 0.0:
+		bras_ik.achevement = -1.0
+	var rapide: bool = deux_mains or goupille_t > 0.0 or bras_tendu or bras_ik.achevement >= 0.0
+	var actif: bool = arme_ok and ((is_gun and p_lock <= 0.0) or (deux_mains and (melee_p < 1.0 or charge_actif or bloque)) or goupille_t > 0.0 or bras_tendu or (achevement_t > 0.0 and bras_ik.achevement >= 0.0))
+	bras_ik.main_g_tendue = cwi.get("type", "") == "lancer" and goupille_t <= 0.0   # (garde ce mode pendant le retour)
+	bras_ik.poids = move_toward(bras_ik.poids, 1.0 if actif else 0.0, delta * (12.0 if rapide else 6.0))
+	if bras_ik.arme != hand_weapon:
+		bras_ik.arme = hand_weapon
+		pts_bras = FpsArms.hand_points(cw, cwi, _geo_prise(cw, hand_weapon)) if arme_ok else {"L": null}
+		bras_ik.point_main_g = pts_bras.L
+		bras_ik.pistolet = float(cwi.get("len", 0.3)) < 0.4
+		bras_ik.main_g_seule = deux_mains
+		_preparer_chargeur_main()
+	if not actif and bras_ik.poids <= 0.0:
+		bras_ik.recharge = false
 		return
-	var pts := FpsArms.hand_points(cw, cwi, _geo_prise(cw, hand_weapon))
-	var b := hand_weapon.global_basis.orthonormalized()
-	var sc := hand_weapon.global_basis.get_scale().x
-	var lp: Vector3 = pts.L if pts.L != null else pts.R
-	# le poignet se trouve sous et en arrière du point de prise
-	cible_main_g.global_position = hand_weapon.global_transform * lp + (b * Vector3(-0.035, -0.06, 0.05)) * sc
-	pole_main_g.global_position = global_position + global_basis * Vector3(-0.9, 0.6, 0.3)
+	# grenade : tenue devant la poitrine, la main gauche vient arracher la goupille avant le lancer
+	if goupille_t > 0.0:
+		var kg := smoothstep(0.45, 1.0, 1.0 - goupille_t / GOUPILLE_DUREE)
+		bras_ik.recharge = true
+		bras_ik.recharge_rot = Vector3.ZERO
+		bras_ik.recharge_off = Vector3(-0.05, 0.16, -0.05)
+		bras_ik.point_l_recharge = Vector3(0.0, 0.05, 0.0) + Vector3(-0.16, 0.04, 0.03) * kg
+		bras_ik.visee = 0.0
+		bras_ik.sprint = 0.0
+		bras_ik.cible_visee = _aim_point(80.0)
+		return
+	# rechargement : pose de l'ancienne vue 1re personne, appliquée à l'arme tenue en 3e personne
+	var p_rel := 1.0 - reload_t / reload_total if is_gun and reload_t > 0.0 and reload_total > 0.0 else -1.0
+	bras_ik.recharge = p_rel >= 0.0
+	var mag_arme := true
+	var mag_main := false
+	if bras_ik.recharge:
+		var pose: Dictionary = FpsArms.reload_pose(cw, cwi, p_rel, pts_bras, reload_vide, reload_cart)
+		bras_ik.recharge_rot = pose.rot
+		bras_ik.recharge_off = pose.off
+		bras_ik.point_l_recharge = pose.L
+		mag_arme = pose.get("mag_arme", true)
+		mag_main = pose.get("mag", false)
+	var ch: Node3D = hand_weapon.get_node_or_null("Chargeur") if arme_ok else null
+	if ch:
+		if ch.visible != mag_arme:
+			ch.visible = mag_arme
+	if chargeur_main and is_instance_valid(chargeur_main):
+		chargeur_main.visible = mag_main
+		if mag_main and arme_ok:
+			var poing: Node3D = chargeur_main.get_parent().get_node_or_null("Poing")
+			chargeur_main.global_basis = hand_weapon.global_basis * (ch.basis if ch else Basis.IDENTITY)
+			if poing:
+				chargeur_main.global_position = poing.global_position - hand_weapon.global_basis.y.normalized() * 0.03
+	# en joue en visant, et aussi un instant après chaque tir
+	var en_joue := 0.0 if bras_ik.recharge else maxf(k_ads, clampf(shoot_pose_t / 0.4, 0.0, 1.0))
+	bras_ik.visee = move_toward(bras_ik.visee, en_joue, delta * 8.0)
+	bras_ik.sprint = 0.0 if bras_ik.recharge else smoothstep(0.0, 1.0, sprint_k)
+	bras_ik.cible_visee = _aim_point(80.0)
 
 
-## Point de visée sur le modèle de l'arme (repère du modèle) et distance à l'œil.
-## Point rouge / holographique : centre du verre ; lunette : oculaire ; sinon : hausse (ou dessus de la carcasse).
-func _point_visee(id: String, optique: String) -> Dictionary:
-	var pts := Accessoires.points(id, vm_weapon)
-	var longue: bool = float(Items.info(id).get("len", 0.3)) >= 0.4
-	if optique != "":
-		var d := Accessoires.infos(optique)
-		var v: Vector3 = pts.get("viseur", Vector3(0, 0.05, 0))
-		if Accessoires.est_lunette(optique):
-			return {"pt": v + Vector3(d.get("visee", Vector3.ZERO)), "dist": 0.042}
-		return {"pt": v + Vector3(d.get("visee", Vector3.ZERO)), "dist": 0.17 if longue else 0.24}
-	return {"pt": pts.get("hausse", Vector3(0, 0.05, 0)), "dist": 0.2 if longue else 0.3}
+## Copie du chargeur de l'arme tenue, portée par la main gauche pendant le rechargement.
+func _preparer_chargeur_main() -> void:
+	if chargeur_main and is_instance_valid(chargeur_main):
+		chargeur_main.queue_free()
+	chargeur_main = null
+	if hand_weapon == null or not is_instance_valid(hand_weapon) or bras_ik == null:
+		return
+	var ch: Node3D = hand_weapon.get_node_or_null("Chargeur")
+	var main_g: Node = bras_ik.get_skeleton().get_node_or_null("MainSimple_l") if bras_ik.get_skeleton() else null
+	if ch == null or main_g == null:
+		return
+	chargeur_main = ch.duplicate() as Node3D
+	chargeur_main.visible = false
+	main_g.add_child(chargeur_main)
+	# centré sur son milieu (le poing le tient par le corps)
+	var a := AABB()
+	var premier := true
+	for mi in chargeur_main.find_children("*", "MeshInstance3D", true, false):
+		var b2: AABB = (mi as MeshInstance3D).transform * (mi as MeshInstance3D).get_aabb()
+		a = b2 if premier else a.merge(b2)
+		premier = false
+	for e in chargeur_main.get_children():
+		if e is Node3D:
+			(e as Node3D).position -= a.get_center()
 
 
 ## Zombie à terre ou rampant juste devant soi (même si le regard passe au-dessus).
@@ -754,9 +691,11 @@ func _chercher_a_achever() -> void:
 			return
 
 
-## Coup de grâce : couteau (ou arme de mêlée, poing) planté vers le bas, ou balle à bout portant.
+## Coup de grâce : coup de talon sur la tête (pieds_ik), ou balle à bout portant avec une arme à feu chargée.
 var achevement_t := 0.0
 var achevement_cible: Node = null
+var achev_mode := ""                # "talon", "deux_mains", "lame" (geste du coup de grâce)
+var achev_point := Vector3.ZERO     # tête visée
 
 
 func achever(z: Node) -> void:
@@ -778,10 +717,33 @@ func achever(z: Node) -> void:
 	achevement_t = 0.75
 	achevement_cible = z
 	cooldown = 0.8
-	if id == "poings":
-		swing_t = 1.0
 	melee_p = 1.0
-	if perso_ual:
+	# point frappé : la tête si elle est à portée, sinon la poitrine (zombie tombé la tête loin de soi)
+	achev_point = z.global_position + Vector3.UP * 0.15
+	var meilleur := 9999.0
+	for os_nom in ["Head", "spine_03", "spine_02"]:
+		var pt: Vector3 = z._pos_os(os_nom)
+		if pt == Vector3.INF:
+			continue
+		var d := Vector2(pt.x - global_position.x, pt.z - global_position.z).length() + (0.0 if os_nom == "Head" else 0.6)
+		if d < meilleur:
+			meilleur = d
+			achev_point = pt
+	# mains nues : coup de talon (pieds_ik) ; arme à deux mains : levée puis abattue, debout ;
+	# lame ou matraque : accroupi, plantée vers le bas (bras calculés par bras_ik)
+	achev_mode = ""
+	if id == "poings" and pieds_ik:
+		achev_mode = "talon"
+		pieds_ik.cible_pied = achev_point
+		pieds_ik.coup_pied = 0.0
+		_p_anim("idle", 1.0, 0.75)
+	elif bras_ik and hand_weapon and is_instance_valid(hand_weapon):
+		achev_mode = "deux_mains" if id in FpsArms.TWO_HANDED_MELEE else "lame"
+		bras_ik.cible_achev = achev_point
+		bras_ik.longueur_arme = float(Items.info(id).get("len", 0.5))
+		bras_ik.achevement = 0.0
+		_p_anim("idle" if achev_mode == "deux_mains" else "accroupi", 1.0, 0.75)
+	elif perso_ual:
 		_p_anim("estoc", 1.4, 0.75)
 	Game.play_ui("vent_lourd", -6.0, 0.1)
 
@@ -791,6 +753,18 @@ func _maj_achevement(delta: float) -> void:
 		return
 	var avant := achevement_t
 	achevement_t = maxf(0.0, achevement_t - delta)
+	var p_achev := 1.0 - achevement_t / 0.75 if achevement_t > 0.0 else -1.0
+	if pieds_ik:
+		pieds_ik.coup_pied = p_achev if achev_mode == "talon" else -1.0
+	if bras_ik:
+		if achev_mode in ["deux_mains", "lame"]:
+			bras_ik.achevement = p_achev if p_achev >= 0.0 else 1.0   # pose finale gardée le temps du retour
+	# petit pas vers la tête pour qu'elle soit à bonne distance (talon, lame, ou bout d'une arme longue)
+	if achev_mode != "" and achevement_t > 0.4 and is_instance_valid(achevement_cible):
+		var vers := Vector3(achev_point.x - global_position.x, 0.0, achev_point.z - global_position.z)
+		var reste: float = vers.length() - {"talon": 0.5, "lame": 0.55, "deux_mains": 0.9}[achev_mode]
+		if reste > 0.02:
+			move_and_collide(vers.normalized() * minf(reste, delta * 2.5))
 	if avant > 0.3 and achevement_t <= 0.3 and is_instance_valid(achevement_cible) and achevement_cible.state != achevement_cible.State.DEAD:
 		var z = achevement_cible
 		var t: Vector3 = z._pos_os("Head")
@@ -803,15 +777,6 @@ func _maj_achevement(delta: float) -> void:
 		prog.gagner("combat", 10)
 		if current_weapon() != "poings" and Items.info(current_weapon()).get("type", "") == "melee":
 			_salir_arme(current_weapon(), 0.3)
-
-
-## Pose du coup de grâce en vue 1re personne : l'arme se lève puis plonge vers le bas.
-func _pose_achevement() -> Array:
-	if achevement_t <= 0.0:
-		return [Vector3.ZERO, Vector3.ZERO]
-	var p := 1.0 - achevement_t / 0.75
-	return [FpsArms._cles([[0.0, Vector3.ZERO], [0.4, Vector3(1.1, 0.0, 0.3)], [0.6, Vector3(-1.3, 0.0, 0.2)], [0.8, Vector3(-1.25, 0.0, 0.2)], [1.0, Vector3.ZERO]], p),
-		FpsArms._cles([[0.0, Vector3.ZERO], [0.4, Vector3(-0.08, 0.18, 0.1)], [0.6, Vector3(-0.1, -0.2, -0.18)], [0.8, Vector3(-0.1, -0.22, -0.16)], [1.0, Vector3.ZERO]], p)]
 
 
 ## Sang sur les armes de mêlée : s'accumule à chaque coup, part dans l'eau.
@@ -834,7 +799,7 @@ func _appliquer_sang() -> void:
 		mat_sang.uv1_scale = Vector3(6, 6, 6)
 		mat_sang.roughness = 0.3
 	mat_sang.albedo_color = Color(0.55, 0.05, 0.04, clampf(niveau * 1.1, 0.0, 0.95))
-	for modele in [vm_weapon, hand_weapon]:
+	for modele in [hand_weapon]:
 		if modele == null or not is_instance_valid(modele):
 			continue
 		for g in modele.find_children("*", "MeshInstance3D", true, false):
@@ -851,8 +816,7 @@ var cycle_ejecte := true
 
 
 func _effets_tir(id: String, w: Dictionary) -> void:
-	var fps := tps_blend < 0.5
-	var modele: Node3D = vm_weapon if fps else hand_weapon
+	var modele: Node3D = hand_weapon
 	if modele == null or not is_instance_valid(modele):
 		return
 	var pts := Accessoires.points(id, modele)
@@ -868,7 +832,7 @@ func _effets_tir(id: String, w: Dictionary) -> void:
 	elif info.get("famille", "") in ["sniper", "mitrailleuse"]:
 		taille = 0.32
 	if not silencieux:
-		Effets.flamme(modele, bouche, taille, 2 if fps else 1)
+		Effets.flamme(modele, bouche, taille, 1)
 		Effets.eclair(get_parent(), modele.global_transform * bouche, Game.is_night() or not in_zone.is_empty())
 	var g_bouche: Vector3 = modele.global_transform * bouche
 	var avant := -modele.global_basis.z.normalized()
@@ -885,8 +849,7 @@ func _effets_tir(id: String, w: Dictionary) -> void:
 
 
 func _ejecter(id: String, cartouche: bool) -> void:
-	var fps := tps_blend < 0.5
-	var modele: Node3D = vm_weapon if fps else hand_weapon
+	var modele: Node3D = hand_weapon
 	if modele == null or not is_instance_valid(modele):
 		return
 	var pts := Accessoires.points(id, modele)
@@ -929,10 +892,10 @@ func _reload_evenements(p: float) -> void:
 
 ## Le chargeur vide tombe au sol (objet physique qui disparaît après un moment).
 func _lacher_chargeur() -> void:
-	if vm_weapon == null or not is_instance_valid(vm_weapon):
+	if hand_weapon == null or not is_instance_valid(hand_weapon):
 		return
-	var pts := FpsArms.hand_points(current_weapon(), Items.info(current_weapon()), fps_arms.geo)
-	var depart: Vector3 = vm_weapon.global_transform * Vector3(pts.get("well", Vector3(0, -0.08, -0.04)))
+	var pts := FpsArms.hand_points(current_weapon(), Items.info(current_weapon()), _geo_prise(current_weapon(), hand_weapon))
+	var depart: Vector3 = hand_weapon.global_transform * Vector3(pts.get("well", Vector3(0, -0.08, -0.04)))
 	var rb := RigidBody3D.new()
 	rb.collision_layer = 0
 	rb.collision_mask = Game.LAYER_WORLD
@@ -965,7 +928,7 @@ func _lacher_chargeur() -> void:
 		source.queue_free()
 	get_parent().add_child(rb)
 	rb.global_position = depart
-	rb.global_basis = vm_weapon.global_basis.orthonormalized()
+	rb.global_basis = hand_weapon.global_basis.orthonormalized()
 	rb.linear_velocity = velocity * 0.8 + Vector3(0, -1.0, 0)
 	rb.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4))
 	get_tree().create_timer(25.0).timeout.connect(rb.queue_free)
@@ -976,9 +939,9 @@ func _lacher_chargeur() -> void:
 var point_laser: MeshInstance3D = null
 
 
-func _maj_laser(fps: bool, cw: String) -> void:
+func _maj_laser(cw: String) -> void:
 	var actif: bool = arme_stats(cw).get("laser", false) and reload_t <= 0.0 and alive
-	var modele: Node3D = vm_weapon if fps else hand_weapon
+	var modele: Node3D = hand_weapon
 	var em: Node3D = null
 	if actif and modele and is_instance_valid(modele):
 		em = modele.find_child("Emetteur", true, false)
@@ -1002,7 +965,7 @@ func _maj_laser(fps: bool, cw: String) -> void:
 		point_laser.top_level = true
 		add_child(point_laser)
 	# depuis la vue 1re personne, le laser part de l'œil dans l'axe du canon (l'arme est réduite à l'écran)
-	var from: Vector3 = em.global_position if not fps else camera.global_position
+	var from: Vector3 = em.global_position
 	var dir: Vector3 = -modele.global_basis.z.normalized()
 	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 80.0, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
@@ -1014,14 +977,14 @@ func _maj_laser(fps: bool, cw: String) -> void:
 
 
 ## Lampe : celle montée sur l'arme si elle en a une, sinon la lampe torche.
-func _update_lampes(fps: bool) -> void:
+func _update_lampes() -> void:
 	var sur_arme: bool = arme_stats(current_weapon()).get("lampe", false)
 	flashlight.visible = flashlight_on and not sur_arme
-	for m in [vm_weapon, hand_weapon]:
+	for m in [hand_weapon]:
 		if m and is_instance_valid(m):
 			var l: Node3D = m.find_child("Lumiere", true, false)
 			if l:
-				l.visible = flashlight_on and sur_arme and ((m == vm_weapon) == fps)
+				l.visible = flashlight_on and sur_arme and m == hand_weapon
 
 
 ## Statistiques de l'arme avec ses accessoires.
@@ -1142,7 +1105,7 @@ func _update_combat(delta: float, can_act: bool) -> void:
 	var id := current_weapon()
 	var w := arme_stats(id)
 	var held := Input.is_action_pressed("tirer")
-	var wants: bool = fire_queued > 0.0 or (held and (w.get("auto", false) or w.type == "melee"))
+	var wants: bool = fire_queued > 0.0 or (held and w.get("auto", false))
 	if not wants:
 		return
 	fire_queued = 0.0
@@ -1154,10 +1117,22 @@ func _update_combat(delta: float, can_act: bool) -> void:
 		_melee(w)
 
 
+## Distance entre la caméra (derrière l'épaule) et la tête : ajoutée aux portées des rayons de visée.
+func recul_camera() -> float:
+	return camera.global_position.distance_to(head.global_position)
+
+
+## Dispersion du tir (degrés) : visée / hanche, déplacement, accroupi, tirs rapprochés (bloom).
+func dispersion(w: Dictionary) -> float:
+	var moving := Vector2(velocity.x, velocity.z).length() > 1.0
+	return float(w.get("spread", 0.0)) * (float(w.get("dispersion_visee", 0.45)) if aiming else float(w.get("dispersion_hanche", 1.0))) \
+		* (1.6 if moving else 1.0) * (0.8 if crouching else 1.0) * (1.0 + bloom)
+
+
 func _aim_point(max_range: float) -> Vector3:
 	var from := camera.global_position
 	var fwd := -camera.global_basis.z
-	var to := from + fwd * (max_range + spring.spring_length + 0.5)
+	var to := from + fwd * (max_range + 0.5 + recul_camera())
 	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
@@ -1176,15 +1151,11 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 		return
 	if not (Game.admin and Game.admin_munitions):
 		mags[id] = int(mags[id]) - 1
-	if pose_tps:
-		pose_tps.recul = clampf(float(w.recoil) * 25.0, 0.5, 1.0)
-	doigt_tir = 1.0
 	cooldown = w.rate
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
-	var moving := Vector2(velocity.x, velocity.z).length() > 1.0
-	var spread_deg: float = w.spread * (float(w.get("dispersion_visee", 0.45)) if aiming else float(w.get("dispersion_hanche", 1.0))) * (1.6 if moving else 1.0) * (0.8 if crouching else 1.0)
-	var spread := deg_to_rad(spread_deg)
+	var spread := deg_to_rad(dispersion(w))
+	bloom = minf(bloom + 0.3, 1.2)
 	var right := camera.global_basis.x.normalized()
 	var up := camera.global_basis.y.normalized()
 	var touche := false
@@ -1197,7 +1168,6 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 		prog.gagner("combat", 2)   # XP de combat aussi avec les armes à feu
 	head.rotation.x = clampf(head.rotation.x + float(w.recoil), -1.45, 1.45)
 	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * 0.3)
-	vm_kick = 1.0
 	# recul visible de l'arme (moins fort en visée, l'épaule encaisse)
 	var force := clampf(float(w.recoil) * 14.0, 0.35, 1.6) * (0.55 if aiming else 1.0)
 	rec_vel += Vector3(randf_range(-0.12, 0.12), 0.18, 1.5) * force
@@ -1216,14 +1186,25 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 ## Grenade : on la dégoupille, le bras part en arrière puis la lance.
 var lancer_t := 0.0
 const LANCER_DUREE := 0.55
+const GOUPILLE_DUREE := 0.35        # main gauche qui arrache la goupille avant le lancer
+var goupille_t := 0.0
 
 
 func _lancer(id: String, _w: Dictionary) -> void:
 	if count(id) <= 0:
 		return
-	cooldown = 1.0
+	cooldown = 1.0 + GOUPILLE_DUREE
+	# 1) goupille arrachée de la main gauche, 2) lancer
+	goupille_t = GOUPILLE_DUREE
+	get_tree().create_timer(GOUPILLE_DUREE * 0.6).timeout.connect(func(): Game.play_ui("goupille", -4.0, 0.05))
+	get_tree().create_timer(GOUPILLE_DUREE).timeout.connect(_jeter_grenade.bind(id))
+
+
+func _jeter_grenade(id: String) -> void:
+	goupille_t = 0.0
+	if not alive or current_weapon() != id:
+		return
 	lancer_t = LANCER_DUREE
-	Game.play_ui("goupille", -4.0, 0.05)
 	if perso_ual:
 		_p_anim("frappe2", 1.3, 0.6)
 	get_tree().create_timer(0.3).timeout.connect(_relacher_grenade.bind(id))
@@ -1237,22 +1218,13 @@ func _relacher_grenade(id: String) -> void:
 	g.preparer(id)
 	get_parent().add_child(g)
 	var dir := -camera.global_basis.z
-	g.global_position = camera.global_position + dir * 0.45 + camera.global_basis.x * 0.12 - camera.global_basis.y * 0.05
+	g.global_position = head.global_position + dir * 0.6 + global_basis.x * 0.3
 	g.linear_velocity = dir * (15.0 if not crouching else 10.0) + Vector3.UP * 2.5 + velocity
 	g.angular_velocity = Vector3(randf_range(-8, 8), randf_range(-8, 8), randf_range(-8, 8))
 	Game.play_ui("vent_leger", -8.0, 0.1)
 	Game.make_noise(global_position, 5.0)
 	if count(id) <= 0:
 		_refresh_weapon_model()
-
-
-## Pose du bras pendant le lancer : [rotation, position] (élan en arrière, puis le bras part vers l'avant).
-func _pose_lancer() -> Array:
-	if lancer_t <= 0.0:
-		return [Vector3.ZERO, Vector3.ZERO]
-	var p := 1.0 - lancer_t / LANCER_DUREE
-	return [FpsArms._cles([[0.0, Vector3.ZERO], [0.45, Vector3(-0.9, 0.2, 0.3)], [0.65, Vector3(0.7, -0.1, -0.2)], [1.0, Vector3.ZERO]], p),
-		FpsArms._cles([[0.0, Vector3.ZERO], [0.45, Vector3(0.05, 0.18, 0.2)], [0.65, Vector3(-0.08, 0.05, -0.35)], [0.8, Vector3(-0.05, -0.15, -0.2)], [1.0, Vector3.ZERO]], p)]
 
 
 func _melee(w: Dictionary) -> void:
@@ -1266,45 +1238,114 @@ func _melee(w: Dictionary) -> void:
 	var id := current_weapon()
 	if id == "poings":
 		cooldown = w.rate
-		swing_t = 1.0
 		coup_gauche = not coup_gauche
-		if perso_ual:
-			_p_anim("coup_poing2" if coup_gauche else "coup_poing", 1.5, 0.4)
+		_anim_corps("coup_poing" if coup_gauche else "coup_poing2", 0.27, 0.12, 0.45)
 		Game.play_ui("vent_leger", -10.0, 0.15)
 		_porter_coup(w, dmg)
 		return
-	# armes de mêlée : élan, frappe (dégâts au moment de l'impact), retour
-	melee_style = STYLE_MELEE.get(id, "arc")
-	var duree: float = DUREE_MELEE[melee_style] * (1.15 if float(w.get("weight", 1.0)) > 2.5 else 1.0)
+	if id in LAMES and prog.a("lame_aiguisee"):
+		dmg *= 1.2
+	if _adrenaline():
+		dmg *= 1.2
+	# coup vers l'avant : léger recul de l'arme, frappe (dégâts à l'impact), retour ;
+	# batte et machette alternent avec un balayage latéral
+	coup_lateral = id in BALAYAGE and not coup_lateral
+	var duree := _duree_coup(w)
 	cooldown = maxf(float(w.rate), duree)
 	melee_p = 0.0
 	melee_frappe = false
 	melee_degats = dmg
-	if perso_ual:
-		match melee_style:
-			"estoc":
-				_p_anim("estoc", 1.6, duree)
-			"vertical":
-				_p_anim("hache", 1.5, duree)
-			_:
-				_p_anim("frappe2" if randf() < 0.5 else "frappe3", 1.5, duree)
+	charge_actif = Input.is_action_pressed("tirer")
+	charge_t = 0.0
+	melee_charge = 0.0
+	# corps du personnage : coup de hache (armes lourdes), sinon frappes d'épée en alternance
+	if float(w.get("weight", 1.0)) >= 1.5:
+		_anim_corps("hache", 0.17, IMPACT_COUP * duree, duree + 0.1)
 	else:
-		_p_anim("frappe", 1.3, 0.45)
+		_anim_corps("frappe3" if coup_lateral else "frappe2", 0.5 if coup_lateral else 0.55, IMPACT_COUP * duree, duree + 0.1)
+
+
+## Animation du corps calée sur le coup : la vitesse est choisie pour que le moment de l'impact
+## de l'animation (impact_norm, en part de sa durée) tombe à t_impact secondes.
+func _anim_corps(nom: String, impact_norm: float, t_impact: float, verrou: float) -> void:
+	if pap == null or not pap.has_animation(nom):
+		return
+	var duree_anim := pap.get_animation(nom).length
+	vitesse_coup = clampf(impact_norm * duree_anim / maxf(t_impact, 0.05), 0.3, 3.0)
+	_p_anim(nom, vitesse_coup, verrou)
+
+
+## Durée du coup de mêlée : les armes lourdes frappent plus lentement.
+func _duree_coup(w: Dictionary) -> float:
+	return 0.36 + 0.08 * float(w.get("weight", 1.0))
+
+
+## Giclées de sang selon l'arme : les lames tranchent (gerbe projetée sur le côté du geste),
+## les armes contondantes éclaboussent moins, sauf coup puissant ou batte cloutée.
+func _sang_coup(id: String, pos: Vector3, dir: Vector3) -> void:
+	if id in LAMES:
+		var cote := global_basis.x * (-1.0 if coup_lateral else 1.0)
+		var force := 1.3 * (1.4 if prog.a("lame_aiguisee") else 1.0)
+		Effets.gerbe_sang(get_parent(), pos, (dir + cote * 0.8).normalized(), force)
+		Effets.gerbe_sang(get_parent(), pos, dir, force * 0.6)
+	elif id in CONTONDANTES:
+		var force := 0.5 + 0.6 * melee_charge + (0.3 if id == "batte_cloutee" else 0.0)
+		Effets.gerbe_sang(get_parent(), pos, (dir + Vector3.UP * 0.4).normalized(), force)
+
+
+## Argent trouvé (corps, meubles) ou gagné en vendant.
+func gagner_argent(n: int, silencieux := false) -> void:
+	if n <= 0:
+		return
+	argent += n
+	if not silencieux:
+		Game.msg("+%d €" % n)
+
+
+## Talent Adrénaline : actif sous 25 % de santé.
+func _adrenaline() -> bool:
+	return prog.a("adrenaline") and health < prog.sante_max() * 0.25
 
 
 ## Le coup touche (rayon devant soi) ; les coups lourds repoussent le zombie.
 func _porter_coup(w: Dictionary, dmg: float) -> void:
+	var id := current_weapon()
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(float(w.range) + 1.0)
 	var dir := (aim - origin).normalized()
 	var q := PhysicsRayQueryParameters3D.create(origin, origin + dir * float(w.range), Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	if _shoot_ray(origin, origin + dir * float(w.range), dmg):
+	# Grand balayage : le coup latéral traverse jusqu'à deux zombies
+	var perforant := 1 if coup_lateral and prog.a("balayage") else 0
+	if _shoot_ray(origin, origin + dir * float(w.range), dmg, perforant):
 		Game.make_noise(global_position, 7.0)
 		prog.gagner("combat", 2)
-		Game.play_ui("coup", -4.0, 0.15)
-		if not hit.is_empty() and hit.collider.has_method("repousser") and melee_style == "vertical":
-			hit.collider.repousser(dir, 3.0, 0.6)
+		var lame: bool = id in LAMES
+		# son d'impact : tranchant et aigu pour les lames, sourd et grave pour les armes contondantes
+		if lame:
+			Game.play_ui("coup", -6.0, 0.1, 1.35)
+			Game.play_ui("impact", -9.0, 0.15, 1.2)
+		elif id == "poings":
+			Game.play_ui("coup", -4.0, 0.15)
+		else:
+			Game.play_ui("coup", -2.0, 0.1, 0.75)
+			Game.play_ui("atterrissage", -8.0, 0.1, 0.8)
+			if id == "batte_cloutee":
+				Game.play_ui("impact_metal", -12.0, 0.15, 1.3)
+		# secousse de la caméra : plus forte pour les armes lourdes
+		secousse = maxf(secousse, clampf(0.35 + float(w.get("weight", 0.3)) * 0.35 + melee_charge * 0.5, 0.35, 1.3))
+		if not hit.is_empty():
+			_sang_coup(id, hit.position, dir)
+		if not hit.is_empty() and hit.collider.has_method("repousser"):
+			if melee_charge >= 0.95 and prog.a("brute") and hit.collider.has_method("renverser"):
+				# Brute : coup puissant chargé à fond = zombie au sol
+				hit.collider.repousser(dir, 7.0, 0.6)
+				hit.collider.renverser(randf_range(3.0, 4.5))
+			elif melee_charge > 0.4:
+				# coup puissant : le zombie est projeté (et peut tomber)
+				hit.collider.repousser(dir, 3.0 + 4.0 * melee_charge, 0.6 + 0.5 * melee_charge)
+			elif float(w.get("weight", 0.0)) >= 1.5 or (id in CONTONDANTES and prog.a("frappeur")):
+				hit.collider.repousser(dir, 3.0, 0.6)
 	elif not hit.is_empty():
 		Game.play_3d("impact_mur", hit.position, -6.0, 0.2, 20.0)
 
@@ -1314,32 +1355,43 @@ func _maj_melee(delta: float) -> void:
 		return
 	var id := current_weapon()
 	var w := arme_stats(id)
-	var duree: float = DUREE_MELEE[melee_style] * (1.15 if float(w.get("weight", 1.0)) > 2.5 else 1.0)
+	var duree := _duree_coup(w)
 	var avant := melee_p
-	melee_p = minf(1.0, melee_p + delta / duree)
-	var impact: float = IMPACT_MELEE[melee_style]
+	var impact := IMPACT_COUP
+	var avance := delta / duree * (1.0 + 0.4 * melee_charge)
+	if charge_actif:
+		var arme := ARME_COUP    # arme ramenée en arrière, tenue tant que le clic est maintenu
+		if not Input.is_action_pressed("tirer") or Game.ui_open or not alive:
+			charge_actif = false
+			if charge_t >= CHARGE_MIN:
+				_lacher_charge(w, duree)
+			if pap:
+				pap.speed_scale = vitesse_coup * (1.0 + 0.4 * melee_charge)   # le corps repart
+				p_lock = (1.0 - melee_p) * duree + 0.1
+		elif melee_p >= arme:
+			melee_p = arme
+			avance = 0.0
+			charge_t += delta * (1.4 if prog.a("charge_rapide") else 1.0)
+			cooldown = maxf(cooldown, 0.1)
+			if pap:
+				pap.speed_scale = 0.0   # le corps reste armé tant que le clic est maintenu
+				p_lock = maxf(p_lock, 0.2)
+	melee_p = minf(1.0, melee_p + avance)
 	if avant < impact - 0.12 and melee_p >= impact - 0.12:
-		Game.play_ui("vent_lourd" if melee_style == "vertical" else "vent_leger", -6.0, 0.12)
+		Game.play_ui("vent_lourd" if float(w.get("weight", 0.0)) >= 1.5 else "vent_leger", -6.0, 0.12)
 	if not melee_frappe and melee_p >= impact:
 		melee_frappe = true
 		if w.get("type", "") == "melee":
 			_porter_coup(w, melee_degats)
 
 
-## Pose de l'arme de mêlée en vue 1re personne pendant le coup : [rotation, position].
-func _pose_melee() -> Array:
-	if melee_p >= 1.0:
-		return [Vector3.ZERO, Vector3.ZERO]
-	var p := melee_p
-	match melee_style:
-		"estoc":
-			return [FpsArms._cles([[0.0, Vector3.ZERO], [0.25, Vector3(0.12, 0.08, 0.0)], [0.4, Vector3(-0.05, -0.05, 0.0)], [1.0, Vector3.ZERO]], p),
-				FpsArms._cles([[0.0, Vector3.ZERO], [0.25, Vector3(0.02, -0.02, 0.07)], [0.4, Vector3(-0.06, 0.04, -0.3)], [0.55, Vector3(-0.05, 0.03, -0.26)], [1.0, Vector3.ZERO]], p)]
-		"vertical":
-			return [FpsArms._cles([[0.0, Vector3.ZERO], [0.38, Vector3(1.25, 0.15, 0.25)], [0.58, Vector3(-0.85, -0.05, 0.1)], [0.7, Vector3(-0.8, -0.05, 0.1)], [1.0, Vector3.ZERO]], p),
-				FpsArms._cles([[0.0, Vector3.ZERO], [0.38, Vector3(-0.04, 0.16, 0.08)], [0.58, Vector3(-0.08, -0.14, -0.16)], [0.7, Vector3(-0.08, -0.15, -0.14)], [1.0, Vector3.ZERO]], p)]
-	return [FpsArms._cles([[0.0, Vector3.ZERO], [0.3, Vector3(0.1, 0.95, -0.5)], [0.52, Vector3(-0.15, -1.25, 0.55)], [0.62, Vector3(-0.15, -1.3, 0.55)], [1.0, Vector3.ZERO]], p),
-		FpsArms._cles([[0.0, Vector3.ZERO], [0.3, Vector3(0.12, 0.05, 0.04)], [0.52, Vector3(-0.22, 0.0, -0.1)], [0.62, Vector3(-0.24, -0.02, -0.08)], [1.0, Vector3.ZERO]], p)]
+## Coup puissant relâché : plus de dégâts, frappe plus rapide, plus d'endurance.
+func _lacher_charge(w: Dictionary, duree: float) -> void:
+	melee_charge = clampf((charge_t - CHARGE_MIN) / (CHARGE_MAX - CHARGE_MIN), 0.0, 1.0)
+	melee_degats *= 1.0 + 1.2 * melee_charge
+	stamina = maxf(0.0, stamina - float(w.stamina) * 0.6 * melee_charge)
+	cooldown = (1.0 - melee_p) * duree
+	Game.play_ui("vent_lourd", -4.0, 0.1)
 
 
 ## Tir d'une balle (ou coup de mêlée). perforant : nombre de zombies supplémentaires traversés.
@@ -1438,6 +1490,14 @@ func take_damage(amount: float, _from: Node = null) -> void:
 
 func _hurt(amount: float) -> void:
 	health -= amount
+	if amount >= 2.0 and alive:
+		prog.gagner("survie", 1)
+	if health <= 0.0 and alive and prog.a("increvable") and increvable_jour != Game.day:
+		# Increvable : une fois par jour, on reste debout
+		increvable_jour = Game.day
+		health = 15.0
+		Game.msg("Increvable : tu refuses de tomber !")
+		return
 	if health <= 0.0 and alive:
 		health = 0.0
 		_die()
@@ -1446,7 +1506,6 @@ func _hurt(amount: float) -> void:
 func _die() -> void:
 	alive = false
 	cancel_placement()
-	want_tps = false
 	var tw := create_tween()
 	tw.tween_property(head, "position:y", 0.35, 0.8)
 	tw.parallel().tween_property(lean_pivot, "rotation:z", 1.2, 0.8)
@@ -1456,61 +1515,38 @@ func _die() -> void:
 
 # ================================================================ modèle d'arme
 func _refresh_weapon_model() -> void:
-	for c in viewmodel.get_children():
-		c.queue_free()
 	for c in hand.get_children():
 		c.queue_free()
-	vm_weapon = null
 	hand_weapon = null
-	for n in [fps_arms.mag_reel, fps_arms.cart_reel]:
-		if n and is_instance_valid(n):
-			n.queue_free()
-	fps_arms.mag_reel = null
-	fps_arms.cart_reel = null
-	draw_t = 1.0
 	reload_t = 0.0
 	var id := current_weapon()
 	var w := Items.info(id)
 	var col: Color = w.get("color", Color.GRAY)
 	var length: float = w.get("len", 0.0)
-	if w.get("type", "") == "gun":
-		muzzle_light.position = Vector3(0, 0.05, -length - 0.1)
+	if muzzle_light.get_parent() != self:
+		muzzle_light.get_parent().remove_child(muzzle_light)
+		add_child(muzzle_light)
 	if id == "poings":
-		return  # les poings sont dessinés par les bras
-	# modèle 3D de l'arme (Blender) si disponible
-	var vm := ModeleUtil.arme(id)
-	if vm:
-		var tilt_m := 0.0 if w.type == "gun" else 0.9
-		var longue: bool = w.type == "gun" and length > 0.5
-		vm.scale = Vector3.ONE * (VM_SCALE * 0.72 if longue else VM_SCALE)
-		vm.position = Vector3(0.02, 0.02, 0.18) if longue else Vector3.ZERO
-		vm.rotation.x = tilt_m
-		viewmodel.add_child(vm)
-		vm_weapon = vm
-		ModeleUtil.ombres(vm, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
-		var hm := ModeleUtil.arme(id)
+		return
+	# modèle 3D de l'arme, dans la main du personnage
+	var hm := ModeleUtil.arme(id)
+	if hm:
 		hand.add_child(hm)
-		var accs: Dictionary = accessoires.get(id, {})
-		Accessoires.habiller(vm, id, accs, true)
-		Accessoires.habiller(hm, id, accs, true)
-		# arme et accessoires de la vue 1re personne : invisibles pour la caméra de la lunette
-		for g in vm.find_children("*", "GeometryInstance3D", true, false):
-			(g as GeometryInstance3D).layers = 2
-		fps_arms.geo = _geo_prise(id, vm) if w.type == "gun" else {}
-		if w.type == "gun":
-			_preparer_chargeur(id, vm)
+		Accessoires.habiller(hm, id, accessoires.get(id, {}), true)
+		ModeleUtil.ombres(hm, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 		_appliquer_sang.call_deferred()
-		var oc := vm.find_child("Oculaire", true, false)
-		if oc:
-			(oc as MeshInstance3D).material_override = oculaire_mat
 		hand_weapon = hm
 		if perso_ual and w.type != "gun":
 			hm.rotation.x = deg_to_rad(80)   # manche dans le poing, tête de l'arme vers le haut
+		if w.type == "gun":
+			# lumière du tir au bout du canon
+			remove_child(muzzle_light)
+			hm.add_child(muzzle_light)
+			muzzle_light.position = Vector3(Accessoires.points(id, hm).get("bouche", Vector3(0, 0.03, -length - 0.1)))
 		return
+	# pas de modèle : arme faite de boîtes
 	var parts: Array = []
-	if id == "poings":
-		parts = [[Vector3(-0.05, 0, 0), Vector3(0.09, 0.09, 0.2), Color(0.8, 0.62, 0.5)]]
-	elif w.type == "gun":
+	if w.type == "gun":
 		parts = [
 			[Vector3(0, 0, -length / 2.0), Vector3(0.06, 0.1, length), col],
 			[Vector3(0, -0.1, -0.02), Vector3(0.05, 0.14, 0.07), col.darkened(0.3)],
@@ -1518,25 +1554,15 @@ func _refresh_weapon_model() -> void:
 		]
 		if length > 0.5:
 			parts.append([Vector3(0, -0.02, 0.15), Vector3(0.06, 0.12, 0.3), col.darkened(0.2)])
-		muzzle_light.position = Vector3(0, 0.03, -length - 0.1)
 	else:
 		parts = [
 			[Vector3(0, 0, 0), Vector3(0.04, 0.04, 0.22), Color(0.2, 0.15, 0.1)],
 			[Vector3(0, 0.0, -0.11 - length / 2.0), Vector3(0.025, 0.07, length), col],
 		]
-	var tilt := 0.0 if (id == "poings" or w.type == "gun") else 0.9
+	var tilt := 0.0 if w.type == "gun" else 0.9
 	for p in parts:
 		var pos: Vector3 = Vector3(p[0]).rotated(Vector3.RIGHT, tilt)
-		_vm_box(viewmodel, pos, p[1], p[2], false, tilt)
 		_vm_box(hand, pos, p[1], p[2], true, tilt)
-
-
-func _chargeur_visible(v: bool) -> void:
-	for m in [vm_weapon, hand_weapon]:
-		if m and is_instance_valid(m):
-			var ch: Node3D = m.get_node_or_null("Chargeur")
-			if ch and ch.visible != v:
-				ch.visible = v
 
 
 ## Points de prise pour les bras : ceux du modèle, avec la poignée verticale si elle est montée.
@@ -1546,31 +1572,6 @@ func _geo_prise(id: String, modele: Node3D) -> Dictionary:
 		g["L"] = Vector3(g.poignee) + Vector3(0, -0.035, 0.0)
 		g["prise_l"] = "verticale"
 	return g
-
-
-## Copies du vrai chargeur et d'une cartouche de l'arme, tenues par la main gauche au rechargement.
-func _preparer_chargeur(id: String, vm: Node3D) -> void:
-	var ch: Node3D = vm.get_node_or_null("Chargeur")
-	if ch:
-		var copie: Node3D = ch.duplicate()
-		copie.visible = false
-		fps_arms.add_child(copie)
-		fps_arms.mag_reel = copie
-	var cart := str(Items.info(str(Items.info(id).get("ammo", ""))).get("modele", ""))
-	if cart != "":
-		var c := ModeleUtil.charger("res://modeles/armes/%s.scn" % cart)
-		if c:
-			var pivot := Node3D.new()
-			pivot.add_child(c)
-			c.rotation.x = -PI / 2.0
-			pivot.visible = false
-			fps_arms.add_child(pivot)
-			fps_arms.cart_reel = pivot
-	for n in [fps_arms.mag_reel, fps_arms.cart_reel]:
-		if n:
-			for g in n.find_children("*", "GeometryInstance3D", true, false):
-				(g as GeometryInstance3D).layers = 2
-				(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _vm_box(parent: Node3D, pos: Vector3, size: Vector3, col: Color, shadows: bool, tilt := 0.0) -> void:
@@ -1598,7 +1599,7 @@ func _update_interact() -> void:
 		return
 	var from := camera.global_position
 	var fwd := -camera.global_basis.z
-	var to := from + fwd * (2.8 + spring.spring_length)
+	var to := from + fwd * (2.8 + recul_camera())
 	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_INTERACT | Game.LAYER_ZOMBIE, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():
@@ -1737,6 +1738,7 @@ func use_item(id: String) -> void:
 	match it.get("type", ""):
 		"food", "drink":
 			hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
+			prog.gagner("survie", 5)
 			thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 			remove_item(id)
 			Game.msg("Consommé : " + Items.nom(id))
@@ -1745,6 +1747,7 @@ func use_item(id: String) -> void:
 				Game.msg("Ta santé est déjà au maximum.")
 				return
 			health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
+			prog.gagner("survie", 8)
 			remove_item(id)
 			Game.msg("Soigné avec : " + Items.nom(id))
 		"armor":
@@ -1760,6 +1763,8 @@ func use_item(id: String) -> void:
 				hotbar[i] = id
 			slot = -1
 			_select_slot(i)
+		"outil":
+			constructeur.basculer()
 		"placeable":
 			start_placement(id)
 		_:
@@ -1775,10 +1780,12 @@ func consume_entry(e: Dictionary, g: Grille) -> bool:
 		return false
 	if t == "food" or t == "drink":
 		hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
+		prog.gagner("survie", 5)
 		thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 		Game.msg("Consommé : " + Items.nom(e.id))
 	elif t == "heal":
 		health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
+		prog.gagner("survie", 8)
 		Game.msg("Soigné avec : " + Items.nom(e.id))
 	else:
 		return false
@@ -1922,6 +1929,8 @@ func start_placement(id: String) -> void:
 
 
 func cancel_placement() -> void:
+	if placing == "construction":
+		constructeur.nettoyer()
 	placing = ""
 	if ghost and is_instance_valid(ghost):
 		ghost.queue_free()
@@ -1929,12 +1938,15 @@ func cancel_placement() -> void:
 
 
 func _update_placement() -> void:
+	if placing == "construction":
+		constructeur.maj()
+		return
 	var space := get_world_3d().direct_space_state
 	var from := camera.global_position
 	var fwd := -camera.global_basis.z
-	var q := PhysicsRayQueryParameters3D.create(from, from + fwd * (4.5 + spring.spring_length), Game.LAYER_WORLD, [get_rid()])
+	var q := PhysicsRayQueryParameters3D.create(from, from + fwd * (4.5 + recul_camera()), Game.LAYER_WORLD, [get_rid()])
 	var hit := space.intersect_ray(q)
-	var pt: Vector3 = from + fwd * (3.0 + spring.spring_length) if hit.is_empty() else hit.position
+	var pt: Vector3 = from + fwd * (3.0 + recul_camera()) if hit.is_empty() else hit.position
 	# redescendre jusqu'au sol
 	var dq := PhysicsRayQueryParameters3D.create(pt + Vector3.UP * 0.4, pt + Vector3.DOWN * 4.0, Game.LAYER_WORLD, [get_rid()])
 	var down := space.intersect_ray(dq)
@@ -1949,11 +1961,12 @@ func _update_placement() -> void:
 	if Vector2(pt.x - global_position.x, pt.z - global_position.z).length() > 5.0:
 		ghost_valid = false
 		ghost_reason = "Trop loin."
-	if placing != "barricade":
+	var sur_base: bool = not down.is_empty() and down.collider is Node and down.collider.is_in_group("construction")
+	if not placing in POSE_DEHORS and not sur_base:
 		var zone := Game.find_zone(pt + Vector3.UP * 0.5)
 		if zone.is_empty():
 			ghost_valid = false
-			ghost_reason = "À placer à l'intérieur d'un bâtiment."
+			ghost_reason = "À placer dans un bâtiment ou sur le plancher de ta base."
 		elif Game.zombies_in_zone(zone) > 0:
 			ghost_valid = false
 			ghost_reason = "Il reste %d zombie(s) dans ce bâtiment. Nettoie-le d'abord !" % Game.zombies_in_zone(zone)
@@ -1963,7 +1976,7 @@ func _update_placement() -> void:
 		bs.size = size - Vector3(0.1, 0.1, 0.1)
 		sq.shape = bs
 		sq.transform = Transform3D(Basis(Vector3.UP, ghost_rot), pt + Vector3(0, size.y / 2.0 + 0.04, 0))
-		sq.collision_mask = Game.LAYER_PLAYER | Game.LAYER_ZOMBIE | (0 if placing == "barricade" else Game.LAYER_WORLD)
+		sq.collision_mask = Game.LAYER_PLAYER | Game.LAYER_ZOMBIE | (0 if placing in POSE_DEHORS else Game.LAYER_WORLD)
 		if not space.intersect_shape(sq, 1).is_empty():
 			ghost_valid = false
 			ghost_reason = "Pas assez de place."
@@ -1985,6 +1998,7 @@ func _confirm_placement() -> void:
 		p.setup(placing)
 		if prog.a("charpentier"):
 			p.health *= 1.6
+			p.health_max = p.health
 		obj = p
 	get_parent().add_child(obj)
 	obj.global_position = ghost_pos

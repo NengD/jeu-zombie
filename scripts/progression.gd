@@ -2,7 +2,7 @@ class_name Progression
 extends RefCounted
 ## Niveaux, attributs et compétences du survivant.
 ## - Niveau global : chaque niveau donne 1 point d'attribut (endurance, santé, soif, faim).
-## - Compétences Combat / Fabrication / Exploration : XP propre, niveaux 1 à 10 ;
+## - Compétences Combat / Fabrication / Exploration / Survie : XP propre, niveaux 1 à 10 ;
 ##   chaque niveau de compétence donne 1 point de talent à dépenser dans cette compétence.
 ## Les actions rapportent de l'XP de compétence et de l'XP globale.
 
@@ -10,8 +10,8 @@ signal niveau_global(n: int)
 signal niveau_competence(comp: String, n: int)
 signal xp_gagnee(comp: String, qte: int)
 
-const COMPETENCES := ["combat", "fabrication", "exploration"]
-const NOMS := {"combat": "Combat", "fabrication": "Fabrication", "exploration": "Exploration"}
+const COMPETENCES := ["combat", "fabrication", "exploration", "survie"]
+const NOMS := {"combat": "Combat", "fabrication": "Fabrication", "exploration": "Exploration", "survie": "Survie"}
 const NIVEAU_MAX_COMP := 10
 
 const ATTRIBUTS := {
@@ -32,6 +32,11 @@ const TALENTS := {
 	"robuste": {"comp": "combat", "niv": 5, "nom": "Peau dure", "desc": "Tu subis 15 % de dégâts en moins."},
 	"critique": {"comp": "combat", "niv": 7, "nom": "Coup critique", "desc": "20 % de chances d'infliger double dégâts au corps à corps."},
 	"sang_froid": {"comp": "combat", "niv": 9, "nom": "Sang-froid", "desc": "Recul des armes réduit de 35 %."},
+	"lame_aiguisee": {"comp": "combat", "niv": 2, "nom": "Lame aiguisée", "desc": "Hache, machette et couteau : +20 % de dégâts et plus de sang."},
+	"frappeur": {"comp": "combat", "niv": 3, "nom": "Frappeur", "desc": "Battes et matraque repoussent les zombies à chaque coup."},
+	"charge_rapide": {"comp": "combat", "niv": 4, "nom": "Concentration", "desc": "Le coup puissant se charge 40 % plus vite."},
+	"balayage": {"comp": "combat", "niv": 6, "nom": "Grand balayage", "desc": "Le balayage latéral touche jusqu'à deux zombies."},
+	"brute": {"comp": "combat", "niv": 8, "nom": "Brute", "desc": "Un coup puissant chargé à fond renverse toujours le zombie."},
 	# --- fabrication
 	"soigneur": {"comp": "fabrication", "niv": 1, "nom": "Soigneur", "desc": "Les soins rendent 30 % de santé en plus."},
 	"econome": {"comp": "fabrication", "niv": 1, "nom": "Économe", "desc": "30 % de chances de récupérer un matériau en fabriquant."},
@@ -48,6 +53,12 @@ const TALENTS := {
 	"marathonien": {"comp": "exploration", "niv": 4, "nom": "Marathonien", "desc": "Le sprint consomme 35 % d'endurance en moins."},
 	"poches2": {"comp": "exploration", "niv": 6, "nom": "Poches de cargo", "desc": "+1 rangée supplémentaire (8×7)."},
 	"vue_percante": {"comp": "exploration", "niv": 8, "nom": "Œil de lynx", "desc": "Les meubles contiennent encore plus d'objets."},
+	# --- survie (XP : manger, boire, se soigner, survivre aux blessures)
+	"regeneration": {"comp": "survie", "niv": 1, "nom": "Régénération", "desc": "La santé remonte deux fois plus vite quand tu es nourri et hydraté."},
+	"frugal": {"comp": "survie", "niv": 2, "nom": "Frugal", "desc": "La faim et la soif baissent 15 % moins vite."},
+	"endurci": {"comp": "survie", "niv": 3, "nom": "Endurci", "desc": "L'endurance remonte 25 % plus vite."},
+	"adrenaline": {"comp": "survie", "niv": 5, "nom": "Adrénaline", "desc": "Sous 25 % de santé : +20 % de dégâts et de vitesse."},
+	"increvable": {"comp": "survie", "niv": 8, "nom": "Increvable", "desc": "Une fois par jour, une blessure mortelle te laisse à 15 de santé."},
 }
 
 var niveau := 1
@@ -134,15 +145,15 @@ func endurance_max() -> float:
 
 
 func recup_endurance() -> float:
-	return 1.0 + 0.08 * attributs.endurance
+	return (1.0 + 0.08 * attributs.endurance) * (1.25 if a("endurci") else 1.0)
 
 
 func faim_mult() -> float:
-	return pow(0.93, attributs.faim)
+	return pow(0.93, attributs.faim) * (0.85 if a("frugal") else 1.0)
 
 
 func soif_mult() -> float:
-	return pow(0.93, attributs.soif)
+	return pow(0.93, attributs.soif) * (0.85 if a("frugal") else 1.0)
 
 
 func lignes_inventaire() -> int:

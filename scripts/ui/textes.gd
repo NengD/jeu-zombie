@@ -8,6 +8,7 @@ const TOUCHES := [
 	["S'accroupir (plus discret)", "C ou Ctrl"],
 	["Se pencher à gauche / à droite", "A / E"],
 	["Frapper / tirer", "Clic gauche"],
+	["Coup puissant (arme de mêlée)", "Maintenir clic gauche"],
 	["Viser (armes à feu) / parer (mêlée)", "Clic droit"],
 	["Barre rapide (arme ou objet)", "1 à 5, molette"],
 	["Recharger", "R"],
@@ -15,9 +16,11 @@ const TOUCHES := [
 	["Fouiller / utiliser", "F"],
 	["Inventaire et fabrication", "Tab ou I"],
 	["Carte", "M"],
-	["Vue 1re / 3e personne", "V"],
 	["Lampe torche / lampe de l'arme", "L"],
 	["Inspecter l'arme (accessoires)", "T"],
+	["Mode construction (marteau)", "B"],
+	["Renforcer / réparer une pièce", "G"],
+	["Démonter une pièce", "X"],
 	["Personnage : niveaux et compétences", "K"],
 	["Pause", "Échap"],
 	["Sauvegarde rapide / chargement", "F5 / F9"],
@@ -51,8 +54,29 @@ const GUIDE := """[b]LES BASES[/b]
 • Certains zombies policiers et militaires portent une arme : elle tombe au sol à leur mort.
 • Modèles 3D des armes : D_U (Sketchfab), licence CC BY 4.0.
 
+[b]MÉTÉO ET AMBIANCE[/b]
+• Des averses passent de temps en temps : sols et murs mouillés qui brillent, flaques, ciel gris et brume.
+  La pluie couvre les bruits : les zombies t'entendent moins loin.
+• La nuit, les lampadaires des rues s'allument (certains clignotent, d'autres sont en panne).
+• Herbe haute qui ondule au vent dans la campagne. Réglage « Qualité graphique » (Paramètres ou pause) :
+  Bas, Moyen, Élevé, Ultra.
+
+[b]BANDITS[/b] (camps en rouge sur la carte M)
+• Des bandes armées campent hors des villes : tentes, brasero, sacs de sable. Ils patrouillent autour du camp,
+  entendent les coups de feu et voient moins loin la nuit (sauf si ta lampe est allumée).
+• Quand l'un d'eux te repère, tout le camp est alerté. Ils gardent leurs distances, se décalent et rechargent.
+  Leurs tirs font du bruit et attirent les zombies… sur lesquels ils tirent aussi.
+• Un bandit abattu lâche son arme, des munitions et un objet ; tu gagnes de l'argent et de l'XP.
+  Les caisses des bandits contiennent un bon butin (munitions, soins, parfois une arme ou une grenade).
+• Les zombies s'en prennent aussi aux bandits ; un bandit grièvement blessé court se mettre à l'abri derrière
+  les sacs de sable ou une épave, et tire de là.
+• [b]Primes[/b] : chaque marchand indique où sont les camps et paie une prime (100 € + 40 € par bandit)
+  quand un camp est entièrement nettoyé. Viens la toucher au marché.
+• Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
+• Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
+
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
-• Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration).
+• Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), manger, boire, se soigner et encaisser des coups (Survie).
 • Niveau global : +1 point d'attribut à placer en Endurance, Santé, Soif ou Faim.
 • Chaque niveau de compétence donne 1 point de talent : débloque des bonus (dégâts, recharge, soins, munitions, discrétion, poches plus grandes…).
 
@@ -68,6 +92,30 @@ const GUIDE := """[b]LES BASES[/b]
    Clic gauche pour poser, molette ou R pour tourner, clic droit pour annuler.
 4. Près de l'établi, les recettes [établi] se débloquent : munitions, armes, vestes, sac à dos, caisse de stockage…
 5. Les barricades se posent n'importe où, par exemple dans une porte. Les zombies peuvent les casser.
+
+[b]CONSTRUIRE TA PROPRE MAISON[/b] (marteau : 2 ferrailles + 1 planche)
+• Touche B : mode construction. Molette = pièce, clic gauche = poser, R = tourner l'escalier, B ou clic droit = quitter.
+• Commence par une fondation sur un terrain plat, puis ajoute fondations, murs, encadrement de porte + porte,
+  murs à fenêtre, demi-murs, planchers (posés sur les murs : ils font le plafond et l'étage) et escaliers.
+• Les pièces s'aimantent sur une grille de 3 m. Fantôme vert = possible ; rouge = la raison s'affiche.
+• [G] sur une pièce : la réparer, ou la renforcer bois → tôle (ferraille) → parpaing (sacs de ciment).
+• [X] démonte une pièce et rend la moitié du bois. Les zombies tapent dans les murs qui leur barrent la route.
+• L'établi et la caisse de stockage se posent aussi sur les planchers de ta base.
+• [b]Pièges[/b] (à placer dehors, depuis l'inventaire) : piques en bois (3 planches + 2 clous) qui blessent les zombies
+  qui les traversent, barbelés (4 ferrailles + 2 clous, établi) qui les ralentissent fortement. Ils s'usent à chaque zombie :
+  en mode construction (B), vise-les et appuie sur G pour les réparer (les barricades aussi).
+• [b]Hordes[/b] : à partir du 2e jour, à la tombée de la nuit, une horde peut marcher sur ta base (au moins 4 pièces).
+  Une alerte s'affiche 45 secondes avant son arrivée : rentre et prépare-toi ! Si tu es loin,
+  elle abîme tes murs ; les pièges autour de la base réduisent les dégâts.
+
+[b]PROJECTEURS[/b] (3 ferrailles + 1 ruban + 1 tissu, établi — ou chez le quincaillier)
+• À poser dehors autour de ta base pour voir venir les zombies la nuit. [F] : automatique (s'allume la nuit) / allumé / éteint.
+
+[b]ARGENT ET MARCHANDS[/b]
+• Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
+• Le [b]Marché des survivants[/b] (sur la carte, près de ta maison de départ) a trois marchands : armurier,
+  quincaillier et médecin. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
+• Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
@@ -89,16 +137,16 @@ const GUIDE := """[b]LES BASES[/b]
 • Cabane de pêche au bord de l'étang, antenne relais sur le point le plus haut. La carte (M) montre le relief et l'eau.
 
 [b]CORPS À CORPS[/b]
-• Estoc au couteau, coup en arc (batte, machette…), coup vertical (hache, masse). Clic droit : parade (80 % de dégâts en moins, repousse le zombie).
+• Armes de mêlée : coup vers l'avant ; battes et machette alternent avec un balayage latéral. Les armes lourdes frappent plus lentement mais repoussent le zombie. Maintenir le clic : coup puissant. Clic droit : parade (80 % de dégâts en moins, repousse le zombie).
 
 [b]COUPS DE GRÂCE[/b]
-• Un gros coup peut renverser un zombie. Près d'un zombie à terre ou d'un rampant : [F] Achever (+10 XP).
+• Un gros coup peut renverser un zombie. Près d'un zombie à terre ou d'un rampant : [F] Achever : coup de talon à mains nues, arme abattue (hache, batte) ou lame plantée (couteau, machette, matraque), ou balle à bout portant avec une arme chargée (+10 XP).
 
 [b]ZOMBIES[/b]
 • Coureurs, gros zombies, rampants. Bras et jambes peuvent être arrachés ; sans jambes, le zombie rampe.
 
 [b]VISÉE ET RECHARGEMENT[/b]
-• En visant, on regarde vraiment dans le viseur : hausse et guidon, verre du point rouge, ou lunette grossissante avec réticule.
+• Le réticule s'écarte selon la précision réelle (hanche, visée, déplacement, rafale) et devient rouge sur un ennemi. Une croix orange montre où la balle s'arrêtera si un obstacle coupe la ligne de tir.
 • Rechargement réaliste : le vrai chargeur sort de l'arme ; à vide, il tombe au sol et on réarme. Fusils à pompe, Mosin et Marlin : une cartouche à la fois.
 
 [b]BÂTIMENTS ET PORTES[/b]

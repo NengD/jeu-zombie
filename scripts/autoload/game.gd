@@ -68,6 +68,10 @@ var blood_mat: StandardMaterial3D
 # --- paramètres (sauvegardés dans user://parametres.cfg)
 var mouse_sens := 1.0
 var volume := 0.8
+var pluie := 0.0                 # intensité de la pluie (0..1), gérée par meteo.gd
+var qualite := 3                # qualité graphique : 0 Bas, 1 Moyen, 2 Élevé, 3 Ultra
+const NOMS_QUALITE := ["Bas", "Moyen", "Élevé", "Ultra"]
+signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
 
 
@@ -108,13 +112,15 @@ func _setup_inputs() -> void:
 	_phys("accroupir", KEY_CTRL)
 	_key("interagir", KEY_F)
 	_key("recharger", KEY_R)
-	_key("vue", KEY_V)
 	_phys("inventaire", KEY_TAB)
 	_key("inventaire", KEY_I)
 	_key("carte", KEY_M)
 	_key("lampe", KEY_L)
 	_key("soigner", KEY_H)
 	_key("inspecter", KEY_T)
+	_key("construire", KEY_B)
+	_key("ameliorer", KEY_G)
+	_key("demonter", KEY_X)
 	_key("competences", KEY_K)
 	_phys("admin_panneau", KEY_F2)
 	_key("admin_vol", KEY_N)
@@ -163,6 +169,7 @@ func load_settings() -> void:
 	if cf.load(SETTINGS_PATH) == OK:
 		mouse_sens = float(cf.get_value("jeu", "sensibilite", 1.0))
 		volume = float(cf.get_value("jeu", "volume", 0.8))
+		qualite = clampi(int(cf.get_value("jeu", "qualite", 3)), 0, 3)
 	apply_settings()
 
 
@@ -170,12 +177,31 @@ func save_settings() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("jeu", "sensibilite", mouse_sens)
 	cf.set_value("jeu", "volume", volume)
+	cf.set_value("jeu", "qualite", qualite)
 	cf.save(SETTINGS_PATH)
 	apply_settings()
 
 
 func apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
+	_appliquer_rendu()
+	graphismes_changes.emit()
+
+
+## Anticrénelage et qualité des ombres selon le niveau choisi (l'éclairage est réglé par day_night.gd).
+func _appliquer_rendu() -> void:
+	var vp := get_tree().root
+	vp.msaa_3d = Viewport.MSAA_2X if qualite == 1 else Viewport.MSAA_DISABLED
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if qualite == 0 else Viewport.SCREEN_SPACE_AA_DISABLED
+	vp.use_taa = qualite >= 2
+	vp.use_debanding = qualite >= 1
+	vp.mesh_lod_threshold = [4.0, 2.0, 1.0, 0.5][qualite]
+	var ombres: RenderingServer.ShadowQuality = [RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, RenderingServer.SHADOW_QUALITY_SOFT_LOW,
+			RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, RenderingServer.SHADOW_QUALITY_SOFT_HIGH][qualite]
+	RenderingServer.directional_soft_shadow_filter_set_quality(ombres)
+	RenderingServer.positional_soft_shadow_filter_set_quality(ombres)
+	RenderingServer.directional_shadow_atlas_set_size([2048, 4096, 4096, 8192][qualite], true)
+	vp.positional_shadow_atlas_size = [2048, 4096, 4096, 8192][qualite]
 
 
 ## Reprend la partie sauvegardée.
@@ -200,7 +226,7 @@ func msg(text: String) -> void:
 
 
 func make_noise(pos: Vector3, radius: float) -> void:
-	noise_made.emit(pos, radius)
+	noise_made.emit(pos, radius * (1.0 - 0.3 * pluie))   # la pluie couvre les bruits
 
 
 func is_night() -> bool:

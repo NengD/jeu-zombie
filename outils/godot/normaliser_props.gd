@@ -63,6 +63,11 @@ const CFG := {
 	"voiture_taxi": ["taxi", "", "", 0.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 	"voiture_sport": ["sports_car", "", "", 0.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 	"voiture_police": ["cop", "", "", 0.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	# --- camps de bandits (Poly Haven, sources gltf dans outils/sources_props)
+	"brasero": ["barrel_stove", "", "", 0.0, Vector3.ZERO, 3000, "", Color.WHITE, 512],
+	"caisse_munitions": ["ammo_box", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 512],
+	"jerrican": ["metal_jerrycan", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 512],
+	"lanterne": ["Lantern_01", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 256],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]
@@ -94,7 +99,10 @@ func _initialize() -> void:
 
 
 func _convertir(id: String, c: Array) -> void:
-	var src: Node3D = load(SRC + c[0] + ".glb").instantiate()
+	var chemin: String = SRC + c[0] + ".glb"
+	if not ResourceLoader.exists(chemin):
+		chemin = "res://outils/sources_props/%s/%s_1k.gltf" % [c[0], c[0]]
+	var src: Node3D = load(chemin).instantiate()
 	root.add_child(src)
 	var garder: String = c[1]
 	var exclure: String = c[2]

@@ -29,6 +29,11 @@ var detour_dir := Vector3.ZERO
 var lunge := 0.0
 var dormant := false
 var dormant_t := 0.0
+var lod_loin := false         # loin du joueur et calme : logique allégée
+var steer_t := 0.0
+var steer_cache := Vector3.ZERO
+var anim_acc := 0.0           # temps d'animation en attente (animation allégée au loin)
+var anim_image := 0
 var dead_t := 0.0
 var searched := false
 var groan_t := 0.0
@@ -47,8 +52,15 @@ var coupes: Array = []      # os coupés
 var demembre: Node = null
 var aspect := {}            # apparence (couleurs des morceaux arrachés)
 var squelette: Skeleton3D = null
+var pieds_ik = null                 # pieds posés sur le sol (scripts/pieds_ik.gd)
 var a_terre := 0.0          # renversé : reste au sol, peut être achevé
 var etourdi := 0.0          # repoussé par une parade ou un coup lourd : ne peut plus attaquer un instant
+var ralenti_t := 0.0        # empêtré dans des barbelés / des piques
+var ralenti_k := 1.0
+var assaut := false         # membre d'une horde lancée contre la base du joueur
+var assaut_pos := Vector3.ZERO
+var voit_joueur := false
+var proie: Node3D = null      # bandit pris en chasse (quand le joueur n'est pas en vue)
 
 @onready var modele: Node3D = $Modele
 var ap: AnimationPlayer = null      # animations du modèle Blender (si présent)
@@ -175,10 +187,18 @@ func _apply_look() -> void:
 			ModeleUtil.teinter(m, "Manche", TEINTES_CIVIL[randi() % TEINTES_CIVIL.size()])
 		ap = ModeleUtil.anim_player(m)
 		squelette = ModeleUtil.squelette(m)
+		if squelette and squelette.find_bone("foot_l") >= 0:
+			# pieds posés sur le sol (seulement près du joueur : voir _physics_process)
+			pieds_ik = preload("res://scripts/pieds_ik.gd").new()
+			pieds_ik.corps = self
+			pieds_ik.masque = Game.LAYER_WORLD
+			pieds_ik.active = false
+			squelette.add_child(pieds_ik)
 		_armer()
 		if ap:
 			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
 			ap.playback_default_blend_time = 0.2
+			ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL   # avancée par _process (niveau de détail)
 			_anim("idle")
 			ap.seek(randf() * 2.0)
 		return
@@ -309,9 +329,21 @@ func _physics_process(delta: float) -> void:
 	if p:
 		dist = global_position.distance_to(p.global_position)
 	dormant = dist > 90.0 and state != State.CHASE
+	if pieds_ik:
+		pieds_ik.active = dist < 22.0 and state != State.DEAD and not rampant
 	if ap:
 		ap.active = not dormant
 	if dormant:
+		return
+	# niveau de détail : au-delà de 35 m et sans poursuite, logique allégée
+	lod_loin = dist > 35.0 and state != State.CHASE
+	steer_t -= delta
+	# immobile, posé au sol, rien à faire : pas de calcul de déplacement cette image
+	if lod_loin and is_on_floor() and Vector2(velocity.x, velocity.z).length() < 0.05 and _flat_dist(target, global_position) < 0.7:
+		think_t -= delta
+		if think_t <= 0.0:
+			think_t = 0.25
+			_think()
 		return
 	think_t -= delta
 	if think_t <= 0.0:
@@ -323,6 +355,9 @@ func _physics_process(delta: float) -> void:
 	var speed := run_speed if state == State.CHASE else walk_speed
 	if etourdi > 0.0:
 		speed *= 0.15
+	if ralenti_t > 0.0:
+		ralenti_t -= delta
+		speed *= ralenti_k
 	if charge_t > 0.0 or slam_t >= 0.0:
 		goal = global_position + charge_dir * 3.0
 		routed = false
@@ -334,7 +369,13 @@ func _physics_process(delta: float) -> void:
 	if routed:
 		stop_dist = 0.05
 	if to_goal.length() > stop_dist:
-		desired = _steer(to_goal.normalized(), delta)
+		# loin et calme : la direction (rayons contre les obstacles) est recalculée moins souvent
+		if lod_loin and steer_t > 0.0:
+			desired = steer_cache
+		else:
+			desired = _steer(to_goal.normalized(), delta)
+			steer_cache = desired
+			steer_t = 0.2
 	if Game.dans_eau(global_position):
 		speed *= 0.6
 	var accel := 30.0 if charge_t > 0.0 else 10.0
@@ -376,6 +417,16 @@ func _physics_process(delta: float) -> void:
 				_anim("attaque", 1.0, 0.8)
 			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
 			p.take_damage(damage, self)
+	# attaque d'un bandit
+	if state == State.CHASE and proie and is_instance_valid(proie) and proie.state != 3:
+		var fb := Vector2(proie.global_position.x - global_position.x, proie.global_position.z - global_position.z).length()
+		if fb < 1.5 * (1.6 if est_boss else 1.0) and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
+			attack_t = 1.7 if est_boss else 1.1
+			lunge = 1.0
+			if not rampant:
+				_anim("attaque", 1.0, 0.8)
+			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
+			proie.take_hit(damage, proie.global_position + Vector3.UP * 1.2, global_position)
 	# bruit de grognement (attire les autres de près)
 	groan_t -= delta
 	if groan_t <= 0.0:
@@ -389,6 +440,9 @@ func _physics_process(delta: float) -> void:
 func _think() -> void:
 	var p = Game.player
 	if p == null or not p.alive or (Game.admin and Game.admin_invisible):
+		if _chercher_proie(20.0):
+			state = State.CHASE
+			return
 		if state == State.CHASE:
 			state = State.WANDER
 		_wander_update()
@@ -410,6 +464,20 @@ func _think() -> void:
 		var facing := fwd.dot(to_p.normalized()) > 0.1
 		if dist < 3.0 or facing or state == State.CHASE:
 			sees = _line_of_sight(p)
+	voit_joueur = sees
+	if sees:
+		proie = null
+	elif _chercher_proie(sight):
+		# pas de joueur en vue : un bandit fera l'affaire
+		state = State.CHASE
+		lost_t = 0.0
+		return
+	if assaut and not sees:
+		# horde : marche sur la base du joueur et tape dans ce qui bloque le passage
+		state = State.CHASE
+		target = assaut_pos
+		lost_t = 0.0
+		return
 	if sees:
 		state = State.CHASE
 		target = p.global_position
@@ -460,10 +528,37 @@ func _on_noise(pos: Vector3, radius: float) -> void:
 
 
 # ================================================================ déplacement
+## Bandit vivant à portée de vue (le plus proche), gardé tant qu'il reste proche.
+func _chercher_proie(portee: float) -> bool:
+	if proie and is_instance_valid(proie) and proie.state != 3 and global_position.distance_to(proie.global_position) < portee * 1.5:
+		return true
+	proie = null
+	var meilleur := portee
+	var fwd := -global_basis.z
+	for b in get_tree().get_nodes_in_group("bandits"):
+		var d: float = global_position.distance_to(b.global_position)
+		if d >= meilleur:
+			continue
+		if d > 6.0 and fwd.dot((b.global_position - global_position).normalized()) < 0.1:
+			continue
+		if _line_of_sight(b):
+			meilleur = d
+			proie = b
+	return proie != null
+
+
 func _raw_target() -> Vector3:
-	if state == State.CHASE and Game.player:
+	if state == State.CHASE and proie and is_instance_valid(proie):
+		return proie.global_position
+	if state == State.CHASE and Game.player and not (assaut and not voit_joueur):
 		return Game.player.global_position
 	return target
+
+
+## Piques, barbelés : le zombie avance au ralenti pendant un moment.
+func ralentir(duree: float, facteur: float) -> void:
+	ralenti_t = maxf(ralenti_t, duree)
+	ralenti_k = facteur
 
 
 ## Passe par les portes quand la cible est dans un autre bâtiment.
@@ -652,6 +747,9 @@ const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50, "bo
 func _die() -> void:
 	if Game.player and state != State.DEAD:
 		Game.player.prog.gagner("combat", XP_TYPE.get(kind, 20))
+		# quelques billets sur le corps
+		if randf() < 0.45:
+			Game.player.gagner_argent(randi_range(1, 6) * (4 if est_boss else 1))
 		if est_boss:
 			Game.player.prog.gagner("exploration", 200)
 			Game.msg("Le Colosse est tombé ! Fouille son corps et la cache au fond de la grotte.")
@@ -662,6 +760,8 @@ func _die() -> void:
 	get_tree().create_timer(0.9).timeout.connect(func(): if is_instance_valid(self): Effets.flaque(get_parent(), global_position))
 	get_tree().create_timer(0.5).timeout.connect(func(): if is_instance_valid(self): _lacher_arme())
 	state = State.DEAD
+	if pieds_ik:
+		pieds_ik.active = false
 	remove_from_group("zombies")
 	add_to_group("corpses")
 	collision_layer = Game.LAYER_INTERACT
@@ -669,7 +769,13 @@ func _die() -> void:
 	velocity = Vector3.ZERO
 	if ap:
 		ap.active = true
-		_anim("mort", 1.0, 99.0)
+		# déjà au sol (renversé ou rampant) : reste couché, sans rejouer la chute depuis la pose debout
+		if a_terre > 0.0:
+			pass
+		elif rampant:
+			ap.pause()
+		else:
+			_anim("mort", 1.0, 99.0)
 		return
 	var tw := create_tween()
 	tw.tween_property(modele, "rotation:x", -PI / 2.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -837,6 +943,8 @@ func _pos_os(nom: String) -> Vector3:
 		return Vector3.INF
 	var i := squelette.find_bone(nom)
 	if i < 0:
+		i = squelette.find_bone(nom.to_lower())   # squelette Quaternius : noms UAL en minuscules
+	if i < 0:
 		return Vector3.INF
 	return squelette.global_transform * squelette.get_bone_global_pose(i).origin
 
@@ -985,3 +1093,26 @@ func _se_relever() -> void:
 		else:
 			_anim("idle", 1.0, 0.3)
 	state = State.CHASE if Game.player and Game.player.alive else State.WANDER
+
+
+## Animation selon la distance et la visibilité : chaque image de près, de moins en moins souvent
+## au loin ou hors du champ de vision (le squelette coûte cher à recalculer).
+func _process(delta: float) -> void:
+	if ap == null or not ap.active or ap.callback_mode_process != AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL:
+		anim_acc = 0.0
+		return
+	anim_acc += delta
+	anim_image += 1
+	var palier := 1
+	var p = Game.player
+	if p and state != State.CHASE:
+		var d := global_position.distance_to(p.global_position)
+		if not p.camera.is_position_in_frustum(global_position + Vector3.UP):
+			palier = 6
+		elif d > 50.0:
+			palier = 4
+		elif d > 25.0:
+			palier = 2
+	if anim_image % palier == 0:
+		ap.advance(anim_acc)
+		anim_acc = 0.0

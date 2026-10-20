@@ -8,6 +8,8 @@ const InventoryUI = preload("res://scripts/ui/inventory_ui.gd")
 const InspectionUI = preload("res://scripts/ui/inspection_ui.gd")
 const CompetencesUI = preload("res://scripts/ui/competences_ui.gd")
 const MapUI = preload("res://scripts/ui/map_ui.gd")
+const BoutiqueUI = preload("res://scripts/ui/boutique_ui.gd")
+const Vendeur = preload("res://scripts/vendeur.gd")
 const PLAYER_SCENE = preload("res://scenes/player.tscn")
 const ZOMBIE_SCENE = preload("res://scenes/zombie.tscn")
 
@@ -33,6 +35,10 @@ func _ready() -> void:
 	world.name = "Monde"
 	add_child(world)
 	var spawn: Vector3 = world.build(s)
+	_creer_marche()
+	_creer_camps()
+	if OS.get_environment("SANS_FACADES") == "":   # (test de performance : sans les nouveaux effets)
+		_creer_ambiance()
 	var dn = DayNight.new()
 	dn.name = "Cycle"
 	add_child(dn)
@@ -56,6 +62,7 @@ func _ready() -> void:
 	add_child(InspectionUI.new())
 	add_child(CompetencesUI.new())
 	add_child(MapUI.new())
+	add_child(BoutiqueUI.new())
 	if Game.admin:
 		add_child(preload("res://scripts/ui/admin_ui.gd").new())
 	_ambience()
@@ -64,6 +71,155 @@ func _ready() -> void:
 	else:
 		Sauvegarde.appliquer_joueur(self, charge)
 		Game.msg("Partie chargée — jour %d." % Game.day)
+
+
+## Marché des survivants : trois stands (armurier, quincaillier, médecin) dans la rue,
+## pas loin de la maison de départ. Même emplacement et mêmes vendeurs pour une même carte.
+func _creer_marche() -> void:
+	var sortie: Vector3 = world.spawn_point
+	var dehors: Vector3 = world.spawn_point - world.spawn_zone.center
+	dehors.y = 0.0
+	dehors = dehors.normalized()
+	var cote := dehors.cross(Vector3.UP).normalized()
+	var centre = null
+	for d in [9.0, 12.0, 15.0, 6.0]:
+		for s in [12.0, -12.0, 18.0, -18.0, 0.0]:
+			var c: Vector3 = sortie + dehors * d + cote * s
+			var ok := true
+			for k in [-1, 0, 1]:
+				for z in [-1.8, 0.0, 1.8]:
+					var pt: Vector3 = c + cote * (k * 4.0) + dehors * z
+					if not Game.find_zone(pt + Vector3.UP).is_empty():
+						ok = false
+					if Game.relief and Game.relief.dans_eau(pt.x, pt.z):
+						ok = false
+			if ok:
+				centre = c
+				break
+		if centre != null:
+			break
+	if centre == null:
+		centre = sortie + dehors * 8.0
+	var noms := ["Marc", "Sophie", "Karim", "Lucie", "Hugo", "Inès", "Paul", "Nadia", "Yann", "Chloé"]
+	var metiers := ["armurier", "quincaillier", "medecin"]
+	for k in 3:
+		var pt: Vector3 = centre + cote * ((k - 1) * 4.0)
+		pt.y = Game.hauteur(pt.x, pt.z)
+		var v = Vendeur.new()
+		v.setup(metiers[k], noms[absi(Game.graine_monde + k * 3) % noms.size()])
+		add_child(v)
+		v.global_position = pt
+		v.rotation.y = atan2(dehors.x, dehors.z)   # le client se tient côté maison
+	Game.pois.append({"name": "Marché des survivants", "pos": centre, "color": Color(0.4, 0.9, 0.5)})
+
+
+## Camps de bandits répartis sur la carte, hors des villes, loin du départ et entre eux.
+## Mêmes camps pour une même carte (tirage à partir de la graine du monde).
+const CampBandits = preload("res://scripts/camp_bandits.gd")
+const NB_CAMPS := 7
+var camps: Array = []
+
+
+func _creer_camps() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = Game.graine_monde + 4242
+	var depart: Vector3 = world.spawn_point
+	var lim: float = Game.map_half - 40.0
+	var places: Array = []
+	for essai in 600:
+		if places.size() >= NB_CAMPS:
+			break
+		var c := Vector3(rng.randf_range(-lim, lim), 0, rng.randf_range(-lim, lim))
+		if Vector2(c.x - depart.x, c.z - depart.z).length() < 160.0 or Game.in_city(c):
+			continue
+		var trop_pres := false
+		for p in places:
+			if Vector2(c.x - p.x, c.z - p.z).length() < 170.0:
+				trop_pres = true
+		if trop_pres:
+			continue
+		# terrain sec, plutôt plat, sans bâtiment
+		var ok := true
+		var hmin := 9999.0
+		var hmax := -9999.0
+		for k in 9:
+			var a := k * TAU / 8.0
+			var r := 0.0 if k == 8 else 13.0
+			var pt := c + Vector3(cos(a), 0, sin(a)) * r
+			if Game.relief and Game.relief.dans_eau(pt.x, pt.z):
+				ok = false
+			if not Game.find_zone(pt + Vector3.UP).is_empty():
+				ok = false
+			var h: float = Game.hauteur(pt.x, pt.z)
+			hmin = minf(hmin, h)
+			hmax = maxf(hmax, h)
+		if not ok or hmax - hmin > 2.5:
+			continue
+		c.y = Game.hauteur(c.x, c.z)
+		places.append(c)
+	for i in places.size():
+		var camp = CampBandits.new()
+		camp.name = "CampBandits%d" % i
+		add_child(camp)
+		camp.global_position = places[i]
+		camp.rotation.y = rng.randf() * TAU
+		for c in camp.construire(i, rng, 3 + rng.randi_range(0, 3)):
+			c.uid = world.conteneurs.size()
+			world.conteneurs.append(c)
+		camps.append(camp)
+		Game.pois.append({"name": "Camp de bandits", "pos": places[i], "color": Color(0.9, 0.15, 0.1)})
+
+
+## Sauvegarde : nombre de bandits encore en vie dans chaque camp.
+func etat_camps() -> Array:
+	var res := []
+	for c in camps:
+		res.append(c.vivants() if is_instance_valid(c) else 0)
+	return res
+
+
+func appliquer_camps(etat: Array) -> void:
+	for i in mini(etat.size(), camps.size()):
+		camps[i].garder(int(etat[i]))
+
+
+# ---------------------------------------------------------------- primes
+## Les marchands paient pour chaque camp de bandits entièrement nettoyé.
+var primes_payees: Array = []
+const DIRECTIONS := ["nord", "nord-est", "est", "sud-est", "sud", "sud-ouest", "ouest", "nord-ouest"]
+
+
+func prime_camp(i: int) -> int:
+	return 100 + 40 * int(camps[i].effectif)
+
+
+## Situation des camps vus depuis un point : direction, distance, bandits restants, prime.
+func infos_primes(depuis: Vector3) -> Array:
+	var res := []
+	for i in camps.size():
+		var c: Vector3 = camps[i].global_position
+		var dx := c.x - depuis.x
+		var dz := c.z - depuis.z
+		var ang := atan2(dx, -dz)   # 0 = nord (-Z), vers l'est quand x augmente
+		var k := posmod(roundi(ang / (PI / 4.0)), 8)
+		res.append({"i": i, "dir": DIRECTIONS[k], "dist": int(Vector2(dx, dz).length()), "restants": camps[i].vivants(),
+				"prime": prime_camp(i), "payee": i < primes_payees.size() and primes_payees[i]})
+	return res
+
+
+func reclamer_prime(i: int) -> bool:
+	if i >= camps.size() or camps[i].vivants() > 0:
+		return false
+	while primes_payees.size() < camps.size():
+		primes_payees.append(false)
+	if primes_payees[i]:
+		return false
+	primes_payees[i] = true
+	player.gagner_argent(prime_camp(i), true)
+	player.prog.gagner("combat", 150)
+	Game.msg("Prime encaissée : %d € pour le camp de bandits nettoyé !" % prime_camp(i))
+	Game.play_ui("construire", -2.0, 0.0, 1.4)
+	return true
 
 
 ## Sauvegarde la partie (menu pause, F5, et automatiquement toutes les 5 minutes).
@@ -126,6 +282,169 @@ func _gerer_virtuels() -> void:
 			z.home = v.maison
 
 
+# ---------------------------------------------------------------- hordes
+## À la tombée de la nuit (dès le 2e jour), une horde peut marcher sur la base du joueur.
+## Joueur à proximité : vrais zombies qui tapent dans les murs. Joueur au loin : attaque simulée.
+var etait_nuit := false
+var horde_init := false
+
+
+func _gerer_hordes() -> void:
+	var nuit := Game.is_night()
+	if not horde_init:
+		# partie chargée de nuit : pas d'attaque immédiate
+		horde_init = true
+		etait_nuit = nuit
+		return
+	if nuit and not etait_nuit:
+		_nuit_tombe()
+	elif not nuit and etait_nuit:
+		# le jour se lève : la horde se disperse
+		for z in get_tree().get_nodes_in_group("horde"):
+			z.assaut = false
+	etait_nuit = nuit
+
+
+## La plus grande base du joueur (au moins 4 pièces).
+func _base_principale() -> Node3D:
+	var meilleure: Node3D = null
+	var n := 3
+	for b in get_tree().get_nodes_in_group("base_construction"):
+		if b.get_child_count() > n:
+			n = b.get_child_count()
+			meilleure = b
+	return meilleure
+
+
+func _nuit_tombe() -> void:
+	if Game.day < 2:
+		return
+	var base := _base_principale()
+	if base == null or randf() > minf(0.3 + 0.05 * Game.day, 0.6):
+		return
+	annoncer_horde(base)
+
+
+## Alerte : la horde arrive dans 45 s (le temps de rentrer et de se préparer).
+const HORDE_DELAI := 45.0
+var horde_compte := -1.0
+var horde_base: Node3D = null
+
+
+func annoncer_horde(base: Node3D) -> void:
+	if player.global_position.distance_to(_centre_base(base)) > 90.0:
+		Game.msg("!! ALERTE : une horde attaque ta base au loin !")
+		Game.play_ui("grogne2", 0.0, 0.05, 0.6)
+		declencher_horde(base)
+		return
+	horde_base = base
+	horde_compte = HORDE_DELAI
+	Game.msg("!! ALERTE : une horde approche de ta base ! Arrivée dans %d secondes." % int(HORDE_DELAI))
+	Game.play_ui("grogne1", 4.0, 0.05, 0.55)
+	Game.play_ui("grogne3", 0.0, 0.05, 0.7)
+
+
+func _compte_horde(delta: float) -> void:
+	if horde_compte <= 0.0:
+		return
+	var avant := horde_compte
+	horde_compte -= delta
+	for rappel in [30.0, 15.0, 5.0]:
+		if avant > rappel and horde_compte <= rappel:
+			Game.msg("!! La horde arrive dans %d secondes !" % int(rappel))
+			Game.play_ui("grogne%d" % randi_range(1, 3), 2.0, 0.1, 0.6)
+	if horde_compte <= 0.0:
+		horde_compte = -1.0
+		if horde_base and is_instance_valid(horde_base):
+			declencher_horde(horde_base)
+		horde_base = null
+
+
+## Texte d'alerte affiché en haut de l'écran (vide s'il n'y a rien).
+func texte_alerte() -> String:
+	if horde_compte > 0.0:
+		return "!! HORDE EN APPROCHE — %d s" % ceili(horde_compte)
+	var n := 0
+	for z in get_tree().get_nodes_in_group("horde"):
+		if is_instance_valid(z) and z.assaut and z.state != 3:
+			n += 1
+	return "!! HORDE EN COURS — %d zombie(s)" % n if n > 0 else ""
+
+
+func _centre_base(base: Node3D) -> Vector3:
+	var c := Vector3.ZERO
+	for p in base.get_children():
+		c += (p as Node3D).global_position
+	return c / maxf(1.0, base.get_child_count())
+
+
+func declencher_horde(base: Node3D) -> void:
+	var centre := _centre_base(base)
+	var nb := clampi(4 + 2 * Game.day, 6, 16)
+	if player.global_position.distance_to(centre) > 90.0:
+		_horde_simulee(base, centre, nb)
+		return
+	var ang := randf() * TAU
+	var poses := 0
+	for k in nb * 4:
+		if poses >= nb:
+			break
+		var a := ang + randf_range(-0.5, 0.5)
+		var p := centre + Vector3(cos(a), 0, sin(a)) * randf_range(38.0, 50.0)
+		p.y = Game.hauteur(p.x, p.z) + 0.15
+		if Game.relief and Game.relief.dans_eau(p.x, p.z):
+			continue
+		if absf(p.x) > Game.map_half - 10.0 or absf(p.z) > Game.map_half - 10.0:
+			continue
+		if not Game.find_zone(p + Vector3.UP).is_empty():
+			continue
+		var r := randf()
+		var kind := "coureur" if r < 0.25 else ("gros" if r < 0.4 else "civil")
+		var z = spawn_zombie(p, kind, false, 15.0)
+		z.add_to_group("horde")
+		z.assaut = true
+		z.assaut_pos = centre
+		z.state = z.State.CHASE
+		z.target = centre
+		poses += 1
+	if poses > 0:
+		Game.msg("Une horde de %d zombies marche sur ta base !" % poses)
+		Game.play_ui("grogne1", 2.0, 0.1, 0.7)
+
+
+## Joueur absent : la horde abîme la base ; les pièges autour réduisent les dégâts (et s'usent).
+func _horde_simulee(base: Node3D, centre: Vector3, nb: int) -> void:
+	var pieces := []
+	for p in base.get_children():
+		if p.has_method("detruire") and not p.type in ["plancher", "escalier"]:
+			pieces.append(p)
+	if pieces.is_empty():
+		return
+	var protection := 0.0
+	for t in get_tree().get_nodes_in_group("piege"):
+		if t.global_position.distance_to(centre) < 20.0:
+			protection = minf(0.5, protection + 0.1)
+			t.health -= 40.0
+			if t.health <= 0.0:
+				t.queue_free()
+	var coups := 2 + nb / 3
+	var abimees := 0
+	var detruites := 0
+	for k in coups:
+		if pieces.is_empty():
+			break
+		var p = pieces.pick_random()
+		if not is_instance_valid(p) or p.is_queued_for_deletion():
+			continue
+		p.pv -= 110.0 * nb / coups * randf_range(0.6, 1.4) * (1.0 - protection)
+		abimees += 1
+		if p.pv <= 0.0:
+			detruites += 1
+			pieces.erase(p)
+			p.detruire()
+	Game.msg("Pendant ton absence, une horde a attaqué ta base : %d coups encaissés, %d pièce(s) détruite(s)." % [abimees, detruites])
+
+
 func spawn_zombie(pos: Vector3, kind: String, persistent: bool, radius: float) -> Node:
 	var z = ZOMBIE_SCENE.instantiate()
 	z.setup(kind, persistent, radius)
@@ -139,6 +458,7 @@ var auto_t := 300.0
 
 func _process(delta: float) -> void:
 	_maj_ambiance(delta)
+	_compte_horde(delta)
 	auto_t -= delta
 	if auto_t <= 0.0:
 		auto_t = 300.0
@@ -149,6 +469,7 @@ func _process(delta: float) -> void:
 		return
 	spawn_t = 1.0
 	_gerer_virtuels()
+	_gerer_hordes()
 	var roamers := 0
 	for z in get_tree().get_nodes_in_group("zombies"):
 		if z.persistent:
@@ -269,3 +590,19 @@ func _maj_ambiance(delta: float) -> void:
 		a.volume_db = linear_to_db(maxf(lin, 0.0005))
 	if reverb_idx >= 0:
 		AudioServer.set_bus_effect_enabled(0, reverb_idx, dans_grotte)
+
+
+## Éclairage des rues, détails du monde (décalques, herbe) et météo.
+func _creer_ambiance() -> void:
+	var eclairage = preload("res://scripts/eclairage_rues.gd").new()
+	eclairage.name = "EclairageRues"
+	add_child(eclairage)
+	eclairage.installer(world.lampadaires, Game.graine_monde)
+	var details = preload("res://scripts/details_monde.gd").new()
+	details.name = "DetailsMonde"
+	add_child(details)
+	details.installer(world, Game.graine_monde)
+	var meteo = preload("res://scripts/meteo.gd").new()
+	meteo.name = "Meteo"
+	add_child(meteo)
+	meteo.installer(world, Game.graine_monde)

@@ -505,6 +505,8 @@ func _desc(id: String) -> String:
 				d += "\nRangement : %d×%d cases." % [gs.x, gs.y]
 		"placeable":
 			d = "Objet de base à poser (clic droit → Placer)."
+		"outil":
+			d = "Construction de base : touche B (garde-le dans ton inventaire)."
 		"accessoire":
 			var armes := []
 			for a in Accessoires.table():

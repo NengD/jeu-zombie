@@ -155,6 +155,14 @@ func _build_settings() -> PanelContainer:
 	s2.custom_minimum_size = Vector2(500, 24)
 	s2.value_changed.connect(func(v): Game.volume = v; Game.apply_settings(); _update_setting_labels())
 	vb.add_child(s2)
+	_small_label(vb, "Qualité graphique (Élevé et Ultra : brume volumétrique, reflets, ombres douces) :")
+	var qg := OptionButton.new()
+	for nom in Game.NOMS_QUALITE:
+		qg.add_item(nom)
+	qg.selected = Game.qualite
+	qg.custom_minimum_size = Vector2(240, 30)
+	qg.item_selected.connect(func(i): Game.qualite = i; Game.save_settings())
+	vb.add_child(qg)
 	_update_setting_labels()
 	# touches
 	var kt := Label.new()

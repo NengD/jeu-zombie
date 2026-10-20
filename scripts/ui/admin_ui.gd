@@ -88,6 +88,19 @@ func _construire() -> void:
 		for m in ["mun_9mm", "mun_12", "mun_556"]:
 			Game.player.add_item(m, 200)
 		Game.msg("Munitions ajoutées."))
+	_bouton(h, "Lancer une horde sur ma base", func():
+		var m = Game.player.get_parent()
+		var b = m._base_principale()
+		if b == null:
+			Game.msg("Il faut une base d'au moins 4 pièces.")
+		else:
+			m.annoncer_horde(b))
+	_bouton(h, "Pluie / beau temps", func():
+		var mt = Game.player.get_parent().get_node_or_null("Meteo")
+		if mt:
+			mt.cible = 0.0 if mt.cible > 0.0 else 1.0
+			mt.prochain = 600.0
+			Game.msg("Météo : " + ("pluie" if mt.cible > 0.0 else "beau temps")))
 	_bouton(h, "Vider l'inventaire", func():
 		Game.player.poches.entrees.clear()
 		Game.player._check_hotbar()

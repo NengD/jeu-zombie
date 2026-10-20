@@ -55,7 +55,7 @@ func _contact(_b: Node) -> void:
 ## Explosion : dégâts dégressifs (arrêtés par les murs), zombies renversés, souffle, lumière, fumée, bruit.
 static func exploser(monde: Node, pos: Vector3, degats_max: float, r: float) -> void:
 	var espace: PhysicsDirectSpaceState3D = monde.get_viewport().world_3d.direct_space_state
-	for z in monde.get_tree().get_nodes_in_group("zombies"):
+	for z in monde.get_tree().get_nodes_in_group("zombies") + monde.get_tree().get_nodes_in_group("bandits"):
 		if not is_instance_valid(z) or not (z is Node3D):
 			continue
 		var centre: Vector3 = (z as Node3D).global_position + Vector3.UP * 0.9

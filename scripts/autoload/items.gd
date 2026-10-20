@@ -21,6 +21,8 @@ const DB := {
 	"poudre": {"name": "Poudre à canon", "type": "material", "weight": 0.1},
 	"alcool": {"name": "Alcool", "type": "material", "weight": 0.4},
 	"cuir": {"name": "Cuir", "type": "material", "weight": 0.3},
+	"ciment": {"name": "Sac de ciment", "type": "material", "weight": 3.0},
+	"marteau": {"name": "Marteau de construction", "type": "outil", "weight": 0.8},
 	# --- munitions
 	"mun_9mm": {"name": "Balles 9×19 mm", "type": "ammo", "weight": 0.012, "modele": "cart_9mm"},
 	"mun_45": {"name": "Balles .45 ACP", "type": "ammo", "weight": 0.021, "modele": "cart_45"},
@@ -37,19 +39,12 @@ const DB := {
 	"mun_4570": {"name": "Balles .45-70", "type": "ammo", "weight": 0.03, "modele": "cart_4570"},
 	# --- armes blanches
 	"poings": {"name": "Poings", "type": "melee", "damage": 9.0, "rate": 0.5, "range": 1.6, "stamina": 5.0, "len": 0.0, "color": Color(0.8, 0.6, 0.5)},
-	"couteau": {"name": "Couteau", "type": "melee", "damage": 28.0, "rate": 0.42, "range": 1.7, "stamina": 7.0, "len": 0.3, "color": Color(0.75, 0.75, 0.8), "weight": 0.3},
 	"batte": {"name": "Batte de baseball", "type": "melee", "damage": 36.0, "rate": 0.8, "range": 2.2, "stamina": 14.0, "len": 0.85, "color": Color(0.55, 0.38, 0.2), "weight": 1.0},
 	"batte_cloutee": {"name": "Batte cloutée", "type": "melee", "damage": 52.0, "rate": 0.85, "range": 2.2, "stamina": 15.0, "len": 0.85, "color": Color(0.45, 0.3, 0.18), "weight": 1.2},
 	"machette": {"name": "Machette", "type": "melee", "damage": 46.0, "rate": 0.6, "range": 2.0, "stamina": 11.0, "len": 0.6, "color": Color(0.6, 0.62, 0.65), "weight": 0.8},
-	"machette_art": {"name": "Machette artisanale", "type": "melee", "damage": 38.0, "rate": 0.65, "range": 1.9, "stamina": 12.0, "len": 0.55, "color": Color(0.5, 0.45, 0.4), "weight": 0.9},
 	"hache": {"name": "Hache", "type": "melee", "damage": 65.0, "rate": 1.05, "range": 2.1, "stamina": 20.0, "len": 0.75, "color": Color(0.5, 0.15, 0.1), "weight": 1.8},
-	"pied_de_biche": {"name": "Pied-de-biche", "type": "melee", "damage": 34.0, "rate": 0.65, "range": 1.9, "stamina": 10.0, "len": 0.56, "color": Color(0.3, 0.3, 0.32), "weight": 1.5},
-	"masse": {"name": "Masse", "type": "melee", "damage": 80.0, "rate": 1.4, "range": 2.2, "stamina": 28.0, "len": 0.9, "color": Color(0.3, 0.3, 0.3), "weight": 4.0},
-	"cle_tuyau": {"name": "Clé à tuyau", "type": "melee", "damage": 30.0, "rate": 0.6, "range": 1.7, "stamina": 9.0, "len": 0.4, "color": Color(0.5, 0.15, 0.1), "weight": 1.2},
 	"matraque": {"name": "Matraque", "type": "melee", "damage": 30.0, "rate": 0.55, "range": 1.9, "stamina": 9.0, "len": 0.55, "color": Color(0.1, 0.1, 0.1), "weight": 0.6},
-	"hachette": {"name": "Hachette", "type": "melee", "damage": 48.0, "rate": 0.75, "range": 1.9, "stamina": 13.0, "len": 0.47, "color": Color(0.35, 0.25, 0.18), "weight": 0.9},
 	"couteau_km2000": {"name": "Couteau de combat KM2000", "type": "melee", "damage": 31.0, "rate": 0.4, "range": 1.7, "stamina": 7.0, "len": 0.3, "color": Color(0.2, 0.2, 0.2), "weight": 0.35},
-	"couteau_m9": {"name": "Baïonnette M9", "type": "melee", "damage": 30.0, "rate": 0.4, "range": 1.75, "stamina": 7.0, "len": 0.29, "color": Color(0.2, 0.2, 0.2), "weight": 0.4},
 	# --- armes à feu : modèles « low-poly » de D_U (Sketchfab, CC Attribution — voir CREDITS.txt)
 	# famille : prise en main et accessoires ; calibre = munition ; pitch : hauteur du son du tir
 	# semi : pas de pompe ; verrou / levier : réarmement manuel après chaque tir ; cartouches : chargement une à une ;
@@ -96,6 +91,9 @@ const DB := {
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
 	"barricade": {"name": "Barricade (à placer)", "type": "placeable", "weight": 4.0},
 	"caisse_stockage": {"name": "Caisse de stockage (à placer)", "type": "placeable", "weight": 4.0},
+	"piques": {"name": "Piques en bois (piège à placer)", "type": "placeable", "weight": 5.0},
+	"barbeles": {"name": "Barbelés (piège à placer)", "type": "placeable", "weight": 4.0},
+	"projecteur": {"name": "Projecteur (à placer)", "type": "placeable", "weight": 4.0},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
 	"point_rouge": {"name": "Point rouge Holosun HS403R", "type": "accessoire", "desc": "Viseur point rouge compact : visée bien plus précise."},
 	"viseur_reflex": {"name": "Viseur reflex Holosun 510C", "type": "accessoire", "desc": "Viseur ouvert à large fenêtre (va aussi sur les pistolets à plaque optique)."},
@@ -126,12 +124,12 @@ const DB := {
 # Taille dans l'inventaire (largeur, hauteur en cases). Par défaut 1×1.
 const SIZES := {
 	"eau": [1, 2], "ration": [1, 2], "trousse": [2, 2], "alcool": [1, 2], "planche": [1, 3], "cuir": [2, 1],
-	"couteau": [1, 2], "matraque": [1, 3], "machette": [1, 3], "machette_art": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4], "pied_de_biche": [1, 3], "masse": [1, 4], "cle_tuyau": [1, 2],
+	"matraque": [1, 3], "machette": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
-	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2],
-	"hachette": [1, 3], "couteau_km2000": [1, 2], "couteau_m9": [1, 2],
+	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
+	"couteau_km2000": [1, 2],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
 	"m4a1": [4, 2], "m5_scw": [3, 2], "urgi": [4, 2], "lr300": [4, 2], "mcx": [4, 2],
@@ -160,7 +158,7 @@ const CATEGORY_COLORS := {
 	"food": Color(0.95, 0.75, 0.45), "drink": Color(0.55, 0.8, 1.0), "heal": Color(1.0, 0.45, 0.45),
 	"material": Color(0.82, 0.8, 0.75), "ammo": Color(0.95, 0.82, 0.4), "armor": Color(0.6, 0.85, 0.55),
 	"placeable": Color(0.85, 0.65, 0.4), "melee": Color(0.85, 0.85, 0.9), "gun": Color(0.85, 0.85, 0.9),
-	"accessoire": Color(0.7, 0.8, 0.95), "lancer": Color(0.95, 0.6, 0.4),
+	"accessoire": Color(0.7, 0.8, 0.95), "lancer": Color(0.95, 0.6, 0.4), "outil": Color(0.95, 0.75, 0.35),
 }
 
 # bench = true : nécessite d'être près d'un établi
@@ -168,10 +166,13 @@ const RECIPES := [
 	{"out": "bandage", "qty": 1, "needs": {"tissu": 2}, "bench": false},
 	{"out": "etabli", "qty": 1, "needs": {"planche": 4, "clous": 6, "ferraille": 2}, "bench": false},
 	{"out": "barricade", "qty": 1, "needs": {"planche": 3, "clous": 4}, "bench": false},
+	{"out": "marteau", "qty": 1, "needs": {"ferraille": 2, "planche": 1}, "bench": false},
+	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "bench": false},
+	{"out": "barbeles", "qty": 1, "needs": {"ferraille": 4, "clous": 2}, "bench": true},
+	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "bench": true},
 	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "bench": true},
 	{"out": "trousse", "qty": 1, "needs": {"bandage": 2, "alcool": 1, "antidouleur": 1}, "bench": true},
 	{"out": "batte_cloutee", "qty": 1, "needs": {"batte": 1, "clous": 6, "ruban": 1}, "bench": true},
-	{"out": "machette_art", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "bench": true},
 	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "bench": true},
 	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "bench": true},
 	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "bench": true},
@@ -185,12 +186,12 @@ const RECIPES := [
 
 # Tables de loot : [id, poids, min, max]
 const LOOT := {
-	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["couteau", 4, 1, 1], ["batte", 3, 1, 1], ["hachette", 1.5, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["pied_de_biche", 1.5, 1, 1], ["cle_tuyau", 1.5, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
+	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
 	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
-	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["hachette", 2.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["pied_de_biche", 3, 1, 1], ["masse", 1.5, 1, 1], ["cle_tuyau", 3, 1, 1]],
+	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
 	"hopital": [["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
-	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau", 4, 1, 1], ["couteau_km2000", 2, 1, 1], ["couteau_m9", 2, 1, 1], ["machette", 3, 1, 1],
+	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau_km2000", 2, 1, 1], ["machette", 3, 1, 1],
 		["glock19", 2, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["desert_eagle", 0.6, 1, 1], ["toz34", 1.2, 1, 1], ["benelli_m4", 0.8, 1, 1], ["marlin", 1, 1, 1], ["mosin", 0.8, 1, 1], ["lr300", 0.5, 1, 1],
 		["point_rouge", 1.5, 1, 1], ["viseur_reflex", 1.5, 1, 1], ["viseur_aimpoint", 1, 1, 1], ["lunette", 0.8, 1, 1], ["lunette_hawke", 0.5, 1, 1], ["silencieux_9mm", 0.8, 1, 1], ["frein_9mm", 1, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["poignee", 1, 1, 1], ["laser", 0.6, 1, 1]],
 	"police": [["mun_9mm", 12, 6, 18], ["mun_45", 4, 4, 10], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["matraque", 5, 1, 1], ["glock19", 3, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["mp5k", 1, 1, 1], ["benelli_m4", 1.2, 1, 1], ["m4a1", 0.6, 1, 1],
@@ -201,9 +202,13 @@ const LOOT := {
 	"armurerie_mil": [["mun_556", 12, 20, 45], ["mun_545", 8, 20, 45], ["mun_762", 8, 15, 35], ["mun_762x39", 4, 15, 30], ["mun_338", 2, 5, 10], ["mun_127", 1, 3, 6], ["gilet_militaire", 5, 1, 1], ["casque_militaire", 5, 1, 1], ["poudre", 5, 2, 4], ["rgd5", 4, 1, 3],
 		["urgi", 1.5, 1, 1], ["mcx", 1.2, 1, 1], ["ak74m", 1.2, 1, 1], ["draco", 1, 1, 1], ["uar10", 1, 1, 1], ["mcx_spear", 0.8, 1, 1], ["spear_assaulter", 0.8, 1, 1], ["l96", 0.6, 1, 1], ["c14", 0.4, 1, 1], ["mg5", 0.4, 1, 1], ["gepard", 0.2, 1, 1],
 		["lunette_uar", 1.5, 1, 1], ["lunette_hawke", 1, 1, 1], ["lunette_sb", 0.6, 1, 1], ["viseur_holo", 1.5, 1, 1], ["silencieux_socom", 0.8, 1, 1], ["silencieux_762", 1, 1, 1], ["silencieux_slx", 0.6, 1, 1], ["frein_762", 1.2, 1, 1], ["silencieux_mp7", 0.6, 1, 1]],
-	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["cle_tuyau", 2, 1, 1], ["pied_de_biche", 1.5, 1, 1], ["hachette", 1, 1, 1]],
-	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["hachette", 2, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1]],
-	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["hachette", 2, 1, 1], ["ruban", 4, 1, 1], ["masse", 1.5, 1, 1], ["pied_de_biche", 2, 1, 1], ["mun_12", 1.5, 2, 5]],
+	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["batte", 1, 1, 1], ["ciment", 1.5, 1, 1]],
+	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1]],
+	"camp_bandit": [["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
+		["bandage", 6, 1, 3], ["trousse", 2, 1, 1], ["antidouleur", 4, 1, 2], ["conserve", 6, 1, 3], ["eau", 5, 1, 2], ["alcool", 4, 1, 2],
+		["ferraille", 5, 1, 3], ["poudre", 4, 1, 3], ["glock19", 1.5, 1, 1], ["mr920", 1, 1, 1], ["draco", 0.6, 1, 1], ["rgd5", 1.2, 1, 2],
+		["point_rouge", 0.8, 1, 1], ["silencieux_9mm", 0.6, 1, 1], ["machette", 1.5, 1, 1], ["sac_a_dos", 1, 1, 1], ["gilet_police", 0.6, 1, 1]],
+	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
 	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["mun_545", 3, 6, 15], ["mun_45", 3, 4, 10], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3],
 		["glock19", 1.2, 1, 1], ["desert_eagle", 0.5, 1, 1], ["mp5k", 0.6, 1, 1], ["toz34", 0.6, 1, 1], ["ak74", 0.4, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["chargeur_etendu", 1, 1, 1]],
 	"boss": [["mun_762", 8, 30, 60], ["mun_338", 4, 10, 20], ["mun_127", 3, 5, 10], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["rgd5", 5, 2, 4],
@@ -217,6 +222,47 @@ const LOOT := {
 
 func info(id: String) -> Dictionary:
 	return DB.get(id, {})
+
+
+# ---------------------------------------------------------------- prix (€) chez les marchands
+const PRIX := {
+	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
+	"bandage": 10, "antidouleur": 8, "trousse": 45,
+	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
+	"marteau": 20, "rgd5": 60, "etabli": 60, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
+}
+const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
+const PRIX_MUNITION := {"mun_9mm": 1, "mun_45": 1, "mun_46": 2, "mun_12": 2, "mun_4570": 3, "mun_50ae": 3, "mun_545": 2, "mun_556": 2, "mun_762x39": 2, "mun_762": 3, "mun_762r": 2, "mun_338": 6, "mun_127": 8}
+
+
+## Prix d'achat d'une unité chez un marchand.
+func prix(id: String) -> int:
+	if PRIX.has(id):
+		return PRIX[id]
+	if PRIX_MUNITION.has(id):
+		return PRIX_MUNITION[id]
+	var it := info(id)
+	match it.get("type", ""):
+		"gun":
+			return PRIX_FAMILLE.get(it.get("famille", ""), 350)
+		"melee":
+			return int(float(it.get("damage", 20.0)) * 1.6)
+		"armor":
+			return int(40.0 + float(it.get("armor", 0.0)) * 500.0)
+		"accessoire":
+			return 90
+		"food", "drink":
+			return 6
+		"heal":
+			return 10
+	return 5
+
+
+## Prix de revente d'une unité (les marchands rachètent à 40 %).
+func prix_vente(id: String) -> int:
+	var p := prix(id)
+	return 0 if p <= 0 else maxi(1, int(p * 0.4))
 
 
 func nom(id: String) -> String:

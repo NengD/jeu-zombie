@@ -7,6 +7,7 @@ extends RefCounted
 const FICHIER := "user://sauvegarde.json"
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Placeable = preload("res://scripts/placeable.gd")
+const Construction = preload("res://scripts/construction.gd")
 
 
 static func existe() -> bool:
@@ -91,7 +92,7 @@ static func sauver(main: Node) -> bool:
 		"pos": _v(p.global_position), "rot": p.rotation.y, "tete": p.head.rotation.x,
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
 		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "slot": p.slot,
-		"chargeurs": p.mags, "accessoires": p.accessoires, "progression": p.prog.vers_dict(), "tps": p.want_tps, "lampe": p.flashlight_on,
+		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on,
 	}
 	# meubles du monde (identifiés par leur numéro de génération)
 	var cont := {}
@@ -99,6 +100,9 @@ static func sauver(main: Node) -> bool:
 		if is_instance_valid(c) and (c.searched or c.grille != null):
 			cont[str(c.uid)] = {"f": c.searched, "g": grille_vers(c.grille) if c.grille else null}
 	d["conteneurs"] = cont
+	if main.has_method("etat_camps"):
+		d["camps"] = main.etat_camps()
+		d["primes"] = main.primes_payees
 	# objets posés par le joueur, tas au sol
 	var tas := []
 	var caisses := []
@@ -116,6 +120,11 @@ static func sauver(main: Node) -> bool:
 	d["tas"] = tas
 	d["caisses"] = caisses
 	d["objets"] = objets
+	var bases := []
+	for b in main.get_tree().get_nodes_in_group("base_construction"):
+		if not b.is_queued_for_deletion():
+			bases.append(b.vers_dict())
+	d["constructions"] = bases
 	# zombies vivants
 	var zs := []
 	for z in main.get_tree().get_nodes_in_group("zombies"):
@@ -141,6 +150,9 @@ static func sauver(main: Node) -> bool:
 ## Après la génération du monde : état des meubles.
 static func appliquer_monde(main: Node, d: Dictionary) -> void:
 	var cont: Dictionary = d.get("conteneurs", {})
+	if main.has_method("appliquer_camps") and d.has("camps"):
+		main.appliquer_camps(d.camps)
+		main.primes_payees = Array(d.get("primes", []))
 	for c in main.world.conteneurs:
 		var k := str(c.uid)
 		if cont.has(k):
@@ -207,12 +219,26 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 		for emp in acc[a]:
 			if Items.DB.has(str(acc[a][emp])):
 				p.accessoires[a][emp] = str(acc[a][emp])
-	p.want_tps = bool(j.get("tps", false))
 	p.flashlight_on = bool(j.get("lampe", false))
+	p.argent = int(j.get("argent", 40))
 	p.slot = -1
 	p._select_slot(clampi(int(j.get("slot", 0)), 0, 4))
 	p._refresh_weapon_model()
 	# objets posés
+	# constructions (bases du joueur)
+	for bd in d.get("constructions", []):
+		var base = Construction.Base.new()
+		main.add_child(base)
+		base.global_position = Vector3(bd.o[0], bd.o[1], bd.o[2])
+		base.rotation.y = float(bd.get("r", 0.0))
+		for pd in bd.get("p", []):
+			if not Construction.PIECES.has(str(pd.get("t", ""))):
+				continue
+			var pc = Construction.new()
+			pc.setup(str(pd.t), int(pd.get("n", 0)), Array(pd.get("c", [])), float(pd.get("r", 0.0)))
+			pc.pv = float(pd.get("pv", pc.pv))
+			pc.ouverte = bool(pd.get("o", false))
+			base.ajouter(pc)
 	for o in d.get("objets", []):
 		var pl = Placeable.new()
 		pl.setup(str(o.get("type", "etabli")))
@@ -220,6 +246,7 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 		pl.global_position = _vd(o.pos)
 		pl.rotation.y = float(o.get("rot", 0.0))
 		pl.health = float(o.get("pv", pl.health))
+		pl.health_max = maxf(pl.health_max, pl.health)
 	for c in d.get("caisses", []):
 		var crate = LootContainer.new()
 		crate.setup("Caisse de stockage", "", Vector3(1.2, 0.8, 0.8), Color(0.45, 0.32, 0.18))

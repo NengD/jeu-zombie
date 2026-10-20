@@ -91,6 +91,7 @@ var half := 0.0
 var relief = null            # relief de la campagne (collines, lacs, rivière)
 var routes: Array = []       # [{r: Rect2, x: bool (le long de x)}]
 var plats: Array = []        # zones à garder plates (villages, fermes) sans bloquer les constructions
+var lampadaires: Array = []  # positions des lampadaires (éclairés la nuit par eclairage_rues.gd)
 
 
 func build(seed_value: int) -> Vector3:
@@ -495,6 +496,21 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 					# vitre vue de l'intérieur
 					_sur_facade(along_x, face_in, -sgn, a, y + 0.55, 0.01, 1.3, 1.1, 0.02, Color(0.55, 0.62, 0.7), "vitre")
 				a += 3.6
+		# corniche en haut de la façade (deux bandeaux en saillie)
+		if OS.get_environment("SANS_FACADES") != "":
+			continue
+		var ac0: float = a0 - (t if not along_x else 0.0)
+		var ac1: float = a1 + (t if not along_x else 0.0)
+		_bande(along_x, face, sgn, ac0, ac1, sommet - 0.18, sommet + 0.32, 0.12, Color(0.8, 0.79, 0.76), "beton", false, 0.0)
+		_bande(along_x, face, sgn, ac0, ac1, sommet + 0.18, sommet + 0.3, 0.22, Color(0.74, 0.73, 0.7), "beton", false, 0.0)
+		# descente de gouttière dans un coin de la façade (côtés nord et sud)
+		if along_x and a1 - a0 > 5.0:
+			var ap: float = a0 + 0.35 if rng.randf() < 0.5 else a1 - 0.35
+			var gris := Color(0.38, 0.39, 0.4)
+			_sur_facade(along_x, face, sgn, ap, (sommet + 0.25) / 2.0, 0.09, 0.1, sommet + 0.25, 0.1, gris, "metal_peint")
+			_sur_facade(along_x, face, sgn, ap, 0.08, 0.16, 0.14, 0.16, 0.26, gris, "metal_peint")   # sabot au pied
+			for yb in range(1, int(sommet / 2.0) + 1):
+				_sur_facade(along_x, face, sgn, ap, yb * 2.0, 0.05, 0.16, 0.05, 0.06, gris.darkened(0.2), "metal_peint")   # colliers
 	# ---------------------------------------------------------------- cage d'escalier
 	var cage := {}
 	if n > 1:
@@ -864,6 +880,17 @@ func _fenetre(along_x: bool, face: float, sgn: float, a: float, y: float, kind: 
 	if larg < 2.0:
 		_sur_facade(along_x, face, sgn, a, yc, 0.085, 0.05, haut, 0.03, cadre, "uni")
 	_sur_facade(along_x, face, sgn, a, y0 - 0.04, 0.08, larg + 0.25, 0.07, 0.16, Color(0.8, 0.79, 0.76), "beton")
+	if OS.get_environment("SANS_FACADES") != "":
+		return
+	# linteau au-dessus de la fenêtre
+	_sur_facade(along_x, face, sgn, a, y0 + haut + 0.12, 0.05, larg + 0.3, 0.16, 0.1, Color(0.76, 0.75, 0.72), "beton")
+	# volets battants sur les maisons (ouverts, parfois de travers)
+	if kind == "maison" and larg < 2.0 and rng.randf() < 0.55:
+		var vc: Color = [Color(0.25, 0.35, 0.28), Color(0.45, 0.25, 0.18), Color(0.3, 0.38, 0.5), Color(0.7, 0.68, 0.62)][rng.randi() % 4]
+		for sd in [-1.0, 1.0]:
+			if rng.randf() < 0.12:
+				continue   # volet arraché
+			_sur_facade(along_x, face, sgn, a + sd * (larg / 2.0 + 0.36), yc, 0.04, 0.6, haut + 0.1, 0.04, vc.darkened(rng.randf_range(0.0, 0.25)), "planches")
 	if r > 0.9 and y < INT_H:
 		# planches clouées
 		for i in 3:
@@ -980,12 +1007,14 @@ func _city() -> void:
 				var o: float = c + sd * (ROAD / 2.0 - 0.12)
 				_box(Vector3(mid, 0.07, o), Vector3(a1 - a0, 0.14, 0.24), Color(0.8, 0.8, 0.78), false, "beton")
 				_box(Vector3(o, 0.07, mid), Vector3(0.24, 0.14, a1 - a0), Color(0.8, 0.8, 0.78), false, "beton")
-	# lampadaires éteints aux carrefours
+	# lampadaires aux carrefours (allumés la nuit, certains en panne : eclairage_rues.gd)
 	for i in NB + 1:
 		for j in NB + 1:
 			var p := Vector3(-half + i * BLOCK + 6.0, 0, -half + j * BLOCK + 6.0)
 			if Decor.existe("lampadaire"):
-				_prop("lampadaire", p, rng.randf() * TAU, false, 1.0, 200.0)
+				var lp := _prop("lampadaire", p, rng.randf() * TAU, false, 1.0, 200.0)
+				if lp:
+					lampadaires.append(lp)
 				_box(p + Vector3(0, 2.0, 0), Vector3(0.2, 4.0, 0.2), Color.WHITE, true, "invisible")
 			else:
 				_box(p + Vector3(0, 3.0, 0), Vector3(0.18, 6.0, 0.18), Color(0.2, 0.2, 0.22))

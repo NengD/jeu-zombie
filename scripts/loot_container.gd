@@ -121,6 +121,8 @@ func interact(player: Node) -> void:
 		searched = true
 		if not is_storage and player.has_method("count"):
 			player.prog.gagner("exploration", 6)
+			if randf() < 0.3:
+				player.gagner_argent(randi_range(5, 25))
 		if modele == null:
 			mat.albedo_color = mat.albedo_color.darkened(0.35)
 		Game.make_noise(global_position, 5.0)

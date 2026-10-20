@@ -15,7 +15,7 @@ func _initialize() -> void:
 	var items = root.get_node("Items")
 	for id in items.DB:
 		var t: String = items.DB[id].get("type", "")
-		if t in ["gun", "lancer", "accessoire"] or id in ["hachette", "couteau_km2000", "couteau_m9"] or (t == "ammo" and items.DB[id].has("modele")):
+		if t in ["gun", "lancer", "accessoire"] or id in ["couteau_km2000"] or (t == "ammo" and items.DB[id].has("modele")):
 			if _modele(id) != "":
 				ids.append(id)
 	vp = SubViewport.new()

@@ -8,17 +8,29 @@ class Crosshair extends Control:
 	var hit := 0.0
 	var head := false
 	var vise := false   # en visée : on utilise le viseur de l'arme, pas de réticule
+	var melee := false  # arme de mêlée / mains nues : simple point
+	var ennemi := false # le réticule passe sur un zombie ou un bandit
+	var bloque := Vector2(-1, -1)   # point d'impact réel quand un obstacle coupe la ligne de tir
 
 	func _draw() -> void:
 		var c := size / 2.0
-		var col := Color(1, 1, 1, 0.85)
+		var col := Color(1, 0.35, 0.3, 0.9) if ennemi else Color(1, 1, 1, 0.85)
 		var g := spread
-		if not vise:
+		if melee:
+			draw_circle(c, 3.0, Color(0, 0, 0, 0.35))
+			draw_circle(c, 2.0, col)
+		elif not vise:
 			draw_line(c + Vector2(-g - 8, 0), c + Vector2(-g, 0), col, 2.0)
 			draw_line(c + Vector2(g, 0), c + Vector2(g + 8, 0), col, 2.0)
 			draw_line(c + Vector2(0, -g - 8), c + Vector2(0, -g), col, 2.0)
 			draw_line(c + Vector2(0, g), c + Vector2(0, g + 8), col, 2.0)
 			draw_circle(c, 1.5, col)
+		if bloque.x >= 0.0:
+			# croix orange : la balle s'arrêtera là (mur, rebord, voiture…)
+			var oc := Color(1.0, 0.6, 0.15, 0.9)
+			draw_arc(bloque, 6.0, 0.0, TAU, 16, oc, 1.5)
+			draw_line(bloque + Vector2(-4, -4), bloque + Vector2(4, 4), oc, 1.5)
+			draw_line(bloque + Vector2(-4, 4), bloque + Vector2(4, -4), oc, 1.5)
 		if hit > 0.0:
 			var hc := Color(1, 0.25, 0.2, hit) if head else Color(1, 1, 1, hit)
 			for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
@@ -39,6 +51,7 @@ var lbl_weapon: Label
 var lbl_ammo: Label
 var lbl_prompt: Label
 var lbl_info: Label
+var lbl_alerte: Label        # alerte de horde (haut de l'écran)
 var hot_panels: Array = []
 var hot_labels: Array = []
 var hot_icons: Array = []
@@ -124,6 +137,11 @@ func _ready() -> void:
 	lbl_prompt = _label("", 20)
 	lbl_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(lbl_prompt)
+	lbl_alerte = _label("", 34)
+	lbl_alerte.label_settings.outline_size = 10
+	lbl_alerte.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_alerte.label_settings.font_color = Color(1.0, 0.25, 0.2)
+	root.add_child(lbl_alerte)
 	lbl_info = _label("", 17)
 	lbl_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	root.add_child(lbl_info)
@@ -132,7 +150,7 @@ func _ready() -> void:
 	root.add_child(msg_box)
 	help_panel = _panel(_help_text(), Vector2(620, 0))
 	help_panel.visible = false
-	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
+	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Qualité graphique : " + Game.NOMS_QUALITE[Game.qualite], _qualite_suivante], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
 	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
 	# niveau et XP (au-dessus de la barre rapide)
 	lbl_niveau = _label("", 15)
@@ -218,6 +236,7 @@ func _process(delta: float) -> void:
 	var vs := root.get_viewport_rect().size
 	var p = Game.player
 	_layout(vs)
+	_maj_alerte(vs, p)
 	# messages
 	for m in messages.duplicate():
 		m.t -= delta
@@ -265,9 +284,6 @@ func _process(delta: float) -> void:
 		sb.set_corner_radius_all(4)
 		hot_panels[i].add_theme_stylebox_override("panel", sb)
 	lbl_prompt.text = p.prompt
-	var view := "3e personne" if p.tps_blend > 0.5 else "1re personne"
-	if p.want_tps and not p.in_zone.is_empty():
-		view = "1re personne (intérieur)"
 	var zone_name := ""
 	if not p.in_zone.is_empty():
 		zone_name = p.in_zone.name if p.in_zone.name != "" else "Intérieur"
@@ -275,14 +291,58 @@ func _process(delta: float) -> void:
 		zone_name += "  —  bâtiment sûr" if nz == 0 else "  —  %d zombie(s) à l'intérieur" % nz
 	var hh := int(Game.time_hours)
 	var mm := int((Game.time_hours - hh) * 60.0)
-	lbl_info.text = "Jour %d — %02d:%02d%s\nVue : %s\n%s" % [
-		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", view, zone_name]
-	var moving: float = Vector2(p.velocity.x, p.velocity.z).length()
-	var target_spread := 4.0 + moving * 1.5 + (0.0 if p.aiming else 4.0)
-	cross.spread = lerpf(cross.spread, target_spread, delta * 10.0)
+	lbl_info.text = "Jour %d — %02d:%02d%s\nArgent : %d €\n%s" % [
+		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", p.argent, zone_name]
+	# réticule dynamique : écart = vraie dispersion du tir projetée à l'écran (+ recul en cours)
+	var cw: String = p.current_weapon()
+	var ws: Dictionary = p.arme_stats(cw)
+	cross.melee = ws.get("type", "") != "gun"
+	var target_spread := 4.0
+	if not cross.melee and p.camera:
+		var demi := deg_to_rad(p.camera.fov) * 0.5
+		var px := tan(deg_to_rad(p.dispersion(ws))) / tan(demi) * cross.size.y * 0.5
+		target_spread = clampf(3.0 + px + absf(p.rec_rot.x) * 40.0, 3.0, 120.0)
+	cross.spread = lerpf(cross.spread, target_spread, minf(1.0, delta * 14.0))
+	cross.ennemi = _vise_ennemi(p, float(ws.get("range", 3.0)) if not cross.melee else 3.5)
+	cross.bloque = Vector2(-1, -1) if cross.melee else _point_bloque(p, float(ws.get("range", 80.0)))
 	cross.visible = p.alive and not Game.ui_open
-	cross.vise = p.ads > 0.6
+	cross.vise = false   # 3e personne : réticule toujours affiché
 	cross.queue_redraw()
+
+
+## Le tir part de la tête du personnage, pas de la caméra (décalée sur l'épaule) : si un obstacle
+## coupe la ligne de tir avant le point visé, renvoie sa position à l'écran (sinon (-1, -1)).
+func _point_bloque(p: Node, portee: float) -> Vector2:
+	if p.camera == null:
+		return Vector2(-1, -1)
+	var vise: Vector3 = p._aim_point(portee)
+	var depart: Vector3 = p.lean_pivot.global_position
+	var q := PhysicsRayQueryParameters3D.create(depart, vise, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [p.get_rid()])
+	var hit: Dictionary = (p.get_world_3d() as World3D).direct_space_state.intersect_ray(q)
+	if hit.is_empty() or (hit.position as Vector3).distance_to(vise) < 0.3:
+		return Vector2(-1, -1)
+	if p.camera.is_position_behind(hit.position):
+		return Vector2(-1, -1)
+	return p.camera.unproject_position(hit.position)
+
+
+## Le rayon du réticule touche-t-il un zombie ou un bandit (à portée de l'arme) ?
+func _vise_ennemi(p: Node, portee: float) -> bool:
+	if p.camera == null:
+		return false
+	var from: Vector3 = p.camera.global_position
+	var to: Vector3 = from - p.camera.global_basis.z * (portee + p.recul_camera())
+	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [p.get_rid()])
+	var hit: Dictionary = (p.get_world_3d() as World3D).direct_space_state.intersect_ray(q)
+	var n: Node = hit.get("collider")
+	for i in 4:
+		if n == null:
+			return false
+		if n.is_in_group("zombies") or n.is_in_group("bandits"):
+			# dead_t / mort_t ne comptent qu'après la mort
+			return float(n.get("dead_t") if n.get("dead_t") != null else 0.0) <= 0.0 and float(n.get("mort_t") if n.get("mort_t") != null else 0.0) <= 0.0
+		n = n.get_parent()
+	return false
 
 
 func _on_xp(c: String, q: int) -> void:
@@ -467,3 +527,26 @@ func _maj_boss(p) -> void:
 	boss_box.position.x = root.get_viewport_rect().size.x / 2.0 - 260.0
 	boss_box.position.y = 18.0
 	boss_barre.value = boss.health
+
+
+## Alerte de horde : gros texte rouge clignotant en haut de l'écran.
+func _maj_alerte(vs: Vector2, p: Node) -> void:
+	var main: Node = p.get_parent() if p else null
+	var t: String = main.texte_alerte() if main and main.has_method("texte_alerte") else ""
+	lbl_alerte.text = t
+	lbl_alerte.visible = t != ""
+	if t == "":
+		return
+	lbl_alerte.position = Vector2(0, vs.y * 0.1)
+	lbl_alerte.size = Vector2(vs.x, 40)
+	lbl_alerte.modulate.a = 0.8 + 0.2 * sin(Time.get_ticks_msec() / 160.0)
+
+
+## Menu pause : passe au niveau de qualité graphique suivant (Bas → Moyen → Élevé → Ultra).
+func _qualite_suivante() -> void:
+	Game.qualite = (Game.qualite + 1) % Game.NOMS_QUALITE.size()
+	Game.save_settings()
+	for b in pause_panel.find_children("*", "Button", true, false):
+		if (b as Button).text.begins_with("Qualité graphique"):
+			(b as Button).text = "Qualité graphique : " + Game.NOMS_QUALITE[Game.qualite]
+	Game.msg("Qualité graphique : " + Game.NOMS_QUALITE[Game.qualite])

@@ -27,6 +27,11 @@ Modèles 3D d'armes blanches téléchargés (tous gratuits, licence CC0 — doma
 — Couteau : « Survival Pack » de Quaternius ; batte cloutée : « Zombie Apocalypse Kit » de Quaternius
    (récupérés via la collection https://github.com/Papyszoo/CC0-Public-Domain-Models)
 
+Personnages low-poly (joueur, zombies, bandits, marchands) : « Ultimate Modular Men » et « Ultimate Modular Women »
+de Quaternius (https://quaternius.com), licence CC0 — récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models.
+Animations : « Universal Animation Library » de Quaternius (CC0), transférées sur ces personnages
+(outils/godot/generer_persos_modulaires.gd). Textures du décor stylisées à partir des photos Poly Haven.
+
 Personnages (survivant et zombies) :
 — Mannequins et animations « Universal Animation Library » 1 et 2 de Quaternius (CC0, https://quaternius.com)
 — Coiffures et sourcils « Universal Base Characters » de Quaternius (CC0)
@@ -35,8 +40,13 @@ Personnages (survivant et zombies) :
 
 Décor (tous CC0 — domaine public) :
 — Meubles, mobilier urbain, bornes, poubelles, barils, rochers, buissons : Poly Haven (https://polyhaven.com)
+— Camps de bandits : bidon-brasero (Barrel Stove), caisse de munitions (Ammo Box), jerrican (Metal Jerrycan),
+   lanterne (Lantern 01) : Poly Haven (https://polyhaven.com), licence CC0.
 — Casiers, classeurs, bureaux, caisses, glissières, cônes, bancs, palettes, cartons : « The Base Mesh » (https://thebasemesh.com)
 — Voitures : « Cars » de Quaternius (https://quaternius.com)
    (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_props.gd)
-— Textures (asphalte, briques, enduit, béton, parquet, herbe, écorce, feuillage…) et arbres :
+— Textures photo (asphalte, béton, briques, carrelage, écorce, enduit, herbe, métal, parpaing, parquet, planches,
+   roche, terre, toit, tôle, trottoir, tuiles) : Poly Haven (https://polyhaven.com), licence CC0, en 2k
+   (outils/godot/installer_textures.gd ; anciennes textures générées dans outils/textures_generees/).
+— Feuillage, aiguilles et arbres :
    générés pour le jeu (outils/textures/generer_textures.py, outils/godot/generer_arbres.gd).

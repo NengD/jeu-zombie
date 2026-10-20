@@ -79,9 +79,7 @@ const ACCESSOIRES := {
 	"acc_frein_762": {"src": "muzzle_device_set.glb", "parties": ["mb 7_62"], "o": "arriere"},
 	# grenade et armes blanches
 	"rgd5": {"src": "rgd-5.glb", "parties": [""], "o": "centre", "fwd": Vector3(0, 0, -1)},
-	"hachette": {"src": "axe.glb", "parties": [""], "o": "manche", "fwd": Vector3(-1, 0, 0)},
 	"couteau_km2000": {"src": "km2000.glb", "parties": [""], "o": "manche", "fwd": Vector3(-1, 0, 0)},
-	"couteau_m9": {"src": "m9_bayonet.glb", "parties": [""], "o": "manche"},
 	# cartouches (icônes des munitions)
 	"cart_9mm": {"src": "g19_gen_5_mos.glb", "parties": ["919_5"], "o": "centre", "fwd": Vector3(0, 1, 0)},
 	"cart_45": {"src": "colt_m45a1.glb", "parties": ["45acp_0"], "o": "centre"},
