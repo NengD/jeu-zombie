@@ -2,12 +2,16 @@ JEU ZOMBIE — PROTOTYPE 1
 ========================
 
 LANCER LE JEU
-• Le plus simple : télécharge le dépôt GitHub (bouton « Code » > « Download ZIP »,
-  ou git clone), dézippe, puis double-clic sur « JeuZombie.exe ».
-  Garde « JeuZombie.pck » à côté : il contient tout le jeu.
+• Le plus simple : clone le dépôt GitHub, puis double-clic sur « JeuZombie.exe » :
+      git clone https://github.com/NengD/jeu-zombie.git
+  (Git pour Windows : https://git-scm.com — il gère déjà Git LFS, utilisé pour
+  les gros fichiers du jeu.) Garde « JeuZombie.pck » à côté : il contient tout le jeu.
+  Attention : le bouton « Code » > « Download ZIP » de GitHub ne marche pas ici
+  (il ne contient que de petits fichiers « pointeurs » à la place du jeu).
   Si Windows affiche « Windows a protégé votre ordinateur » : « Informations
   complémentaires » > « Exécuter quand même » (exe non signé).
-• Sous Linux : même dépôt, puis dans un terminal ouvert dans le dossier :
+• Sous Linux : installe git et git-lfs (ex. sudo apt install git git-lfs, puis
+  git lfs install), clone le même dépôt, puis dans le dossier du jeu :
       sh Jouer_linux.sh
   (ou ./JeuZombie.x86_64). Il faut une carte graphique compatible Vulkan
   (pilotes Mesa ou NVIDIA à jour). Le .pck est le même que pour Windows.
