@@ -121,7 +121,10 @@ const GUIDE := """[b]LES BASES[/b]
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
-• La région fait 5 × 5 km : [b]Bellerive[/b] (ville de départ), [b]Valmont[/b] (au nord-est, avec sa zone industrielle),
+• [b]Lieu de départ[/b] : à chaque nouvelle partie, tu choisis où commencer — hameau ou village (facile : peu de zombies),
+  ferme isolée ou maison de Bellerive (moyen), lotissement ou centre de Valmont (difficile), centre-ville ou base militaire
+  (extrême : foule de zombies, meilleur butin), ou au hasard. Le message d'arrivée résume les zombies, le butin et la distance des marchands.
+• La région fait 5 × 5 km : [b]Bellerive[/b] (ville principale), [b]Valmont[/b] (au nord-est, avec sa zone industrielle),
   quatre villages (Saint-Aubin, Hameau des Sources, les Granges, Pont-Rouge), fermes, stations-service, motels.
   Sur la carte : molette pour zoomer, clic maintenu pour la déplacer, [Espace] pour recentrer sur toi
   (les boutiques et bâtiments des villes ne sont nommés qu'en zoomant fort).
@@ -133,6 +136,8 @@ const GUIDE := """[b]LES BASES[/b]
   [b]relais routier[/b] (remorques de camions pleines de marchandises), [b]châteaux d'eau[/b] et silos des fermes, visibles de loin.
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
+• [b]Châteaux d'eau[/b] : une échelle mène à la coursive (22 m), point de vue pour repérer les environs, hors d'atteinte des zombies.
+  Face à l'échelle, [Z] monte, [S] descend ; en haut, [Z] fait passer sur la coursive ; [Espace] lâche l'échelle (attention à la chute).
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
 • [b]Supermarché[/b] : nourriture et boissons.
 • [b]Armurerie[/b] : armes et munitions.

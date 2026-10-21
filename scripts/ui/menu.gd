@@ -1,11 +1,13 @@
 extends Control
-## Menu principal : Jouer, Paramètres (touches + réglages), Guide, Quitter.
+## Menu principal : Jouer (puis choix du lieu de départ), Paramètres (touches + réglages), Guide, Quitter.
 
 const Textes = preload("res://scripts/ui/textes.gd")
+const LieuxDepart = preload("res://scripts/lieux_depart.gd")
 
 var main_box: VBoxContainer
 var settings_panel: PanelContainer
 var guide_panel: PanelContainer
+var depart_panel: PanelContainer
 var sens_label: Label
 var vol_label: Label
 
@@ -69,9 +71,9 @@ void fragment() {
 		info.add_theme_font_size_override("font_size", 16)
 		info.add_theme_color_override("font_color", Color(0.65, 0.65, 0.6))
 		main_box.add_child(info)
-		_big_button("Nouvelle partie", func(): Game.admin = false; Game.partie_a_charger = {}; _play())
+		_big_button("Nouvelle partie", func(): Game.admin = false; Game.partie_a_charger = {}; _show(depart_panel))
 	else:
-		play = _big_button("Jouer", func(): Game.admin = false; Game.partie_a_charger = {}; _play())
+		play = _big_button("Jouer", func(): Game.admin = false; Game.partie_a_charger = {}; _show(depart_panel))
 	var adm := _big_button("Mode admin (test)", func(): _lancer_admin())
 	adm.tooltip_text = "Partie de test : vol, invincible, tous les objets, téléportation… (rien n'est sauvegardé)"
 	_big_button("Paramètres", func(): _show(settings_panel))
@@ -86,6 +88,7 @@ void fragment() {
 	add_child(ver)
 	settings_panel = _build_settings()
 	guide_panel = _build_guide()
+	depart_panel = _build_depart()
 
 
 func _big_button(text: String, cb: Callable) -> Button:
@@ -215,6 +218,120 @@ func _build_guide() -> PanelContainer:
 	return r[0]
 
 
+## Choix du lieu de départ d'une nouvelle partie : liste classée par difficulté, petite carte, description.
+var lieu_choisi := "bellerive"
+var depart_desc: RichTextLabel
+var depart_carte: Control
+var depart_boutons := {}
+
+## Repères fixes de la carte (5 × 5 km, nord en haut) pour la petite carte du choix.
+const REPERES_CARTE := [
+	["Bellerive", Vector3(0, 0, 0), 161.0], ["Valmont", Vector3(1450, 0, -1350), 115.0],
+	["Granges", Vector3(-1500, 0, -1400), 0.0], ["Pont-Rouge", Vector3(1300, 0, 1550), 0.0],
+]
+
+
+func _build_depart() -> PanelContainer:
+	var r := _panel_base("LIEU DE DÉPART")
+	var vb: VBoxContainer = r[1]
+	_small_label(vb, "Choisis où commencer. Plus c'est difficile, plus il y a de zombies… et de butin.").add_theme_color_override("font_color", Color(0.75, 0.72, 0.65))
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 24)
+	hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(hb)
+	var liste := VBoxContainer.new()
+	liste.add_theme_constant_override("separation", 6)
+	hb.add_child(liste)
+	for l in LieuxDepart.LIEUX + [{"id": "hasard", "nom": "Au hasard", "diff": -1}]:
+		var b := Button.new()
+		b.text = "%s   —   %s" % [l.nom, "?" if l.diff < 0 else LieuxDepart.DIFFICULTES[l.diff]]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.custom_minimum_size = Vector2(390, 44)
+		b.toggle_mode = true
+		b.add_theme_font_size_override("font_size", 19)
+		b.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8) if l.diff < 0 else LieuxDepart.COULEURS[l.diff])
+		var n := StyleBoxFlat.new()
+		n.bg_color = Color(0.1, 0.1, 0.1, 0.85)
+		n.set_corner_radius_all(4)
+		n.set_content_margin_all(8)
+		var p := n.duplicate()
+		p.bg_color = Color(0.35, 0.08, 0.05, 0.95)
+		p.border_color = Color(0.85, 0.25, 0.15)
+		p.set_border_width_all(2)
+		b.add_theme_stylebox_override("normal", n)
+		b.add_theme_stylebox_override("hover", p)
+		b.add_theme_stylebox_override("pressed", p)
+		b.add_theme_stylebox_override("focus", p)
+		b.pressed.connect(_choisir_lieu.bind(l.id))
+		liste.add_child(b)
+		depart_boutons[l.id] = b
+	var droite := VBoxContainer.new()
+	droite.add_theme_constant_override("separation", 10)
+	droite.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hb.add_child(droite)
+	depart_carte = Control.new()
+	depart_carte.custom_minimum_size = Vector2(300, 300)
+	depart_carte.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	depart_carte.draw.connect(_dessiner_carte_depart)
+	droite.add_child(depart_carte)
+	depart_desc = RichTextLabel.new()
+	depart_desc.bbcode_enabled = true
+	depart_desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	depart_desc.add_theme_font_size_override("normal_font_size", 18)
+	depart_desc.add_theme_font_size_override("bold_font_size", 20)
+	depart_desc.add_theme_color_override("default_color", Color(0.88, 0.86, 0.8))
+	droite.add_child(depart_desc)
+	var bas := HBoxContainer.new()
+	bas.alignment = BoxContainer.ALIGNMENT_END
+	bas.add_theme_constant_override("separation", 16)
+	vb.add_child(bas)
+	_back_button(bas, func(): _show(null))
+	var go := Button.new()
+	go.text = "Commencer"
+	go.custom_minimum_size = Vector2(240, 46)
+	go.add_theme_font_size_override("font_size", 22)
+	go.pressed.connect(func():
+		LieuxDepart.choix = lieu_choisi
+		_play())
+	bas.add_child(go)
+	_choisir_lieu(lieu_choisi)
+	return r[0]
+
+
+func _choisir_lieu(id: String) -> void:
+	lieu_choisi = id
+	for k in depart_boutons:
+		depart_boutons[k].set_pressed_no_signal(k == id)
+	if id == "hasard":
+		depart_desc.text = "[b]Au hasard[/b]\nUn des lieux de la liste, tiré au sort au chargement. Tu découvriras sa difficulté en arrivant."
+	else:
+		var l: Dictionary = LieuxDepart.lieu(id)
+		depart_desc.text = "[b]%s[/b]   [color=#%s]%s[/color]\n%s" % [l.nom, LieuxDepart.COULEURS[l.diff].to_html(false), LieuxDepart.DIFFICULTES[l.diff], l.desc]
+	depart_carte.queue_redraw()
+
+
+## Petite carte : villes, villages, lieux de départ (point coloré selon la difficulté, cerclé si choisi).
+func _dessiner_carte_depart() -> void:
+	var s: Vector2 = depart_carte.size
+	# échelle en racine carrée de la distance au centre : les lieux proches de Bellerive restent lisibles
+	var ech: float = s.x * 0.5 / sqrt(Game.map_half)
+	var vers := func(p: Vector3) -> Vector2: return Vector2(p.x, p.z).normalized() * sqrt(Vector2(p.x, p.z).length()) * ech + s / 2.0
+	depart_carte.draw_rect(Rect2(Vector2.ZERO, s), Color(0.16, 0.2, 0.13))
+	depart_carte.draw_rect(Rect2(Vector2.ZERO, s), Color(0.45, 0.15, 0.1), false, 2.0)
+	var police := depart_carte.get_theme_default_font()
+	for rp in REPERES_CARTE:
+		var c: Vector2 = vers.call(rp[1])
+		var d: float = maxf(sqrt(float(rp[2])) * ech * (1.0 if rp[1] == Vector3.ZERO else 0.5), 3.0)
+		depart_carte.draw_rect(Rect2(c - Vector2(d, d), Vector2(d, d) * 2.0), Color(0.45, 0.45, 0.45))
+		depart_carte.draw_string(police, c + Vector2(-45, -d - 4), rp[0], HORIZONTAL_ALIGNMENT_CENTER, 90, 12, Color(0.85, 0.85, 0.8))
+	for l in LieuxDepart.LIEUX:
+		var p: Vector3 = l.get("carte", l.get("ancre", Vector3(-110, 0, 125)))   # maison de Bellerive : quartier sud-ouest
+		var c: Vector2 = vers.call(p)
+		if l.id == lieu_choisi or lieu_choisi == "hasard":
+			depart_carte.draw_arc(c, 9.0, 0, TAU, 20, Color(1, 1, 1), 2.0)
+		depart_carte.draw_circle(c, 5.0, LieuxDepart.COULEURS[l.diff])
+
+
 func _small_label(parent: Control, text: String) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -236,12 +353,13 @@ func _back_button(parent: Control, cb: Callable) -> void:
 func _show(panel: Control) -> void:
 	settings_panel.visible = panel == settings_panel
 	guide_panel.visible = panel == guide_panel
+	depart_panel.visible = panel == depart_panel
 	main_box.visible = panel == null
 
 
 func _process(_delta: float) -> void:
 	var vs := get_viewport_rect().size
-	for p in [settings_panel, guide_panel]:
+	for p in [settings_panel, guide_panel, depart_panel]:
 		if p and p.visible:
 			p.position = (vs - p.size) / 2.0
 
@@ -275,4 +393,5 @@ func _lancer_admin() -> void:
 	Game.admin_murs = false
 	Game.admin_invisible = false
 	Game.partie_a_charger = {}
+	LieuxDepart.choix = "bellerive"
 	_play()

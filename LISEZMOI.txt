@@ -20,6 +20,11 @@ LANCER LE JEU
   Godot 4.7.2), ou ouvre le projet dans Godot et appuie sur F5.
 Le jeu démarre sur le menu principal : Jouer, Paramètres (touches, sensibilité,
 volume), Guide (astuces) et Quitter.
+   Après « Jouer » (ou « Nouvelle partie »), choisis ton lieu de départ, classé
+   par difficulté : Facile (Hameau des Sources, Saint-Aubin), Moyen (ferme de la
+   Plaine, maison de Bellerive), Difficile (lotissement des Tilleuls, centre de
+   Valmont), Extrême (centre-ville de Bellerive, base militaire), ou au hasard.
+   Une partie sauvegardée reprend là où tu étais.
    La carte est différente à chaque partie.
    (Pour garder toujours la même : ouvre scenes/main.tscn, sélectionne « Main »
    et mets un nombre dans « World Seed » dans l'Inspecteur.)

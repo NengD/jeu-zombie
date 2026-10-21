@@ -12,6 +12,7 @@ const BoutiqueUI = preload("res://scripts/ui/boutique_ui.gd")
 const Vendeur = preload("res://scripts/vendeur.gd")
 const PLAYER_SCENE = preload("res://scenes/player.tscn")
 const ZOMBIE_SCENE = preload("res://scenes/zombie.tscn")
+const LieuxDepart = preload("res://scripts/lieux_depart.gd")
 
 ## 0 = carte différente à chaque partie. Mets un nombre pour garder toujours la même.
 @export var world_seed := 0
@@ -43,6 +44,13 @@ func _ready() -> void:
 	if OS.get_environment("SANS_FACADES") == "":   # (test de performance : sans les nouveaux effets)
 		_creer_ambiance()
 	t = world._chrono("ambiance", t)
+	# lieu de départ choisi dans le menu (nouvelle partie) : la carte, les marchands et les camps ne changent pas
+	var dir_depart: Vector3 = world.spawn_point - world.spawn_zone.center
+	var depart_choisi := {}
+	if charge.is_empty():
+		depart_choisi = LieuxDepart.appliquer(self, LieuxDepart.choix)
+		spawn = depart_choisi.pos
+		dir_depart = depart_choisi.dir
 	var depart: Vector3 = spawn if charge.is_empty() else Sauvegarde._vd(charge.get("joueur", {}).get("pos", [spawn.x, spawn.y, spawn.z]))
 	world.ranger_par_morceaux(depart)
 	add_child(world)
@@ -65,8 +73,11 @@ func _ready() -> void:
 	player = PLAYER_SCENE.instantiate()
 	add_child(player)
 	player.global_position = spawn + Vector3.UP * 0.1
-	var door_dir: Vector3 = world.spawn_point - world.spawn_zone.center
-	player.rotation.y = atan2(-door_dir.x, -door_dir.z)  # dos au bâtiment
+	player.rotation.y = atan2(-dir_depart.x, -dir_depart.z)  # dos au bâtiment
+	if charge.is_empty():
+		var bonus: Dictionary = depart_choisi.lieu.get("bonus", {})   # équipement en plus selon le lieu
+		for id in bonus:
+			player.add_item(id, int(bonus[id]))
 	add_child(Hud.new())
 	add_child(InventoryUI.new())
 	add_child(InspectionUI.new())
@@ -78,7 +89,10 @@ func _ready() -> void:
 	_ambience()
 	t = world._chrono("joueur_ui", t)
 	if charge.is_empty():
-		Game.msg("Bienvenue. Trouve de quoi survivre. [F1] pour l'aide.")
+		var l: Dictionary = depart_choisi.lieu
+		var inf: Dictionary = depart_choisi.infos
+		Game.msg("Bienvenue : %s (%s). Trouve de quoi survivre. [F1] pour l'aide." % [l.nom, LieuxDepart.DIFFICULTES[l.diff]])
+		Game.msg("Autour : %d zombies, %d meubles à fouiller, marchands à %d m." % [inf.zombies, inf.butin, int(inf.marchand)])
 	else:
 		Sauvegarde.appliquer_joueur(self, charge)
 		Game.msg("Partie chargée — jour %d." % Game.day)
