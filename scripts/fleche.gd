@@ -129,7 +129,9 @@ func _planter(hit: Dictionary) -> void:
 	global_position = hit.position + dir * 0.09   # la pointe s'enfonce un peu
 	var depart: Vector3 = tireur.global_position if tireur and is_instance_valid(tireur) else global_position - dir
 	if col and col.has_method("take_hit"):
+		Game.tir_discret = true
 		col.take_hit(degats, hit.position, depart)
+		Game.tir_discret = false
 		Game.spawn_blood(hit.position, get_parent())
 		Effets.gerbe_sang(get_parent(), hit.position, dir, 0.7)
 		Game.play_3d("impact", hit.position, -8.0, 0.2, 20.0)

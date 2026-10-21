@@ -9,6 +9,7 @@ signal texte_flottant(pos: Vector3, texte: String, couleur: Color)   # (récolte
 var recolte: Node = null           # scripts/recolte.gd (arbres, rochers, épaves)
 var coup_critique := false         # le coup en cours du joueur est un coup critique (talent)
 var explosion_joueur := false      # dégâts d'une grenade lancée par le joueur en cours
+var tir_discret := false           # coup d'une flèche en cours : la cible qui ne voyait pas le tireur reste discrète
 signal player_died
 
 const LAYER_WORLD := 1

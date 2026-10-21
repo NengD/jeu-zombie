@@ -734,10 +734,18 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	var push := global_position - from
 	push.y = 0.0
 	velocity += push.normalized() * 2.0
-	state = State.CHASE
-	lost_t = 0.0
-	dormant = false
 	var killed := health <= 0.0
+	dormant = false
+	if Game.tir_discret and state != State.CHASE:
+		# flèche venue de nulle part : tué, il tombe sans alerter personne ; blessé, il va voir d'où vient
+		# le tir (à peu près : l'erreur grandit avec la distance) sans encore savoir où est le tireur
+		if not killed:
+			var ecart := clampf(global_position.distance_to(from) * 0.15, 1.0, 8.0)
+			state = State.INVESTIGATE
+			target = from + Vector3(randf_range(-ecart, ecart), 0.0, randf_range(-ecart, ecart))
+	else:
+		state = State.CHASE
+		lost_t = 0.0
 	if not killed and anim_lock <= 0.0:
 		_anim("touche", 1.0, 0.35)
 	Game.hit_confirmed.emit(headshot, killed)
