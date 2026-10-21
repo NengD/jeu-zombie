@@ -349,8 +349,21 @@ func sfx(sound: String) -> AudioStream:
 	return s
 
 
+## Copie d'un son jouée en boucle (ambiances, souffle) : le son du cache reste ponctuel
+## (sinon chaque play_3d / play_ui de ce son ne s'arrête plus jamais).
+func sfx_boucle(sound: String) -> AudioStream:
+	var s := sfx(sound)
+	if s is AudioStreamWAV:
+		s = s.duplicate()
+		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		s.loop_begin = 0
+		s.loop_end = int(s.get_length() * s.mix_rate)
+	return s
+
+
 ## Son spatialisé (zombies, impacts…)
 func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_dist := 60.0) -> void:
+	if OS.has_environment("LOG_SONS"): print("SON3D %.2f %s %.0f" % [Time.get_ticks_msec() / 1000.0, sound, pos.distance_to(player.global_position) if player else -1.0])
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:
@@ -369,6 +382,7 @@ func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_d
 
 ## Son non spatialisé (actions du joueur)
 func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06, pitch := 1.0) -> void:
+	if OS.has_environment("LOG_SONS"): print("SONUI %.2f %s" % [Time.get_ticks_msec() / 1000.0, sound])
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:

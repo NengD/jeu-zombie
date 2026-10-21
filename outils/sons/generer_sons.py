@@ -104,11 +104,11 @@ for k in range(6):
 sauver("eau", x, 0.7)
 
 # ---------------------------------------------------------------- ambiances (boucles)
-# campagne : vent léger + oiseaux
+# campagne : vent léger (les « oiseaux » synthétiques ressemblaient à des bips répétés : retirés)
 dur = 24.0
 n = int(SR * dur)
 fond = passe_bas(bruit(n), 300) * 0.25
-for k in range(26):
+for k in range(0):
     d0 = rng.uniform(0.5, dur - 2)
     f0 = rng.uniform(2600, 4800)
     nb = rng.integers(2, 6)

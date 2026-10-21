@@ -583,13 +583,9 @@ var air_avant := 0.0
 
 func _maj_souffle(delta: float) -> void:
 	if souffle_lecteur == null:
-		var s = Game.sfx("souffle")
+		var s = Game.sfx_boucle("souffle")
 		if s == null:
 			return
-		if s is AudioStreamWAV:
-			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			s.loop_begin = 0
-			s.loop_end = int(s.get_length() * s.mix_rate)
 		souffle_lecteur = AudioStreamPlayer.new()
 		souffle_lecteur.stream = s
 		souffle_lecteur.volume_db = -60.0

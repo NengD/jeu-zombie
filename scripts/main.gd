@@ -635,13 +635,9 @@ var reverb_idx := -1
 
 func _ambience() -> void:
 	for nom in ["vent", "amb_campagne", "amb_nuit", "amb_ville", "amb_grotte", "musique_boss"]:
-		var s = Game.sfx(nom)
+		var s = Game.sfx_boucle(nom)
 		if s == null:
 			continue
-		if s is AudioStreamWAV:
-			s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			s.loop_begin = 0
-			s.loop_end = int(s.get_length() * s.mix_rate)
 		var a := AudioStreamPlayer.new()
 		a.stream = s
 		a.volume_db = -60.0
