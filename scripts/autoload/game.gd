@@ -16,6 +16,7 @@ const DAY_SECONDS := 1440.0  # une journée complète = 24 minutes réelles
 var player: CharacterBody3D = null
 var zones: Array = []      # bâtiments : {aabb, doors, kind, name}
 var pois: Array = []       # points d'intérêt pour la carte : {name, pos, color}
+var echelles: Array = []   # échelles qu'on peut gravir : {pos (pied), n (normale vers l'extérieur), haut}
 var map_rects: Array = []  # rectangles de la carte : {rect, color}
 var relief = null          # relief de la campagne (scripts/relief.gd)
 var buissons := {}         # cases de 8 m -> [[position, rayon], …] : on s'y cache (vue des zombies réduite)
@@ -92,6 +93,7 @@ func reset() -> void:
 	_index_zones.clear()
 	_nb_zones_indexees = 0
 	pois.clear()
+	echelles.clear()
 	map_rects.clear()
 	relief = null
 	sols.clear()

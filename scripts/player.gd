@@ -424,6 +424,8 @@ func _move(delta: float, can_act: bool) -> void:
 	if Game.admin and Game.admin_vol:
 		_voler(delta, input, can_act)
 		return
+	if _grimper(input, can_act):
+		return
 	var dir := (global_basis * Vector3(input.x, 0, input.y))
 	dir.y = 0.0
 	dir = dir.normalized()
@@ -478,6 +480,62 @@ func _move(delta: float, can_act: bool) -> void:
 					Game.make_noise(global_position, 16.0)
 				elif not crouching:
 					Game.make_noise(global_position, 6.0)
+
+
+## Échelles (Game.echelles) : face à l'échelle, avancer fait monter et reculer descendre ;
+## en haut, avancer fait passer sur la plateforme ; Espace lâche l'échelle. Renvoie vrai si on grimpe.
+var sur_echelle := false
+
+
+func _grimper(input: Vector2, can_act: bool) -> bool:
+	var avant := -global_basis.z
+	avant.y = 0.0
+	avant = avant.normalized()
+	for e in Game.echelles:
+		var pied: Vector3 = e.pos
+		var n: Vector3 = e.n
+		var haut: float = pied.y + float(e.haut)
+		var axe := pied + n * 0.45
+		var ecart := Vector2(global_position.x - axe.x, global_position.z - axe.z).length()
+		var y := global_position.y
+		if ecart > 0.9 or y < pied.y - 0.5 or y > haut + 0.4:
+			continue
+		var face := avant.dot(-n) > 0.4
+		if not sur_echelle:
+			# on s'accroche : en bas en avançant, en haut en reculant vers le vide
+			var bas := y < haut - 0.3 and input.y < -0.3 and face and ecart < 0.7
+			var depuis_haut := y >= haut - 0.3 and input.y > 0.3 and face
+			if not (can_act and (bas or depuis_haut)):
+				continue
+			sur_echelle = true
+		if can_act and Input.is_action_just_pressed("sauter"):
+			sur_echelle = false
+			velocity = n * 3.0 + Vector3.UP * 1.0
+			move_and_slide()
+			return true
+		sprinting = false
+		aiming = false
+		if y >= haut + 0.1 and input.y < -0.3:
+			# en haut : on passe sur la plateforme
+			velocity = -n * 2.5 + Vector3.UP * 0.5
+			move_and_slide()
+			if Vector2(global_position.x - axe.x, global_position.z - axe.z).length() > 0.75:
+				sur_echelle = false
+			return true
+		if is_on_floor() and input.y > 0.3 and y < pied.y + 0.3:
+			sur_echelle = false   # arrivé en bas
+			return false
+		var vy := -input.y * 2.4 if can_act else 0.0
+		var rappel := (axe - global_position) * 8.0
+		velocity = Vector3(rappel.x, vy, rappel.z)
+		move_and_slide()
+		step_t -= get_physics_process_delta_time() * absf(vy)
+		if step_t <= 0.0:
+			step_t = 0.45
+			Game.play_ui("pas_metal1", -14.0, 0.12)
+		return true
+	sur_echelle = false
+	return false
 
 
 ## Mode admin : vol libre (Espace monte, Ctrl/C descend, Maj accélère), murs traversables en option.

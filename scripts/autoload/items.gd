@@ -23,6 +23,9 @@ const DB := {
 	"cuir": {"name": "Cuir", "type": "material", "weight": 0.3},
 	"ciment": {"name": "Sac de ciment", "type": "material", "weight": 3.0},
 	"marteau": {"name": "Marteau de construction", "type": "outil", "weight": 0.8},
+	"piece_auto": {"name": "Pièces auto", "type": "material", "weight": 1.2},
+	"essence": {"name": "Jerrican d'essence", "type": "material", "weight": 2.5},
+	"cle_molette": {"name": "Clé à molette", "type": "outil", "weight": 0.5},
 	# --- munitions
 	"mun_9mm": {"name": "Balles 9×19 mm", "type": "ammo", "weight": 0.012, "modele": "cart_9mm"},
 	"mun_45": {"name": "Balles .45 ACP", "type": "ammo", "weight": 0.021, "modele": "cart_45"},
@@ -128,7 +131,7 @@ const SIZES := {
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
-	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
+	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
 	"couteau_km2000": [1, 2],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
@@ -144,7 +147,7 @@ const SIZES := {
 const STACKS := {
 	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "mun_45": 40, "mun_50ae": 28, "mun_46": 60, "mun_545": 60, "mun_762x39": 60,
 	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
-	"poudre": 10, "cuir": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
+	"poudre": 10, "cuir": 3, "piece_auto": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 }
 
 # Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
@@ -176,6 +179,7 @@ const RECIPES := [
 	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "bench": true},
 	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "bench": true},
 	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "bench": true},
+	{"out": "ferraille", "qty": 2, "needs": {"piece_auto": 1}, "bench": false},
 	{"out": "mun_9mm", "qty": 10, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
 	{"out": "mun_12", "qty": 5, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
 	{"out": "mun_556", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "bench": true},
@@ -191,6 +195,9 @@ const LOOT := {
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
 	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
 	"hopital": [["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
+	"pharmacie": [["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
+	"garage": [["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
+	"bar": [["alcool", 12, 1, 2], ["soda", 10, 1, 3], ["eau", 7, 1, 2], ["conserve", 6, 1, 2], ["barre", 5, 1, 2], ["tissu", 2, 1, 2], ["batte", 0.8, 1, 1]],
 	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau_km2000", 2, 1, 1], ["machette", 3, 1, 1],
 		["glock19", 2, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["desert_eagle", 0.6, 1, 1], ["toz34", 1.2, 1, 1], ["benelli_m4", 0.8, 1, 1], ["marlin", 1, 1, 1], ["mosin", 0.8, 1, 1], ["lr300", 0.5, 1, 1],
 		["point_rouge", 1.5, 1, 1], ["viseur_reflex", 1.5, 1, 1], ["viseur_aimpoint", 1, 1, 1], ["lunette", 0.8, 1, 1], ["lunette_hawke", 0.5, 1, 1], ["silencieux_9mm", 0.8, 1, 1], ["frein_9mm", 1, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["poignee", 1, 1, 1], ["laser", 0.6, 1, 1]],
@@ -229,7 +236,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "rgd5": 60, "etabli": 60, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
@@ -341,6 +348,8 @@ func armes_a_feu() -> Array:
 ## Tire au hasard le contenu d'un conteneur. rolls = nombre de tirages.
 ## Quantité de munitions trouvées (toutes les tables) : un peu rares, pour que la mêlée reste utile.
 const FACTEUR_MUNITIONS := 0.7
+## Argent trouvé en fouillant un meuble de cette table : [chance, min, max] (sinon 30 %, 5–25 €).
+const ARGENT_TABLE := {"bar": [0.6, 8, 35], "magasin": [0.35, 5, 25], "pharmacie": [0.3, 5, 20]}
 
 
 func roll_loot(table: String, rolls: int, empty_chance: float = 0.2) -> Dictionary:

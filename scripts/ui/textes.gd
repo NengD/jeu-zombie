@@ -131,13 +131,15 @@ const GUIDE := """[b]LES BASES[/b]
 • Les villes ont un [b]centre dense[/b] (immeubles hauts, bureaux) et des [b]quartiers pavillonnaires[/b] sur le pourtour ;
   chacune a un [b]lotissement neuf[/b] en périphérie (des Tilleuls, du Moulin-Neuf) : maisons identiques, vite fouillées.
 • En ville : [b]centre commercial[/b] (six boutiques autour d'une galerie), [b]pharmacie[/b] (soins), [b]garage auto[/b]
-  (outils, carburant), [b]bibliothèque[/b] (fournitures de bureau), [b]bar-restaurant[/b] (nourriture, boissons), [b]église[/b].
+  (ferraille, pièces auto, jerricans d'essence, clés à molette, ruban), [b]bibliothèque[/b] (fournitures de bureau),
+  [b]bar-restaurant[/b] (alcool, boissons, nourriture, un peu d'argent dans la caisse), [b]église[/b]. Les boutiques ont une enseigne.
+  Les [b]pièces auto[/b] se démontent en ferraille (artisanat).
 • À la campagne : [b]scierie[/b] (outils, planches), [b]camping des Pins[/b] (caravanes et tentes fouillables),
   [b]relais routier[/b] (remorques de camions pleines de marchandises), [b]châteaux d'eau[/b] et silos des fermes, visibles de loin.
-• [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
-• [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Châteaux d'eau[/b] : une échelle mène à la coursive (22 m), point de vue pour repérer les environs, hors d'atteinte des zombies.
   Face à l'échelle, [Z] monte, [S] descend ; en haut, [Z] fait passer sur la coursive ; [Espace] lâche l'échelle (attention à la chute).
+• [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
+• [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
 • [b]Supermarché[/b] : nourriture et boissons.
 • [b]Armurerie[/b] : armes et munitions.

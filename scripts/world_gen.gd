@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 2  # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 3  # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -35,11 +35,11 @@ const CAR_COLORS := [Color(0.5, 0.1, 0.1), Color(0.15, 0.2, 0.35), Color(0.6, 0.
 const FURN := {
 	"maison": [["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18)], ["Commode", Vector3(1.0, 0.9, 0.5), Color(0.45, 0.32, 0.2)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)], ["Réfrigérateur", Vector3(0.8, 1.9, 0.7), Color(0.85, 0.85, 0.82)],
 		["Table de chevet", Vector3(0.5, 0.6, 0.45), Color(0.45, 0.32, 0.2)], ["Bibliothèque", Vector3(1.0, 1.9, 0.4), Color(0.42, 0.3, 0.2)]],
-	"pharmacie": [["Armoire à pharmacie", Vector3(1.0, 1.9, 0.5), Color(0.85, 0.85, 0.88), "hopital"], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.8, 0.8, 0.78), "hopital"], ["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52), "magasin"]],
-	"bar": [["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22), "magasin"], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75), "magasin"], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68), "maison"]],
+	"pharmacie": [["Armoire à pharmacie", Vector3(1.0, 1.9, 0.5), Color(0.85, 0.85, 0.88)], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.8, 0.8, 0.78)], ["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52)]],
+	"bar": [["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22)], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)]],
 	"eglise": [["Coffre", Vector3(1.0, 0.7, 0.6), Color(0.35, 0.25, 0.15), "maison"], ["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18), "maison"]],
 	"bibliotheque": [["Rayonnage de livres", Vector3(2.0, 2.0, 0.45), Color(0.42, 0.3, 0.2), "bureau"], ["Bureau", Vector3(1.6, 0.8, 0.8), Color(0.45, 0.35, 0.25), "bureau"], ["Classeur", Vector3(0.6, 1.3, 0.6), Color(0.45, 0.47, 0.5), "bureau"]],
-	"garage": [["Établi", Vector3(2.0, 0.95, 0.8), Color(0.45, 0.33, 0.2), "quincaillerie"], ["Étagère d'outils", Vector3(2.4, 1.8, 0.6), Color(0.55, 0.35, 0.15), "quincaillerie"], ["Bidons", Vector3(1.2, 1.0, 0.6), Color(0.7, 0.15, 0.1), "station"]],
+	"garage": [["Établi", Vector3(2.0, 0.95, 0.8), Color(0.45, 0.33, 0.2)], ["Étagère d'outils", Vector3(2.4, 1.8, 0.6), Color(0.55, 0.35, 0.15)], ["Bidons", Vector3(1.2, 1.0, 0.6), Color(0.7, 0.15, 0.1)]],
 	"vetements": [["Portant", Vector3(2.0, 1.6, 0.6), Color(0.5, 0.5, 0.52), "maison"], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22), "magasin"]],
 	"magasin": [["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52)], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22)], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75)]],
 	"bureau": [["Bureau", Vector3(1.6, 0.8, 0.8), Color(0.45, 0.35, 0.25)], ["Armoire métallique", Vector3(1.0, 1.9, 0.5), Color(0.45, 0.47, 0.5)], ["Casier", Vector3(0.6, 1.9, 0.5), Color(0.4, 0.42, 0.45)]],
@@ -1275,8 +1275,52 @@ func _supermarket(bc: Vector3) -> void:
 		guards.append({"pos": _random_in(z, 1.0), "kind": "civil", "radius": 8.0})
 
 
+## Couleurs des enseignes (fond, texte) par type de bâtiment.
+const ENSEIGNES := {
+	"pharmacie": [Color(0.1, 0.55, 0.25), Color(1, 1, 1)], "garage": [Color(0.15, 0.25, 0.5), Color(1.0, 0.85, 0.2)],
+	"bar": [Color(0.35, 0.12, 0.08), Color(1.0, 0.75, 0.35)], "bibliotheque": [Color(0.25, 0.18, 0.12), Color(0.95, 0.9, 0.75)],
+	"armurerie": [Color(0.12, 0.12, 0.12), Color(0.9, 0.3, 0.2)], "quincaillerie": [Color(0.75, 0.45, 0.1), Color(1, 1, 1)],
+}
+
+
+## Enseigne : panneau sur la façade (normale = direction de la rue) et texte en Label3D, visible à 90 m.
+func _enseigne(centre: Vector3, normale: Vector3, texte: String, largeur: float, fond: Color, col_txt: Color, haut := 0.6) -> void:
+	var sur_x := absf(normale.z) > 0.5
+	var taille := Vector3(largeur, haut, 0.08) if sur_x else Vector3(0.08, haut, largeur)
+	_box(centre + normale * 0.06, taille, fond, false, "uni")
+	_box(centre + normale * 0.05, taille + Vector3(0.12, 0.12, 0.12) * Vector3(1 if sur_x else 0, 1, 0 if sur_x else 1), fond.darkened(0.5), false, "metal")
+	var l := Label3D.new()
+	l.text = texte
+	l.font_size = 72
+	l.outline_size = 0
+	l.modulate = col_txt
+	l.pixel_size = minf(haut * 0.62 / 72.0, largeur * 0.88 / (texte.length() * 0.62 * 72.0))
+	l.position = centre + normale * 0.105
+	l.rotation.y = atan2(normale.x, normale.z)
+	l.double_sided = false
+	l.visibility_range_end = 90.0
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(l)
+
+
+## Croix de pharmacie (verte, à plat sur une façade ou en drapeau).
+func _croix_pharmacie(c: Vector3, normale: Vector3, t := 1.2) -> void:
+	var sur_x := absf(normale.z) > 0.5
+	var ep := 0.12
+	_box(c + normale * 0.08, Vector3(t, t * 0.32, ep) if sur_x else Vector3(ep, t * 0.32, t), Color(0.1, 0.8, 0.25), false, "uni")
+	_box(c + normale * 0.08, Vector3(t * 0.32, t, ep) if sur_x else Vector3(ep, t, t * 0.32), Color(0.1, 0.8, 0.25), false, "uni")
+
+
 func _small_special(bc: Vector3, kind: String, label: String, col: Color, map_col: Color, w := 15.0, d := 12.0, h := 4.5, furn := 8, maisons := [Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]) -> Dictionary:
 	var z := _building(bc + Vector3(-8.0, 0, -8.0), w, d, h, col, ["n", "w"], kind, label, false, furn, map_col)
+	# enseigne au-dessus des vitrines de la façade nord
+	var ens: Array = ENSEIGNES.get(kind, [Color(0.2, 0.22, 0.25), Color(0.95, 0.95, 0.9)])
+	var zf := bc.z - 8.0 - d / 2.0
+	var yen := 2.85
+	_enseigne(Vector3(bc.x - 8.0, yen, zf), Vector3(0, 0, -1), label.to_upper(), minf(w - 2.0, 3.0 + label.length() * 0.42), ens[0], ens[1], 0.6)
+	if kind == "pharmacie":
+		_croix_pharmacie(Vector3(bc.x - 8.0 - w / 2.0 + 1.2, yen, zf), Vector3(0, 0, -1), 0.9)
+		_croix_pharmacie(Vector3(bc.x - 8.0 + w / 2.0 - 1.2, yen, zf), Vector3(0, 0, -1), 0.9)
 	_poi(label, bc + Vector3(-8.0, 0, -8.0), map_col)
 	for i in 3:
 		guards.append({"pos": _random_in(z, 1.0), "kind": "civil", "radius": 5.0})
@@ -2506,7 +2550,7 @@ func _nouveaux_lieux(hx: float, hz: float) -> void:
 			_road(Vector2(bord.x, bord.z), Vector2(hx, bord.z), 7.0, C_ASPHALT, false)
 		_reserve(Rect2(p.x - demi, p.z - demi, 2.0 * demi, 2.0 * demi))
 	for e in [[Vector3(hx + 45.0, 0, -half - 90.0), "Château d'eau"], [Vector3(1380.0, 0, 1460.0), "Château d'eau de Pont-Rouge"]]:
-		var p := _lieu_libre(e[0], 8.0, 70.0)
+		var p := _lieu_libre(e[0], 10.0, 70.0)
 		if p != Vector3.INF:
 			_chateau_eau(p, e[1])
 
@@ -2576,6 +2620,31 @@ func _centre_commercial(bc: Vector3) -> void:
 	var c := bc + Vector3(0, 0, -1.0)
 	var z := _building(c, 34.0, 30.0, 7.0, Color(0.72, 0.7, 0.66), ["s", "n"], "magasin", "Centre commercial", false, 0, Color(0.9, 0.55, 0.75))
 	var ab: AABB = z.aabb
+	# façades nord et sud vitrées (mur-rideau à meneaux, laissant la porte libre) et grande enseigne
+	for sgn in [-1.0, 1.0]:
+		var face: float = (c.z - 15.0) if sgn < 0 else (c.z + 15.0)
+		var dc := c.x
+		for dp in z.doors:
+			if signf(dp.pos.z - c.z) == sgn:
+				dc = dp.pos.x
+		var x0 := c.x - 15.5
+		var x1 := c.x + 15.5
+		var y0 := 0.45
+		var y1 := 5.6
+		for seg in [[x0, dc - DOOR_W / 2.0 - 0.1, y0], [dc + DOOR_W / 2.0 + 0.1, x1, y0], [dc - DOOR_W / 2.0 - 0.1, dc + DOOR_W / 2.0 + 0.1, DOOR_H + 0.1]]:
+			var lg: float = seg[1] - seg[0]
+			if lg > 0.2:
+				_sur_facade(true, face, sgn, (seg[0] + seg[1]) / 2.0, (seg[2] + y1) / 2.0, 0.2, lg, y1 - seg[2], 0.03, Color(0.45, 0.58, 0.66), "vitre")
+		var xm := x0
+		while xm <= x1 + 0.01:
+			if absf(xm - dc) > DOOR_W / 2.0 + 0.05:
+				_sur_facade(true, face, sgn, xm, (y0 + y1) / 2.0, 0.24, 0.1, y1 - y0, 0.08, Color(0.25, 0.27, 0.3), "metal")
+			xm += 2.6
+		for yt in [y0, 2.9, y1]:
+			_sur_facade(true, face, sgn, c.x, yt, 0.24, x1 - x0 + 0.1, 0.1, 0.08, Color(0.25, 0.27, 0.3), "metal")
+		_enseigne(Vector3(c.x, 6.3, face + sgn * 0.12), Vector3(0, 0, sgn), "CENTRE COMMERCIAL", 15.0, Color(0.85, 0.3, 0.5), Color(1, 1, 1), 0.9)
+		# auvent au-dessus de l'entrée
+		_box(Vector3(dc, DOOR_H + 0.35, face + sgn * 1.2), Vector3(4.0, 0.12, 2.4), Color(0.3, 0.32, 0.35), false, "metal")
 	var mat_avant := cur_mat
 	cur_mat = "enduit"
 	var types := ["magasin", "pharmacie", "vetements", "quincaillerie", "bar", "vetements"]
@@ -2625,6 +2694,7 @@ func _eglise(bc: Vector3) -> void:
 	var c := bc + Vector3(-7.5, 0, 1.5)
 	var z := _building(c, 13.0, 25.0, 9.0, Color(0.82, 0.78, 0.7), ["s"], "eglise", "Église", false, 3, Color(0.8, 0.75, 0.6), "pente")
 	var ab: AABB = z.aabb
+	_enseigne(Vector3(c.x, 3.4, c.z + 12.5), Vector3(0, 0, 1), "ÉGLISE SAINT-MARTIN", 7.0, Color(0.72, 0.69, 0.62), Color(0.22, 0.2, 0.17), 0.55)
 	var ct := c + Vector3(0, 0, -12.5 - 2.3)
 	_box(ct + Vector3(0, 9.0, 0), Vector3(4.6, 18.0, 4.6), Color(0.85, 0.82, 0.75), true, "enduit")
 	var sommet := ct + Vector3(0, 25.0, 0)
@@ -2792,7 +2862,66 @@ func _chateau_eau(c: Vector3, nom: String) -> void:
 	_disque(c + Vector3(0, 22.0, 0), 6.5, Color(0.7, 0.7, 0.68), "beton")
 	_cone(c + Vector3(0, 29.0, 0), 6.8, 2.5, Color(0.55, 0.56, 0.58), "tole")
 	_box(c + Vector3(0, 11.0, 0), Vector3(2.4, 22.0, 2.4), Color.WHITE, true, "invisible")
-	_reserve(Rect2(c.x - 7.0, c.z - 7.0, 14.0, 14.0), Color(0.6, 0.62, 0.65))
+	# réservoir : collision cylindrique (la caméra à ressort ne doit pas entrer dedans depuis la coursive)
+	var corps := StaticBody3D.new()
+	corps.collision_layer = Game.LAYER_WORLD
+	corps.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 6.6
+	cyl.height = 9.5
+	cs.shape = cyl
+	corps.add_child(cs)
+	add_child(corps)
+	corps.position = c + Vector3(0, 22.0 + 9.5 / 2.0, 0)
+	# coursive à 22 m autour du réservoir (point de vue), garde-corps ouvert du côté de l'échelle (+x)
+	var h := 22.0
+	var nseg := 16
+	var r0 := 6.5
+	var r1 := 8.1
+	var metal := Color(0.32, 0.34, 0.36)
+	for i in nseg:
+		var a := TAU * i / nseg
+		var dir := Vector3(cos(a), 0, sin(a))
+		var tang := Vector3(-dir.z, 0, dir.x)
+		var lg := TAU * r1 / nseg + 0.1
+		var m := c + dir * ((r0 + r1) / 2.0)
+		# plancher : anneau lisse (dessus, dessous, rive) ; collision en petites boîtes alignées sur les axes
+		var a0 := TAU * (i - 0.5) / nseg
+		var a1 := TAU * (i + 0.5) / nseg
+		var d0 := Vector3(cos(a0), 0, sin(a0))
+		var d1 := Vector3(cos(a1), 0, sin(a1))
+		for yy in [h, h - 0.15]:
+			_quad(c + d0 * r0 + Vector3(0, yy, 0), c + d1 * r0 + Vector3(0, yy, 0), c + d1 * r1 + Vector3(0, yy, 0), c + d0 * r1 + Vector3(0, yy, 0), metal, "metal", true)
+		_quad(c + d0 * r1 + Vector3(0, h - 0.15, 0), c + d1 * r1 + Vector3(0, h - 0.15, 0), c + d1 * r1 + Vector3(0, h, 0), c + d0 * r1 + Vector3(0, h, 0), metal.darkened(0.2), "metal", true)
+		for k in 3:
+			var p := m + tang * (lg * (k - 1) / 3.0) + Vector3(0, h - 0.1, 0)
+			_box(p, Vector3(1.1, 0.2, 1.1), metal, true, "invisible")
+		# garde-corps : poteau + lisses (sauf devant l'échelle)
+		var p_fin := c + Vector3(cos(TAU * (i + 0.5) / nseg), 0, sin(TAU * (i + 0.5) / nseg)) * (r1 - 0.05)
+		var p_deb := c + Vector3(cos(TAU * (i - 0.5) / nseg), 0, sin(TAU * (i - 0.5) / nseg)) * (r1 - 0.05)
+		_box(p_deb + Vector3(0, h + 0.55, 0), Vector3(0.08, 1.1, 0.08), metal, true, "metal")
+		if i == 0:
+			continue
+		for yl in [0.5, 1.02]:
+			var y0 := Vector3(0, h + yl, 0)
+			var y1 := Vector3(0, h + yl + 0.07, 0)
+			_quad(p_deb + y0, p_fin + y0, p_fin + y1, p_deb + y1, metal, "metal", true)
+		# garde-corps de collision (pour ne pas tomber) : petites boîtes le long du segment, rien sur la coursive
+		for k in 4:
+			_box(p_deb.lerp(p_fin, (k + 0.5) / 4.0) + Vector3(0, h + 0.6, 0), Vector3(0.7, 1.2, 0.7), Color.WHITE, true, "invisible")
+	# échelle sur le côté +x : deux montants, barreaux tous les 30 cm, attaches au fût
+	var xe := c.x + 8.4
+	for sz in [-0.25, 0.25]:
+		_box(Vector3(xe, c.y + (h + 1.1) / 2.0, c.z + sz), Vector3(0.06, h + 1.1, 0.06), metal, false, "metal")
+	var yb := 0.3
+	while yb < h:
+		_box(Vector3(xe, c.y + yb, c.z), Vector3(0.04, 0.04, 0.5), metal, false, "metal")
+		yb += 0.3
+	for ya in [4.0, 9.0, 14.0, 19.0]:
+		_box(Vector3((xe + c.x + 1.6) / 2.0, c.y + ya, c.z), Vector3(xe - c.x - 1.6, 0.08, 0.08), metal, false, "metal")
+	Game.echelles.append({"pos": Vector3(xe, c.y, c.z), "n": Vector3(1, 0, 0), "haut": h})
+	_reserve(Rect2(c.x - 9.5, c.z - 9.5, 19.0, 19.0), Color(0.6, 0.62, 0.65))
 	_poi(nom, c, Color(0.6, 0.8, 0.95))
 
 
