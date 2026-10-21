@@ -242,6 +242,7 @@ func _calmer() -> void:
 func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if etat == Etat.MORT:
 		return
+	Game.signaler_degats(self, dmg, pv, pos, from, false)
 	pv -= dmg
 	Game.spawn_blood(pos, get_parent())
 	var tue := pv <= 0.0

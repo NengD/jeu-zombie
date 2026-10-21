@@ -72,6 +72,7 @@ var coup_lateral := false         # le coup en cours est un balayage (de droite 
 var increvable_jour := -1         # jour où le talent Increvable a servi
 var melee_p := 1.0                # progression du coup (0 → 1)
 var melee_degats := 0.0
+var coup_crit := false              # coup de mêlée en cours : critique (chiffre de dégâts doré)
 var melee_frappe := true          # le coup a déjà porté
 var bloque := false               # parade (clic droit avec une arme de mêlée)
 var secousse := 0.0               # secousse de la caméra à l'impact
@@ -1375,7 +1376,8 @@ func _relacher_grenade(id: String) -> void:
 func _melee(w: Dictionary) -> void:
 	var cost: float = w.stamina * (0.7 if prog.a("souffle") else 1.0)
 	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0)
-	if prog.a("critique") and randf() < 0.2:
+	coup_crit = prog.a("critique") and randf() < 0.2
+	if coup_crit:
 		dmg *= 2.0
 	# à bout de souffle : coup moins fort, de façon progressive (60 % des dégâts à endurance nulle)
 	if stamina < cost:
@@ -1463,7 +1465,10 @@ func _porter_coup(w: Dictionary, dmg: float) -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	# Grand balayage : le coup latéral traverse jusqu'à deux zombies
 	var perforant := 1 if coup_lateral and prog.a("balayage") else 0
-	if _shoot_ray(origin, origin + dir * float(w.range), dmg, perforant):
+	Game.coup_critique = coup_crit
+	var touche_coup := _shoot_ray(origin, origin + dir * float(w.range), dmg, perforant)
+	Game.coup_critique = false
+	if touche_coup:
 		Game.make_noise(global_position, 7.0)
 		prog.gagner("combat", 2)
 		var lame: bool = id in LAMES

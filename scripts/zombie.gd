@@ -729,6 +729,7 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 		dmg *= 2.5
 	else:
 		dmg *= (1.0 - armor)
+	Game.signaler_degats(self, dmg, health, pos, from, headshot)
 	health -= dmg
 	var push := global_position - from
 	push.y = 0.0

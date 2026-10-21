@@ -61,6 +61,7 @@ class Crosshair extends Control:
 
 
 var root: Control
+var cible_reticule: Node = null    # zombie, bandit ou animal sous le réticule (barre de vie)
 var lbl_niveau: Label
 var barre_xp: ProgressBar
 var lbl_gain: Label
@@ -204,6 +205,9 @@ func _ready() -> void:
 	root.add_child(lbl_gain)
 	Game.notify.connect(_on_msg)
 	Game.hit_confirmed.connect(_on_hit)
+	var degats = preload("res://scripts/ui/degats_ui.gd").new()
+	degats.hud = self
+	root.add_child(degats)
 	Game.player_died.connect(_on_death)
 
 
@@ -418,10 +422,15 @@ func _vise_ennemi(p: Node, portee: float) -> bool:
 	var q := PhysicsRayQueryParameters3D.create(from, to, Game.LAYER_WORLD | Game.LAYER_ZOMBIE, [p.get_rid()])
 	var hit: Dictionary = (p.get_world_3d() as World3D).direct_space_state.intersect_ray(q)
 	var n: Node = hit.get("collider")
+	cible_reticule = null
 	for i in 4:
 		if n == null:
 			return false
+		if n.is_in_group("animaux"):
+			cible_reticule = n
+			return false
 		if n.is_in_group("zombies") or n.is_in_group("bandits"):
+			cible_reticule = n
 			# dead_t / mort_t ne comptent qu'après la mort
 			return float(n.get("dead_t") if n.get("dead_t") != null else 0.0) <= 0.0 and float(n.get("mort_t") if n.get("mort_t") != null else 0.0) <= 0.0
 		n = n.get_parent()

@@ -402,6 +402,7 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if state == MORT:
 		return
 	var tete := pos.y > global_position.y + 1.5
+	Game.signaler_degats(self, dmg * (2.5 if tete else 1.0), health, pos, from, tete)
 	health -= dmg * (2.5 if tete else 1.0)
 	var p = Game.player
 	var par_joueur: bool = p != null and from.distance_to(p.global_position) < 3.0

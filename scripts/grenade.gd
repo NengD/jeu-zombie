@@ -71,7 +71,9 @@ static func exploser(monde: Node, pos: Vector3, degats_max: float, r: float) -> 
 			z.renverser(randf_range(2.0, 3.5))
 		elif z.has_method("repousser"):
 			z.repousser(centre - pos, 6.0 * k, 0.9)
+		Game.explosion_joueur = true
 		z.take_hit(dmg, centre, pos)
+		Game.explosion_joueur = false
 	var p = Game.player
 	if p and is_instance_valid(p):
 		var cp: Vector3 = p.global_position + Vector3.UP * 1.0

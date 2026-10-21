@@ -4,6 +4,9 @@ extends Node
 signal noise_made(pos: Vector3, radius: float)
 signal notify(text: String)
 signal hit_confirmed(headshot: bool, kill: bool)
+signal degats_infliges(cible: Node3D, montant: float, pos: Vector3, genre: int)   # genre : 0 normal, 1 tête, 2 critique
+var coup_critique := false         # le coup en cours du joueur est un coup critique (talent)
+var explosion_joueur := false      # dégâts d'une grenade lancée par le joueur en cours
 signal player_died
 
 const LAYER_WORLD := 1
@@ -347,6 +350,16 @@ func sfx(sound: String) -> AudioStream:
 	var s: AudioStream = load(path) if ResourceLoader.exists(path) else null
 	_sfx[sound] = s
 	return s
+
+
+## Dégâts infligés par le joueur (ses coups partent de sa position, ou de sa grenade) : chiffres
+## et barre de vie affichés par ui/degats_ui.gd. `montant` est ramené à la vie restante (coup de grâce).
+func signaler_degats(cible: Node3D, montant: float, vie_avant: float, pos: Vector3, from: Vector3, tete: bool) -> void:
+	if player == null or not (explosion_joueur or from.distance_to(player.global_position) < 2.5):
+		return
+	if not cible.has_meta("pv_max"):
+		cible.set_meta("pv_max", vie_avant)
+	degats_infliges.emit(cible, minf(montant, maxf(vie_avant, 0.0)), pos, 1 if tete else (2 if coup_critique else 0))
 
 
 ## Copie d'un son jouée en boucle (ambiances, souffle) : le son du cache reste ponctuel
