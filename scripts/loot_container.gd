@@ -18,6 +18,7 @@ var uid := -1          # numéro du meuble dans le monde généré (pour la sauv
 func setup(p_label: String, p_table: String, size: Vector3, col: Color, p_rolls := 2) -> void:
 	label = p_label
 	table = p_table
+	add_to_group("conteneurs")
 	rolls = p_rolls
 	box_size = size
 	collision_layer = Game.LAYER_WORLD | Game.LAYER_INTERACT
@@ -135,3 +136,32 @@ func interact(player: Node) -> void:
 func on_closed() -> void:
 	if is_in_group("tas_sol") and grille and grille.vide():
 		queue_free()
+
+
+## Surbrillance (liseré doré) : posée par le joueur sur les contenants proches qui ont encore quelque chose.
+static var _mat_surbrillance: ShaderMaterial = null
+var surligne := false
+
+
+func a_donner() -> bool:
+	if is_storage and not is_in_group("tas_sol"):
+		return false   # rangements du joueur : pas de surbrillance
+	ensure_contents()
+	return grille != null and not grille.vide()
+
+
+func surligner(on: bool) -> void:
+	if on == surligne:
+		return
+	surligne = on
+	if _mat_surbrillance == null:
+		_mat_surbrillance = ShaderMaterial.new()
+		_mat_surbrillance.shader = preload("res://shaders/surbrillance.gdshader")
+	var cible: Node = modele if modele != null else mesh_i
+	if cible == null:
+		return
+	var geos: Array = cible.find_children("*", "GeometryInstance3D", true, false)
+	if cible is GeometryInstance3D:
+		geos.append(cible)
+	for gi in geos:
+		(gi as GeometryInstance3D).material_overlay = _mat_surbrillance if on else null

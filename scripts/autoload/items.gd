@@ -9,8 +9,8 @@ const DB := {
 	"ration": {"name": "Ration militaire", "type": "food", "food": 60.0, "water": 10.0, "weight": 0.5},
 	"eau": {"name": "Bouteille d'eau", "type": "drink", "water": 45.0, "weight": 0.5},
 	"soda": {"name": "Soda", "type": "drink", "water": 25.0, "food": 5.0, "weight": 0.35},
-	"bandage": {"name": "Bandage", "type": "heal", "heal": 20.0, "weight": 0.1},
-	"trousse": {"name": "Trousse de soin", "type": "heal", "heal": 60.0, "weight": 0.6},
+	"bandage": {"name": "Bandage", "type": "heal", "heal": 15.0, "weight": 0.1},
+	"trousse": {"name": "Trousse de soin", "type": "heal", "heal": 100.0, "weight": 0.6},
 	"antidouleur": {"name": "Antidouleurs", "type": "heal", "heal": 10.0, "weight": 0.05},
 	# --- matériaux
 	"tissu": {"name": "Tissu", "type": "material", "weight": 0.1},

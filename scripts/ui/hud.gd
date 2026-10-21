@@ -257,9 +257,15 @@ func _process(delta: float) -> void:
 	var p = Game.player
 	_layout(vs)
 	# caché dans un buisson : les zombies te voient beaucoup moins
-	lbl_cache.visible = p.alive and not Game.ui_open and p.cache_buisson
+	# (ou soin en cours : objet et temps restant)
+	lbl_cache.visible = p.alive and not Game.ui_open and (p.cache_buisson or p.soin_t > 0.0)
 	if lbl_cache.visible:
-		lbl_cache.text = "Caché (accroupi)" if p.crouching else "Caché"
+		if p.soin_t > 0.0:
+			lbl_cache.text = "Soin : %s — %.1f s" % [Items.nom(p.soin_id), p.soin_t]
+			lbl_cache.label_settings.font_color = Color(1.0, 0.85, 0.5)
+		else:
+			lbl_cache.text = "Caché (accroupi)" if p.crouching else "Caché"
+			lbl_cache.label_settings.font_color = Color(0.65, 0.95, 0.6)
 		lbl_cache.size = Vector2(300, 30)
 		lbl_cache.position = vs / 2.0 + Vector2(-150, 42)
 	_maj_alerte(vs, p)

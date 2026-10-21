@@ -233,7 +233,7 @@ const DIRECTIONS := ["nord", "nord-est", "est", "sud-est", "sud", "sud-ouest", "
 
 
 func prime_camp(i: int) -> int:
-	return 100 + 40 * int(camps[i].effectif)
+	return 80 + 30 * int(camps[i].effectif)   # bandits moins précis de loin : camps plus faciles à nettoyer
 
 
 ## Situation des camps vus depuis un point : direction, distance, bandits restants, prime.

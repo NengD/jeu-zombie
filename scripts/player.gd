@@ -299,12 +299,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("recharger"):
 		_start_reload()
 	elif event.is_action_pressed("soigner"):
-		if count("bandage") > 0:
-			use_item("bandage")
-		elif count("trousse") > 0:
-			use_item("trousse")
+		# grosse blessure : trousse si possible ; sinon bandage, puis antidouleurs
+		var manque: float = prog.sante_max() - health
+		var ordre := ["trousse", "bandage", "antidouleur"] if manque >= 45.0 else ["bandage", "antidouleur", "trousse"]
+		var choisi := ""
+		for s in ordre:
+			if count(s) > 0:
+				choisi = s
+				break
+		if choisi == "":
+			Game.msg("Aucun soin (bandage, trousse, antidouleurs).")
 		else:
-			Game.msg("Aucun bandage ni trousse de soin.")
+			use_item(choisi)
 	elif event.is_action_pressed("accroupir"):
 		_set_crouch(not crouching)
 	else:
@@ -344,13 +350,18 @@ func _update_stats(delta: float) -> void:
 	if buisson_t <= 0.0:
 		buisson_t = 0.2
 		cache_buisson = Game.dans_buisson(global_position)
+	# contenants proches qui ont encore quelque chose : liseré doré (4 fois par seconde, 6 m)
+	surbrillance_t -= delta
+	if surbrillance_t <= 0.0:
+		surbrillance_t = 0.25
+		_maj_surbrillance()
 	if Game.admin and Game.admin_besoins:
 		hunger = 100.0
 		thirst = 100.0
 		stamina = prog.endurance_max()
 		return
-	hunger = maxf(0.0, hunger - delta * 0.055 * prog.faim_mult())
-	thirst = maxf(0.0, thirst - delta * 0.085 * prog.soif_mult())
+	hunger = maxf(0.0, hunger - delta * 0.045 * prog.faim_mult())
+	thirst = maxf(0.0, thirst - delta * 0.07 * prog.soif_mult())
 	# endurance : après un effort, courte pause (0,7 s) puis récupération rapide (à l'arrêt surtout)
 	pause_endurance = maxf(0.0, pause_endurance - delta)
 	if sprinting:
@@ -362,6 +373,26 @@ func _update_stats(delta: float) -> void:
 		_hurt(0.6 * delta)
 	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
 		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0))
+
+
+var surbrillance_t := 0.0
+var surlignes: Array = []           # contenants actuellement en surbrillance
+const RAYON_SURBRILLANCE := 6.0
+
+
+func _maj_surbrillance() -> void:
+	var proches: Array = []
+	if alive:
+		for c in get_tree().get_nodes_in_group("conteneurs"):
+			if is_instance_valid(c) and c.global_position.distance_squared_to(global_position) < RAYON_SURBRILLANCE * RAYON_SURBRILLANCE:
+				if c.a_donner():
+					proches.append(c)
+	for c in surlignes:
+		if is_instance_valid(c) and not proches.has(c):
+			c.surligner(false)
+	for c in proches:
+		c.surligner(true)
+	surlignes = proches
 
 
 ## Dépense d'endurance (coup, saut, parade) : la récupération attend un court instant.
@@ -409,6 +440,8 @@ func _move(delta: float, can_act: bool) -> void:
 	var mouille := Game.dans_eau(global_position)
 	if mouille:
 		speed = minf(speed, WALK * 0.55)
+	if soin_t > 0.0:
+		speed = minf(speed, WALK * 0.5)   # on se soigne en marchant lentement
 		sprinting = false
 		if float(sang_armes.get(current_weapon(), 0.0)) > 0.0:
 			sang_armes[current_weapon()] = maxf(0.0, float(sang_armes[current_weapon()]) - delta * 0.25)
@@ -419,12 +452,12 @@ func _move(delta: float, can_act: bool) -> void:
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
 	if is_on_floor():
-		if can_act and Input.is_action_just_pressed("sauter") and stamina > 8.0:
+		if can_act and Input.is_action_just_pressed("sauter") and stamina > 4.0:
 			if crouching:
 				_set_crouch(false)
 			else:
 				velocity.y = JUMP
-				_depenser_endurance(8.0)
+				_depenser_endurance(4.0)
 	else:
 		velocity.y -= GRAVITY * delta
 	move_and_slide()
@@ -1124,6 +1157,9 @@ func _cycle_weapon(d: int) -> void:
 func _update_combat(delta: float, can_act: bool) -> void:
 	cooldown -= delta
 	fire_queued = maxf(0.0, fire_queued - delta)
+	if soin_t > 0.0:
+		_maj_soin(delta)
+		return
 	if reload_t > 0.0:
 		reload_t -= delta
 		if reload_t <= 0.0:
@@ -1524,6 +1560,10 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 		hurt_flash = 0.3
 		return
 	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0))
+	if soin_t > 0.0 and soin_id == "trousse":
+		soin_t = 0.0
+		soin_entree = null
+		Game.msg("Soin interrompu : tu as été touché !")
 	hurt_flash = 1.0
 	Game.play_ui("douleur", -2.0, 0.15)
 
@@ -1783,13 +1823,7 @@ func use_item(id: String) -> void:
 			remove_item(id)
 			Game.msg("Consommé : " + Items.nom(id))
 		"heal":
-			if health >= prog.sante_max() - 0.5:
-				Game.msg("Ta santé est déjà au maximum.")
-				return
-			health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
-			prog.gagner("survie", 8)
-			remove_item(id)
-			Game.msg("Soigné avec : " + Items.nom(id))
+			_commencer_soin(id)
 		"armor":
 			var f := _find_entry(id)
 			if not f.is_empty():
@@ -1811,22 +1845,65 @@ func use_item(id: String) -> void:
 			Game.msg("Cet objet sert à la fabrication.")
 
 
+## Soins : [durée (s), santé rendue (-1 = au maximum)]. Rapide mais peu efficace, ou lent mais complet.
+const SOINS := {"antidouleur": [0.5, 10.0], "bandage": [0.9, 15.0], "trousse": [3.5, -1.0]}
+var soin_t := 0.0                    # soin en cours (temps restant)
+var soin_total := 1.0
+var soin_id := ""
+var soin_entree = null               # entrée d'inventaire utilisée (double-clic), sinon on prend dans le sac
+var soin_grille = null
+
+
+## Commence un soin (l'objet n'est consommé qu'à la fin ; la trousse est interrompue si on est touché).
+func _commencer_soin(id: String, entree = null, grille = null) -> bool:
+	if soin_t > 0.0:
+		return false
+	if health >= prog.sante_max() - 0.5:
+		Game.msg("Ta santé est déjà au maximum.")
+		return false
+	var s: Array = SOINS.get(id, [0.8, float(Items.info(id).get("heal", 10.0))])
+	soin_total = float(s[0]) * (0.75 if prog.a("soigneur") else 1.0)
+	soin_t = soin_total
+	soin_id = id
+	soin_entree = entree
+	soin_grille = grille
+	Game.play_ui("fouille", -10.0, 0.1, 1.3)
+	return true
+
+
+func _maj_soin(delta: float) -> void:
+	soin_t -= delta
+	if soin_t > 0.0:
+		return
+	soin_t = 0.0
+	var s: Array = SOINS.get(soin_id, [0.8, float(Items.info(soin_id).get("heal", 10.0))])
+	# consommer : l'entrée choisie dans l'inventaire si elle existe encore, sinon une unité du sac
+	if soin_entree != null and soin_grille != null and int(soin_entree.get("n", 0)) > 0:
+		soin_entree.n -= 1
+		if soin_entree.n <= 0:
+			soin_grille.retirer_entree(soin_entree)
+		_check_hotbar()
+	elif not remove_item(soin_id):
+		return
+	var gain: float = prog.sante_max() if float(s[1]) < 0.0 else float(s[1]) * (1.3 if prog.a("soigneur") else 1.0)
+	health = minf(prog.sante_max(), health + gain)
+	prog.gagner("survie", 8)
+	Game.msg("Soigné avec : " + Items.nom(soin_id))
+	soin_entree = null
+	soin_grille = null
+
+
 ## Consomme une unité d'une entrée précise (nourriture, boisson, soin).
 func consume_entry(e: Dictionary, g: Grille) -> bool:
 	var it := Items.info(e.id)
 	var t: String = it.get("type", "")
-	if t == "heal" and health >= 99.5:
-		Game.msg("Ta santé est déjà au maximum.")
-		return false
+	if t == "heal":
+		return _commencer_soin(e.id, e, g)
 	if t == "food" or t == "drink":
 		hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 		prog.gagner("survie", 5)
 		thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 		Game.msg("Consommé : " + Items.nom(e.id))
-	elif t == "heal":
-		health = minf(prog.sante_max(), health + float(it.heal) * (1.3 if prog.a("soigneur") else 1.0))
-		prog.gagner("survie", 8)
-		Game.msg("Soigné avec : " + Items.nom(e.id))
 	else:
 		return false
 	e.n -= 1

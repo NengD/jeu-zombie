@@ -70,7 +70,7 @@ const GUIDE := """[b]LES BASES[/b]
   Les caisses des bandits contiennent un bon butin (munitions, soins, parfois une arme ou une grenade).
 • Les zombies s'en prennent aussi aux bandits ; un bandit grièvement blessé court se mettre à l'abri derrière
   les sacs de sable ou une épave, et tire de là.
-• [b]Primes[/b] : chaque marchand indique où sont les camps et paie une prime (100 € + 40 € par bandit)
+• [b]Primes[/b] : chaque marchand indique où sont les camps et paie une prime (80 € + 30 € par bandit)
   quand un camp est entièrement nettoyé. Viens la toucher chez un marchand.
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
@@ -112,6 +112,8 @@ const GUIDE := """[b]LES BASES[/b]
 • À poser dehors autour de ta base pour voir venir les zombies la nuit. [F] : automatique (s'allume la nuit) / allumé / éteint.
 
 [b]ARGENT ET MARCHANDS[/b]
+• Les meubles et caisses proches qui ont encore quelque chose à prendre brillent d'un liseré doré.
+• Soins : antidouleurs (0,5 s, +10), bandage (0,9 s, +15), trousse (3,5 s, santé au maximum, interrompue si tu es touché). On marche lentement pendant un soin. [H] choisit le soin adapté à ta blessure.
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
 • Trois [b]campements de marchands[/b] (points verts sur la carte, juste à la sortie de la ville) : médecin, quincaillier
   et armurier. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
