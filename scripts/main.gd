@@ -85,19 +85,27 @@ func _creer_marche() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = Game.graine_monde + 777
 	var depart: Vector3 = world.spawn_point
-	var ch: float = Game.city_half
+	# ville de départ : médecin (le plus proche), quincaillier, armurier
+	_camps_autour(Vector3.ZERO, Game.city_half, depart, ["medecin", "quincaillier", "armurier"], rng)
+	# autres villes : un médecin et un armurier à la sortie de chacune
+	for i in range(1, Game.villes.size()):
+		var v: Dictionary = Game.villes[i]
+		_camps_autour(v.c, float(v.demi), v.c + Vector3(0, 0, float(v.demi) + 200.0), ["medecin", "armurier"], rng)
+
+
+## Camps de marchands juste à la sortie d'une ville (centre, demi-côté), les plus proches de « vers » d'abord.
+func _camps_autour(centre: Vector3, ch: float, vers_pt: Vector3, metiers: Array, rng: RandomNumberGenerator) -> void:
 	var lim: float = Game.map_half - 40.0
-	# points candidats tout autour de la ville, juste au-delà de sa bordure
 	var candidats: Array = []
 	for i in 1500:
-		var c := Vector3(rng.randf_range(-ch - 90.0, ch + 90.0), 0, rng.randf_range(-ch - 90.0, ch + 90.0))
-		if maxf(absf(c.x), absf(c.z)) < ch + 24.0 or absf(c.x) > lim or absf(c.z) > lim:
+		var c := centre + Vector3(rng.randf_range(-ch - 90.0, ch + 90.0), 0, rng.randf_range(-ch - 90.0, ch + 90.0))
+		if maxf(absf(c.x - centre.x), absf(c.z - centre.z)) < ch + 24.0 or absf(c.x) > lim or absf(c.z) > lim:
 			continue
 		candidats.append(c)
-	candidats.sort_custom(func(a, b): return a.distance_to(depart) < b.distance_to(depart))
+	candidats.sort_custom(func(a, b): return a.distance_to(vers_pt) < b.distance_to(vers_pt))
 	var places: Array = []
 	for c in candidats:
-		if places.size() >= 3:
+		if places.size() >= metiers.size():
 			break
 		var trop_pres := false
 		for p in places:
@@ -108,18 +116,18 @@ func _creer_marche() -> void:
 		c.y = Game.hauteur(c.x, c.z)
 		places.append(c)
 	var noms := ["Marc", "Sophie", "Karim", "Lucie", "Hugo", "Inès", "Paul", "Nadia", "Yann", "Chloé"]
-	var metiers := ["medecin", "quincaillier", "armurier"]
 	var titres := {"medecin": "du médecin", "quincaillier": "du quincaillier", "armurier": "de l'armurier"}
 	for k in places.size():
 		world.degager(places[k], CampMarchand.RAYON + 1.5)
 		Game.sans_herbe.append([places[k], CampMarchand.RAYON + 0.8])
+		var n := camps_marchands.size()
 		var camp = CampMarchand.new()
-		camp.name = "CampMarchand%d" % k
+		camp.name = "CampMarchand%d" % n
 		add_child(camp)
 		camp.global_position = places[k]
-		var vers: Vector3 = depart - places[k]
+		var vers: Vector3 = centre - places[k]
 		camp.rotation.y = atan2(vers.x, vers.z)   # entrée (+Z) tournée vers la ville
-		var nom: String = noms[absi(Game.graine_monde + k * 3) % noms.size()]
+		var nom: String = noms[absi(Game.graine_monde + n * 3) % noms.size()]
 		camp.construire_marchand(metiers[k], nom, rng)
 		camps_marchands.append(camp)
 		Game.pois.append({"name": "Camp %s (%s)" % [titres[metiers[k]], nom], "pos": places[k], "color": Color(0.4, 0.9, 0.5)})
@@ -157,7 +165,7 @@ func pres_camp_marchand(pos: Vector3, marge := 0.0) -> bool:
 ## Camps de bandits répartis sur la carte, hors des villes, loin du départ et entre eux.
 ## Mêmes camps pour une même carte (tirage à partir de la graine du monde).
 const CampBandits = preload("res://scripts/camp_bandits.gd")
-const NB_CAMPS := 7
+const NB_CAMPS := 16
 var camps: Array = []
 
 

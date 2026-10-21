@@ -115,12 +115,15 @@ const GUIDE := """[b]LES BASES[/b]
 • Les meubles et caisses proches qui ont encore quelque chose à prendre brillent d'un liseré doré.
 • Soins : antidouleurs (0,5 s, +10), bandage (0,9 s, +15), trousse (3,5 s, santé au maximum, interrompue si tu es touché). On marche lentement pendant un soin. [H] choisit le soin adapté à ta blessure.
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
-• Trois [b]campements de marchands[/b] (points verts sur la carte, juste à la sortie de la ville) : médecin, quincaillier
-  et armurier. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
+• Des [b]campements de marchands[/b] (points verts sur la carte, juste à la sortie des villes) : médecin, quincaillier
+  et armurier près de Bellerive, médecin et armurier près de Valmont. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
   un vrai refuge. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
+• La région fait 5 × 5 km : [b]Bellerive[/b] (ville de départ), [b]Valmont[/b] (au nord-est, avec sa zone industrielle),
+  quatre villages (Saint-Aubin, Hameau des Sources, les Granges, Pont-Rouge), fermes, stations-service, motels.
+  Sur la carte : molette pour zoomer, clic maintenu pour la déplacer, [Espace] pour recentrer sur toi.
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.

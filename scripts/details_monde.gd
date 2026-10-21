@@ -224,13 +224,14 @@ func _routes_abimees() -> void:
 		if longueur < 4.0 or largeur < 2.0:
 			continue
 		var rot := 0.0 if le_long_x else PI / 2.0
+		var en_ville := Game.in_city(Vector3(r.get_center().x, 0.0, r.get_center().y))
 		# point de la route : t le long (0..1), s en travers (0..1)
 		var pt := func(t: float, s: float) -> Vector3:
 			var x: float = r.position.x + (t * r.size.x if le_long_x else s * r.size.x)
 			var z: float = r.position.y + (s * r.size.y if le_long_x else t * r.size.y)
 			return Vector3(x, Game.hauteur(x, z), z)
 		# nids-de-poule (un tous les 35 m environ)
-		for i in int(longueur / 70.0 * rng.randf_range(0.6, 1.4)):
+		for i in int(longueur / (70.0 if en_ville else 140.0) * rng.randf_range(0.6, 1.4)):
 			var p: Vector3 = pt.call(rng.randf(), rng.randf_range(0.15, 0.85))
 			var tl := rng.randf_range(0.7, 1.6)
 			_decal("nid", p + Vector3(0, 0.25, 0), Vector3(tl, 1.0, tl * rng.randf_range(0.7, 1.0)), rng.randf() * TAU)
@@ -240,7 +241,7 @@ func _routes_abimees() -> void:
 			var t := rng.randf() * pas
 			while t < longueur:
 				var u := t / longueur
-				if rng.randf() < 0.025:
+				if en_ville and rng.randf() < 0.025:
 					var e: Vector3 = pt.call(u, cote)
 					var base := Basis(Vector3.UP, rot + (PI if cote > 0.5 else 0.0))
 					_decal("bord", e + Vector3(0, 0.25, 0), Vector3(rng.randf_range(2.0, 4.0), 1.0, 1.2), 0.0, base)
@@ -300,10 +301,9 @@ func _dechets() -> void:
 					papiers.append([pose.call(p + Vector3(rng.randf_range(-0.5, 0.5), 0, rng.randf_range(-0.5, 0.5)), Vector3(0.21, 1.0, 0.29), rng.randf() * TAU), Color(g, g, g * 0.95)])
 				if rng.randf() < 0.08:
 					cartons.append([pose.call(p, Vector3(rng.randf_range(0.35, 0.6), 1.0, rng.randf_range(0.3, 0.5)), rng.randf() * TAU), Color(0.55, 0.42, 0.28).darkened(rng.randf_range(0.0, 0.3))])
-	# papiers épars dans les rues
-	var demi: float = Game.city_half
-	for i in 500:
-		var p2 := Vector3(rng.randf_range(-demi, demi), 0, rng.randf_range(-demi, demi))
+	# papiers épars dans les rues de chaque ville
+	for pv in _points_villes(500):
+		var p2: Vector3 = pv
 		if not Game.find_zone(p2 + Vector3.UP).is_empty():
 			continue
 		var g3 := rng.randf_range(0.5, 0.92)
@@ -358,10 +358,8 @@ func _multimesh_par_cases(mesh: Mesh, mat: Material, objets: Array, distance: fl
 
 ## Taches d'huile, fissures, saleté et un peu de sang sur les routes et trottoirs de la ville.
 func _decalques_sol() -> void:
-	var demi: float = Game.city_half
-	var nb := 420
-	for k in nb:
-		var p := Vector3(rng.randf_range(-demi, demi), 0.0, rng.randf_range(-demi, demi))
+	for pv in _points_villes(420):
+		var p: Vector3 = pv
 		if not Game.find_zone(p + Vector3.UP).is_empty():
 			continue
 		var r := rng.randf()
@@ -561,3 +559,15 @@ func _parcelle(k: Vector2i) -> Node3D:
 		mif.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi.add_child(mif)   # libérée avec la parcelle
 	return mmi
+
+
+## Points au hasard dans les villes : n pour la ville de départ, en proportion de la surface pour les autres.
+func _points_villes(n: int) -> Array:
+	var res := []
+	var villes: Array = Game.villes if not Game.villes.is_empty() else [{"c": Vector3.ZERO, "demi": Game.city_half}]
+	for v in villes:
+		var d: float = v.demi
+		var nv := int(n * (d * d) / (Game.city_half * Game.city_half))
+		for i in nv:
+			res.append(Vector3(v.c.x + rng.randf_range(-d, d), 0.0, v.c.z + rng.randf_range(-d, d)))
+	return res

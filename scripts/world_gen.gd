@@ -98,6 +98,8 @@ func build(seed_value: int) -> Vector3:
 	rng.seed = seed_value
 	half = NB * BLOCK / 2.0
 	Game.city_half = half
+	# villes de la carte (pour Game.in_city : herbe, zombies, décalques…)
+	Game.villes = [{"c": Vector3.ZERO, "demi": half}, {"c": VILLE_B, "demi": NB_B * BLOCK / 2.0}]
 	mat = StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.vertex_color_is_srgb = true
@@ -108,8 +110,10 @@ func build(seed_value: int) -> Vector3:
 	add_child(decor)
 	_ground()
 	_city()
+	_poi("Bellerive", Vector3.ZERO, Color(0.95, 0.95, 0.95))
 	_countryside()
 	_military_base(Vector3(-255, 0, -250))
+	_regions()
 	_relief()
 	_trees()
 	_vegetation()
@@ -245,7 +249,6 @@ func _ground() -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = Game.LAYER_WORLD
 	add_child(body)
-	reserved.append(Rect2(-half - 10, -half - 10, 2 * half + 20, 2 * half + 20))
 	# limites invisibles de la carte
 	var m := Game.map_half
 	for e in [[Vector3(m, 5, 0), Vector3(1, 10, 2 * m)], [Vector3(-m, 5, 0), Vector3(1, 10, 2 * m)], [Vector3(0, 5, m), Vector3(2 * m, 10, 1)], [Vector3(0, 5, -m), Vector3(2 * m, 10, 1)]]:
@@ -255,9 +258,14 @@ func _ground() -> void:
 		cs2.shape = bs
 		cs2.position = e[0]
 		body.add_child(cs2)
-	# sol bétonné de la ville
-	_flat(Rect2(-half - 8, -half - 8, 2 * half + 16, 2 * half + 16), 0.006, Color(0.85, 0.85, 0.83), "trottoir")
-	Game.map_rects.append({"rect": Rect2(-half - 8, -half - 8, 2 * half + 16, 2 * half + 16), "color": Color(0.22, 0.22, 0.22)})
+	_sol_ville(Vector3.ZERO, half)
+
+
+## Sol bétonné d'une ville (centre o, demi-côté hv), réservé et dessiné sur la carte.
+func _sol_ville(o: Vector3, hv: float) -> void:
+	reserved.append(Rect2(o.x - hv - 10, o.z - hv - 10, 2 * hv + 20, 2 * hv + 20))
+	_flat(Rect2(o.x - hv - 8, o.z - hv - 8, 2 * hv + 16, 2 * hv + 16), 0.006, Color(0.85, 0.85, 0.83), "trottoir")
+	Game.map_rects.append({"rect": Rect2(o.x - hv - 8, o.z - hv - 8, 2 * hv + 16, 2 * hv + 16), "color": Color(0.22, 0.22, 0.22)})
 
 
 # ================================================================ routes
@@ -301,24 +309,25 @@ const MOBILIER := [["poubelle", 5, true], ["poubelle_rue", 4, true], ["borne_inc
 
 
 ## Mobilier urbain le long des trottoirs, plaques d'égout, barrages abandonnés.
-func _mobilier_urbain() -> void:
+func _mobilier_urbain(o: Vector3 = Vector3.ZERO, nb: int = NB) -> void:
 	if not Decor.existe("poubelle"):
 		return
+	var hv := nb * BLOCK / 2.0
 	var total := 0
 	for m in MOBILIER:
 		total += m[1]
-	for i in NB + 1:
-		var c := -half + i * BLOCK
-		for j in NB:
-			var a0 := -half + j * BLOCK + ROAD / 2.0 + 2.5
-			var a1 := -half + (j + 1) * BLOCK - ROAD / 2.0 - 2.5
+	for i in nb + 1:
+		var c := -hv + i * BLOCK
+		for j in nb:
+			var a0 := -hv + j * BLOCK + ROAD / 2.0 + 2.5
+			var a1 := -hv + (j + 1) * BLOCK - ROAD / 2.0 - 2.5
 			for sd in [-1.0, 1.0]:
-				if (i == 0 and sd < 0) or (i == NB and sd > 0):
+				if (i == 0 and sd < 0) or (i == nb and sd > 0):
 					continue
-				var o: float = c + sd * (ROAD / 2.0 + 0.7)
+				var off: float = c + sd * (ROAD / 2.0 + 0.7)
 				for along_x in [true, false]:
-					var nb := rng.randi_range(1, 4)
-					for q in nb:
+					var nbo := rng.randi_range(1, 4)
+					for q in nbo:
 						var a := rng.randf_range(a0, a1)
 						var r := rng.randi() % total
 						var choix: Array = MOBILIER[0]
@@ -327,7 +336,7 @@ func _mobilier_urbain() -> void:
 							if r < 0:
 								choix = m
 								break
-						var pos := Vector3(a, 0.0, o) if along_x else Vector3(o, 0.0, a)
+						var pos := (Vector3(a, 0.0, off) if along_x else Vector3(off, 0.0, a)) + Vector3(o.x, 0.0, o.z)
 						var t := Decor.taille(choix[0])
 						if _overlaps(Rect2(pos.x - t.x / 2.0, pos.z - t.x / 2.0, t.x, t.x)):
 							continue
@@ -340,18 +349,19 @@ func _mobilier_urbain() -> void:
 			# plaques d'égout au milieu de la chaussée
 			if rng.randf() < 0.6:
 				var a := rng.randf_range(a0, a1)
-				_prop("plaque_egout", Vector3(a, 0.02, c + rng.randf_range(-2.0, 2.0)), 0.0, false, 1.0, 60.0)
+				_prop("plaque_egout", Vector3(o.x + a, 0.02, o.z + c + rng.randf_range(-2.0, 2.0)), 0.0, false, 1.0, 60.0)
 	# barrages abandonnés à quelques carrefours
-	for n in 10:
-		var i := rng.randi_range(1, NB - 1)
-		var j := rng.randi_range(1, NB - 1)
-		var p := Vector3(-half + i * BLOCK, 0, -half + j * BLOCK + (BLOCK / 2.0 - 6.0) * (1.0 if rng.randf() < 0.5 else -1.0))
+	for n in int(10 * float(nb * nb) / float(NB * NB)) + 1:
+		var i := rng.randi_range(1, nb - 1)
+		var j := rng.randi_range(1, nb - 1)
+		var p := Vector3(-hv + i * BLOCK, 0, -hv + j * BLOCK + (BLOCK / 2.0 - 6.0) * (1.0 if rng.randf() < 0.5 else -1.0))
 		if rng.randf() < 0.5:
 			p = Vector3(p.z, 0, p.x)
-		var le_long_x := absf(fposmod(p.x + half, BLOCK)) < 1.0
+		var le_long_x := absf(fposmod(p.x + hv, BLOCK)) < 1.0
+		p += Vector3(o.x, 0.0, o.z)
 		for k in 4:
-			var off := (k - 1.5) * 1.7 + rng.randf_range(-0.2, 0.2)
-			var pos := p + (Vector3(off, 0, 0) if le_long_x else Vector3(0, 0, off))
+			var offk := (k - 1.5) * 1.7 + rng.randf_range(-0.2, 0.2)
+			var pos := p + (Vector3(offk, 0, 0) if le_long_x else Vector3(0, 0, offk))
 			var id := "glissiere" if rng.randf() < 0.6 else "barriere_beton"
 			var ang := (0.0 if le_long_x else PI / 2.0) + rng.randf_range(-0.25, 0.25)
 			if id == "glissiere":
@@ -1001,26 +1011,30 @@ func _poi(label: String, pos: Vector3, col: Color) -> void:
 
 
 # ================================================================ ville
-func _city() -> void:
-	for i in NB + 1:
-		var c := -half + i * BLOCK
-		_road(Vector2(c, -half - 5), Vector2(c, half + 5), ROAD)
-		_road(Vector2(-half - 5, c), Vector2(half + 5, c), ROAD)
+func _city(o: Vector3 = Vector3.ZERO, nb: int = NB, specials: Dictionary = {}, spawn_block := Vector2i(1, NB - 1), principale := true) -> void:
+	var hv := nb * BLOCK / 2.0
+	var ox := o.x
+	var oz := o.z
+	for i in nb + 1:
+		var cx := ox - hv + i * BLOCK
+		var cz := oz - hv + i * BLOCK
+		_road(Vector2(cx, oz - hv - 5), Vector2(cx, oz + hv + 5), ROAD)
+		_road(Vector2(ox - hv - 5, cz), Vector2(ox + hv + 5, cz), ROAD)
 	# bordures de trottoir entre les carrefours
-	for i in NB + 1:
-		var c := -half + i * BLOCK
-		for j in NB:
-			var a0 := -half + j * BLOCK + ROAD / 2.0
-			var a1 := -half + (j + 1) * BLOCK - ROAD / 2.0
+	for i in nb + 1:
+		for j in nb:
+			var a0 := -hv + j * BLOCK + ROAD / 2.0
+			var a1 := -hv + (j + 1) * BLOCK - ROAD / 2.0
 			var mid := (a0 + a1) / 2.0
+			var c := -hv + i * BLOCK
 			for sd in [-1.0, 1.0]:
-				var o: float = c + sd * (ROAD / 2.0 - 0.12)
-				_box(Vector3(mid, 0.07, o), Vector3(a1 - a0, 0.14, 0.24), Color(0.8, 0.8, 0.78), false, "beton")
-				_box(Vector3(o, 0.07, mid), Vector3(0.24, 0.14, a1 - a0), Color(0.8, 0.8, 0.78), false, "beton")
+				var off: float = c + sd * (ROAD / 2.0 - 0.12)
+				_box(Vector3(ox + mid, 0.07, oz + off), Vector3(a1 - a0, 0.14, 0.24), Color(0.8, 0.8, 0.78), false, "beton")
+				_box(Vector3(ox + off, 0.07, oz + mid), Vector3(0.24, 0.14, a1 - a0), Color(0.8, 0.8, 0.78), false, "beton")
 	# lampadaires aux carrefours (allumés la nuit, certains en panne : eclairage_rues.gd)
-	for i in NB + 1:
-		for j in NB + 1:
-			var p := Vector3(-half + i * BLOCK + 6.0, 0, -half + j * BLOCK + 6.0)
+	for i in nb + 1:
+		for j in nb + 1:
+			var p := Vector3(ox - hv + i * BLOCK + 6.0, 0, oz - hv + j * BLOCK + 6.0)
 			if Decor.existe("lampadaire"):
 				var lp := _prop("lampadaire", p, rng.randf() * TAU, false, 1.0, 200.0)
 				if lp:
@@ -1029,17 +1043,17 @@ func _city() -> void:
 			else:
 				_box(p + Vector3(0, 3.0, 0), Vector3(0.18, 6.0, 0.18), Color(0.2, 0.2, 0.22))
 				_box(p + Vector3(-0.6, 6.0, 0), Vector3(1.4, 0.15, 0.3), Color(0.2, 0.2, 0.22), false)
-	var specials := {
-		Vector2i(2, 2): "police", Vector2i(4, 4): "hopital", Vector2i(4, 2): "supermarche",
-		Vector2i(2, 4): "armurerie", Vector2i(1, 3): "quincaillerie", Vector2i(3, 3): "parc",
-		Vector2i(5, 1): "parc",
-	}
-	var spawn_block := Vector2i(1, NB - 1)
-	for bi in NB:
-		for bj in NB:
-			var bc := Vector3(-half + (bi + 0.5) * BLOCK, 0, -half + (bj + 0.5) * BLOCK)
+	if specials.is_empty() and principale:
+		specials = {
+			Vector2i(2, 2): "police", Vector2i(4, 4): "hopital", Vector2i(4, 2): "supermarche",
+			Vector2i(2, 4): "armurerie", Vector2i(1, 3): "quincaillerie", Vector2i(3, 3): "parc",
+			Vector2i(5, 1): "parc",
+		}
+	for bi in nb:
+		for bj in nb:
+			var bc := Vector3(ox - hv + (bi + 0.5) * BLOCK, 0, oz - hv + (bj + 0.5) * BLOCK)
 			var key := Vector2i(bi, bj)
-			var outer := bi == 0 or bj == 0 or bi == NB - 1 or bj == NB - 1
+			var outer := bi == 0 or bj == 0 or bi == nb - 1 or bj == nb - 1
 			if specials.has(key):
 				match specials[key]:
 					"police": _police(bc)
@@ -1047,27 +1061,31 @@ func _city() -> void:
 					"supermarche": _supermarket(bc)
 					"armurerie": _small_special(bc, "armurerie", "Armurerie", Color(0.3, 0.28, 0.27), Color(0.75, 0.3, 0.2))
 					"quincaillerie": _small_special(bc, "quincaillerie", "Quincaillerie", Color(0.55, 0.45, 0.3), Color(0.8, 0.6, 0.2))
+					"ecole": _small_special(bc, "bureau", "École", Color(0.78, 0.7, 0.55), Color(0.85, 0.75, 0.4))
+					"pompiers": _small_special(bc, "quincaillerie", "Caserne de pompiers", Color(0.62, 0.2, 0.17), Color(0.9, 0.3, 0.25))
+					"mairie": _small_special(bc, "bureau", "Hôtel de ville", Color(0.75, 0.72, 0.65), Color(0.8, 0.8, 0.7))
+					"entrepot": _small_special(bc, "grange", "Entrepôt", Color(0.5, 0.52, 0.55), Color(0.55, 0.55, 0.6))
 					"parc": _park(bc)
 			elif outer:
-				_residential(bc, key == spawn_block)
+				_residential(bc, principale and key == spawn_block)
 			elif rng.randf() < 0.35:
 				_apartments(bc)
 			else:
 				_commercial(bc)
 	# voitures abandonnées
-	for n in 55:
-		var i := rng.randi_range(0, NB)
-		var along := rng.randf_range(-half, half)
-		var line := -half + i * BLOCK
-		if fposmod(along + half, BLOCK) < 9.0 or fposmod(along + half, BLOCK) > BLOCK - 9.0:
+	for n in int(55 * float(nb * nb) / float(NB * NB)):
+		var i := rng.randi_range(0, nb)
+		var along := rng.randf_range(-hv, hv)
+		var line := -hv + i * BLOCK
+		if fposmod(along + hv, BLOCK) < 9.0 or fposmod(along + hv, BLOCK) > BLOCK - 9.0:
 			continue
 		var lane := 2.4 * (1.0 if rng.randf() < 0.5 else -1.0)
 		var col: Color = CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(rng.randf_range(0.0, 0.35))
 		if rng.randf() < 0.5:
-			_car(Vector3(along, 0, line + lane), true, col)
+			_car(Vector3(ox + along, 0, oz + line + lane), true, col)
 		else:
-			_car(Vector3(line + lane, 0, along), false, col)
-	_mobilier_urbain()
+			_car(Vector3(ox + line + lane, 0, oz + along), false, col)
+	_mobilier_urbain(o, nb)
 
 
 func _doors_toward_roads(qx: float, qz: float) -> Array:
@@ -1200,6 +1218,116 @@ func _small_special(bc: Vector3, kind: String, label: String, col: Color, map_co
 		_residents(hz, 0.4, 2)
 
 
+# ================================================================ régions (carte de 5 km)
+## Deuxième ville (Valmont), au nord-est, plus petite que la ville de départ.
+const VILLE_B := Vector3(1450, 0, -1350)
+const NB_B := 5
+
+
+## Le reste de la carte de 5 × 5 km : Valmont et sa zone industrielle, deux villages de plus,
+## routes de campagne, fermes, stations-service, motel, maisons isolées, accidents de la route.
+func _regions() -> void:
+	var hx := -half + 4 * BLOCK   # autoroutes (mêmes que _countryside)
+	var hz := -half + 3 * BLOCK
+	var m := Game.map_half
+	# --- Valmont
+	var hvb := NB_B * BLOCK / 2.0
+	_sol_ville(VILLE_B, hvb)
+	_city(VILLE_B, NB_B, {
+		Vector2i(1, 1): "police", Vector2i(3, 3): "hopital", Vector2i(3, 1): "supermarche",
+		Vector2i(1, 3): "ecole", Vector2i(2, 2): "parc", Vector2i(2, 0): "pompiers",
+		Vector2i(0, 2): "mairie", Vector2i(4, 2): "armurerie", Vector2i(2, 4): "quincaillerie",
+	}, Vector2i(-1, -1), false)
+	_poi("Valmont", VILLE_B, Color(0.95, 0.95, 0.95))
+	# route d'accès depuis l'autoroute est-ouest (alignée sur une rue de la ville)
+	var xa := VILLE_B.x - hvb + 2 * BLOCK
+	_road(Vector2(xa, hz), Vector2(xa, VILLE_B.z + hvb + 5.0), 9.0)
+	_ligne_electrique(Vector2(xa + 8.0, hz - 20.0), Vector2(xa + 8.0, VILLE_B.z + hvb + 20.0))
+	# zone industrielle à l'est de Valmont
+	_zone_industrielle(Vector3(VILLE_B.x + hvb + 75.0, 0, VILLE_B.z), VILLE_B.x + hvb + 5.0)
+	# --- villages reliés par leur route
+	_village_relie(Vector3(-1500, 0, -1400), "Village des Granges", hz)
+	_village_relie(Vector3(1300, 0, 1550), "Village de Pont-Rouge", hz)
+	# --- fermes le long des nouvelles routes (chemin de terre jusqu'à la route la plus proche)
+	_farm(Vector3(-1450, 0, -900), -1610.0, 1.0e6, "Ferme des Granges")
+	_farm(Vector3(1300, 0, 900), 1190.0, 1.0e6, "Ferme du Pont")
+	_farm(Vector3(xa + 90.0, 0, -700), xa, 1.0e6, "Ferme de Valmont")
+	_farm(Vector3(-1100, 0, hz + 120.0), 1.0e6, hz, "Ferme de la Plaine")
+	_farm(Vector3(900, 0, hz - 140.0), 1.0e6, hz, "Ferme des Hauts")
+	# --- le long des autoroutes : stations, motel, relais, maisons isolées, accidents
+	_gas_station(Vector3(hx + 24.0, 0, -1700.0))
+	_gas_station(Vector3(1900.0, 0, hz + 24.0))
+	_gas_station(Vector3(-1900.0, 0, hz + 24.0))
+	_motel(Vector3(hx + 30.0, 0, 1300.0))
+	_motel(Vector3(-900.0, 0, hz - 32.0))
+	for c in [Vector3(1100.0, 0, hz), Vector3(-1350.0, 0, hz), Vector3(hx, 0, 1900.0), Vector3(hx, 0, -1200.0)]:
+		_carambolage(c, absf(c.z - hz) < 1.0)
+	for i in 26:
+		var along := rng.randf_range(820.0, m - 60.0) * (1.0 if rng.randf() < 0.5 else -1.0)
+		var off := 18.0 * (1.0 if rng.randf() < 0.5 else -1.0)
+		var c: Vector3
+		var doors: Array
+		if rng.randf() < 0.5:
+			c = Vector3(hx + off, 0, along)
+			doors = ["w" if off > 0 else "e"]
+		else:
+			c = Vector3(along, 0, hz + off)
+			doors = ["n" if off > 0 else "s"]
+		if _overlaps(Rect2(c.x - 8, c.z - 8, 16, 16)):
+			continue
+		var zm := _building(c, rng.randf_range(9, 12), rng.randf_range(8, 10), 6.6, HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()], doors, "maison", "", false, -1, Color(0.45, 0.4, 0.35), "pente")
+		_residents(zm, 0.5, 2)
+	# voitures abandonnées sur les grandes routes lointaines
+	for i in 40:
+		var t := rng.randf_range(800.0, m - 30.0) * (1.0 if rng.randf() < 0.5 else -1.0)
+		var col: Color = CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.3)
+		if rng.randf() < 0.5:
+			_car(Vector3(hx + rng.randf_range(-3, 3), 0, t), false, col)
+		else:
+			_car(Vector3(t, 0, hz + rng.randf_range(-3, 3)), true, col)
+
+
+## Village relié par une route nord-sud depuis l'autoroute est-ouest (z = hz) ; la rue principale part de cette route.
+func _village_relie(c: Vector3, nom: String, hz: float) -> void:
+	var xr := c.x - 110.0
+	_road(Vector2(xr, hz), Vector2(xr, c.z), 9.0)
+	_ligne_electrique(Vector2(xr + 8.0, hz + signf(c.z - hz) * 20.0), Vector2(xr + 8.0, c.z - signf(c.z - hz) * 15.0))
+	_village(c, xr, nom, false)
+
+
+## Motel au bord de la route : deux ailes de chambres, réception, parking avec voitures.
+func _motel(c: Vector3) -> void:
+	var col := Color(0.82, 0.74, 0.6)
+	var z1 := _building(c, 30.0, 9.0, 4.0, col, ["s"], "maison", "Motel de la Route", true, 10, Color(0.75, 0.6, 0.45))
+	var z2 := _building(c + Vector3(-11.0, 0, 15.0), 8.0, 20.0, 4.0, col.darkened(0.08), ["e"], "bureau", "", true, 6, Color(0.75, 0.6, 0.45))
+	_residents(z1, 0.8, 4)
+	_residents(z2, 0.6, 2)
+	_flat(Rect2(c.x - 4.0, c.z + 6.0, 22.0, 20.0), 0.02, Color(0.9, 0.9, 0.9), "asphalte")
+	_reserve(Rect2(c.x - 18.0, c.z - 6.0, 38.0, 34.0), Color(0.5, 0.42, 0.32))
+	for i in 3:
+		_car(c + Vector3(rng.randf_range(0.0, 14.0), 0, rng.randf_range(10.0, 22.0)), rng.randf() < 0.5, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.25))
+	_poi("Motel", c, Color(0.95, 0.65, 0.4))
+
+
+## Zone industrielle : trois entrepôts autour d'une cour bétonnée, palettes et camions ; route vers la ville.
+func _zone_industrielle(c: Vector3, x_ville: float) -> void:
+	_road(Vector2(x_ville, c.z), Vector2(c.x - 20.0, c.z), 9.0)
+	_flat(Rect2(c.x - 20.0, c.z - 45.0, 90.0, 90.0), 0.015, Color(0.82, 0.82, 0.8), "beton")
+	_reserve(Rect2(c.x - 22.0, c.z - 47.0, 94.0, 94.0), Color(0.4, 0.4, 0.42))
+	var gris := [Color(0.55, 0.57, 0.6), Color(0.62, 0.6, 0.55), Color(0.5, 0.52, 0.5)]
+	var places := [Vector3(10.0, 0, -28.0), Vector3(48.0, 0, -28.0), Vector3(30.0, 0, 26.0)]
+	var noms := ["Entrepôt Logistique", "Usine de pièces", "Entrepôt frigorifique"]
+	for k in 3:
+		var z := _building(c + places[k], 30.0, 20.0, 7.5, gris[k], ["n", "s"] if k < 2 else ["n"], "grange", noms[k], false, 9, Color(0.5, 0.5, 0.55))
+		_residents(z, 0.8, 4)
+	for i in 10:
+		var p := c + Vector3(rng.randf_range(-10.0, 60.0), 0, rng.randf_range(-6.0, 6.0))
+		_prop(["palette", "caisse_bois", "baril_bleu", "baril_rouge", "pneu"][rng.randi() % 5], p, rng.randf() * TAU, true, 1.0, 120.0)
+	for i in 3:
+		_car(c + Vector3(rng.randf_range(0.0, 50.0), 0, rng.randf_range(-8.0, 8.0)), true, Color(0.75, 0.75, 0.72).darkened(rng.randf_range(0.0, 0.3)), "voiture_suv")
+	_poi("Zone industrielle", c + Vector3(30.0, 0, 0), Color(0.6, 0.6, 0.65))
+
+
 # ================================================================ campagne
 func _countryside() -> void:
 	var hx := -half + 4 * BLOCK   # autoroute nord-sud
@@ -1253,10 +1381,27 @@ func _countryside() -> void:
 		_residents(z, 0.5, 2)
 
 
+## Zones réservées indexées par cases de 64 m (la liste ne fait que grandir : indexation au fil de l'eau).
+var _index_res := {}
+var _nb_indexe := 0
+const CASE_RES := 64.0
+
+
 func _overlaps(r: Rect2) -> bool:
-	for o in reserved:
-		if o.intersects(r):
-			return true
+	while _nb_indexe < reserved.size():
+		var ri: Rect2 = reserved[_nb_indexe]
+		for cx in range(floori(ri.position.x / CASE_RES), floori(ri.end.x / CASE_RES) + 1):
+			for cz in range(floori(ri.position.y / CASE_RES), floori(ri.end.y / CASE_RES) + 1):
+				var k := Vector2i(cx, cz)
+				if not _index_res.has(k):
+					_index_res[k] = []
+				_index_res[k].append(_nb_indexe)
+		_nb_indexe += 1
+	for cx in range(floori(r.position.x / CASE_RES), floori(r.end.x / CASE_RES) + 1):
+		for cz in range(floori(r.position.y / CASE_RES), floori(r.end.y / CASE_RES) + 1):
+			for i in _index_res.get(Vector2i(cx, cz), []):
+				if (reserved[i] as Rect2).intersects(r):
+					return true
 	return false
 
 
@@ -1381,13 +1526,13 @@ func _military_base(c: Vector3) -> void:
 func _trees() -> void:
 	var m := Game.map_half - 10.0
 	var centers := []
-	for i in 34:
+	for i in 210:
 		centers.append(Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m)))
 	var candidates := trees.duplicate()
 	for cc in centers:
 		for i in 45:
 			candidates.append(cc + Vector3(rng.randfn(0, 22), 0, rng.randfn(0, 22)))
-	for i in 650:
+	for i in 3800:
 		candidates.append(Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m)))
 	var park_count := trees.size()
 	var final: Array = []
@@ -1405,9 +1550,8 @@ func _trees() -> void:
 				continue
 		final.append(p)
 	trees = final
-	var body := StaticBody3D.new()
-	body.collision_layer = Game.LAYER_WORLD
-	add_child(body)
+	# collisions des troncs : un corps par case de 128 m (un seul corps à 10 000 formes est très lent à construire)
+	var corps_cases := {}
 	var feuillus := ["arbre_0", "arbre_1", "arbre_2", "arbre_3"]
 	var sapins := ["sapin_0", "sapin_1"]
 	var modeles_ok := ResourceLoader.exists("res://modeles/arbres/arbre_0.res")
@@ -1431,7 +1575,14 @@ func _trees() -> void:
 		cyl.height = 4.0 * s
 		cs.shape = cyl
 		cs.position = p + Vector3(0, 2.0 * s, 0)
-		body.add_child(cs)
+		var kc := Vector2i(floori(p.x / 128.0), floori(p.z / 128.0))
+		if not corps_cases.has(kc):
+			var b := StaticBody3D.new()
+			b.collision_layer = Game.LAYER_WORLD
+			b.collision_mask = 0
+			add_child(b)
+			corps_cases[kc] = b
+		corps_cases[kc].add_child(cs)
 	if not modeles_ok:
 		return
 	for cle in groupes:
@@ -1455,7 +1606,7 @@ func _vegetation() -> void:
 		return
 	var m := Game.map_half - 15.0
 	var choix := [["buisson", false], ["buisson2", false], ["rocher", true], ["souche", true], ["tronc_mort", true], ["buisson", false]]
-	for i in 650:
+	for i in 3000:
 		var p := Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m))
 		if absf(p.x) < half + 12 and absf(p.z) < half + 12:
 			continue
@@ -1710,7 +1861,7 @@ func _relief() -> void:
 	var m := Game.map_half
 	# --- lacs (dans la campagne, loin de tout)
 	var essais := 0
-	while relief.lacs.size() < 5 and essais < 400:
+	while relief.lacs.size() < 14 and essais < 1500:
 		essais += 1
 		var r := rng.randf_range(24.0, 46.0)
 		var c := Vector2(rng.randf_range(-m + 80, m - 80), rng.randf_range(-m + 80, m - 80))
@@ -1790,8 +1941,8 @@ func _relief() -> void:
 	_ligne_electrique(Vector2(-half - 20.0, hz + 9.0), Vector2(-m + 15.0, hz + 9.0))
 	# --- rochers sur les pentes
 	var n_roc := 0
-	for i in 2500:
-		if n_roc >= 260:
+	for i in 9000:
+		if n_roc >= 900:
 			break
 		var p := Vector3(rng.randf_range(-m + 20, m - 20), 0, rng.randf_range(-m + 20, m - 20))
 		if relief.pente(p.x, p.z) < 0.12 or _overlaps(Rect2(p.x - 3, p.z - 3, 6, 6)):

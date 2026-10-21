@@ -50,8 +50,9 @@ func hauteur(x: float, z: float) -> float:
 
 func dans_eau(pos: Vector3) -> bool:
 	return relief != null and relief.dans_eau(pos.x, pos.z) and pos.y < -0.8
-var map_half := 700.0
+var map_half := 2500.0     # carte de 5 × 5 km
 var city_half := 161.0
+var villes: Array = []       # [{c: centre, demi: demi-côté}] : villes de la carte (world_gen)
 var ui_open := false
 var time_hours := 8.0
 var graine_monde := 0
@@ -357,7 +358,12 @@ func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06, pitch := 1.0) -> v
 
 
 func in_city(pos: Vector3) -> bool:
-	return absf(pos.x) < city_half and absf(pos.z) < city_half
+	if villes.is_empty():
+		return absf(pos.x) < city_half and absf(pos.z) < city_half
+	for v in villes:
+		if absf(pos.x - v.c.x) < float(v.demi) and absf(pos.z - v.c.z) < float(v.demi):
+			return true
+	return false
 
 
 func spawn_blood(pos: Vector3, parent: Node) -> void:

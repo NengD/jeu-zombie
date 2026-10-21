@@ -3,7 +3,7 @@ extends RefCounted
 ## Les zones occupées (ville, routes, bâtiments, champs…) restent plates à la hauteur 0 ;
 ## les collines montent doucement à partir de 6 m de ces zones.
 
-const PAS := 4.0
+const PAS := 5.0          # pas de la grille du relief (m) : carte de 5 km
 const NIVEAU_EAU := -0.9          # surface des lacs et de la rivière
 
 var n := 0                        # nombre de points par côté
