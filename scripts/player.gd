@@ -26,8 +26,8 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7)}
-const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur"]   # se posent n'importe où
+const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0
@@ -335,6 +335,7 @@ func _physics_process(delta: float) -> void:
 	_update_camera(delta)
 	_update_combat(delta, can_act)
 	_update_interact()
+	_maj_fabrication(delta)
 	if placing != "":
 		_update_placement()
 	hurt_flash = maxf(0.0, hurt_flash - delta * 1.5)
@@ -1622,6 +1623,7 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 		soin_t = 0.0
 		soin_entree = null
 		Game.msg("Soin interrompu : tu as été touché !")
+	arreter_fabrication("Fabrication interrompue : tu as été touché !")
 	hurt_flash = 1.0
 	Game.play_ui("douleur", -2.0, 0.15)
 
@@ -2037,19 +2039,103 @@ func drop_item(id: String, n: int = 1) -> void:
 func near_bench() -> bool:
 	if prog.a("atelier"):
 		return true
-	for b in get_tree().get_nodes_in_group("workbench"):
-		if b.global_position.distance_to(global_position) < 3.5:
+	return _station_proche("workbench")
+
+
+func _station_proche(groupe: String) -> bool:
+	for b in get_tree().get_nodes_in_group(groupe):
+		var d: Vector3 = b.global_position - global_position
+		if Vector2(d.x, d.z).length() < 3.5 and absf(d.y) < 3.0:
 			return true
 	return false
 
 
-func can_craft(r: Dictionary) -> bool:
-	if r.bench and not near_bench():
-		return false
+## Station de fabrication à portée : "" (à la main), "etabli", "feu" (feu de camp, brasero), "couture".
+func near_station(st: String) -> bool:
+	match st:
+		"etabli":
+			return near_bench()
+		"feu":
+			return _station_proche("feu_camp")
+		"couture":
+			return _station_proche("plan_couture")
+	return true
+
+
+func niveau_fabrication() -> int:
+	return int(prog.comp["fabrication"].niv)
+
+
+func a_ingredients(r: Dictionary, n := 1) -> bool:
 	for id in r.needs:
-		if count(id) < int(r.needs[id]):
+		if count(id) < int(r.needs[id]) * n:
 			return false
 	return true
+
+
+func can_craft(r: Dictionary) -> bool:
+	return niveau_fabrication() >= int(r.get("niv", 0)) and near_station(str(r.get("station", ""))) and a_ingredients(r)
+
+
+## Nombre d'exemplaires fabricables avec les ingrédients portés.
+func max_craft(r: Dictionary) -> int:
+	var n := 999
+	for id in r.needs:
+		n = mini(n, count(id) / maxi(1, int(r.needs[id])))
+	return n
+
+
+## Durée de fabrication d'un exemplaire : -5 % par niveau de fabrication.
+func duree_fabrication(r: Dictionary) -> float:
+	return float(r.get("duree", 3.0)) * maxf(0.5, 1.0 - 0.05 * niveau_fabrication())
+
+
+# fabrication en cours (en série) : un objet à la fois, ingrédients pris à la fin de chacun
+var fab_r := {}
+var fab_n := 0                      # exemplaires restants
+var fab_total := 0
+var fab_t := 0.0
+
+
+func lancer_fabrication(r: Dictionary, n: int) -> bool:
+	if fab_n > 0 or n <= 0 or not can_craft(r):
+		return false
+	fab_r = r
+	fab_n = n
+	fab_total = n
+	fab_t = 0.0
+	Game.play_ui("fouille", -8.0, 0.1, 0.9)
+	return true
+
+
+func arreter_fabrication(raison := "") -> void:
+	if fab_n > 0 and raison != "":
+		Game.msg(raison)
+	fab_n = 0
+	fab_r = {}
+
+
+## Progression de l'objet en cours (0..1), -1 si rien.
+func progression_fabrication() -> float:
+	return fab_t / duree_fabrication(fab_r) if fab_n > 0 else -1.0
+
+
+func _maj_fabrication(delta: float) -> void:
+	if fab_n <= 0:
+		return
+	if not can_craft(fab_r):
+		arreter_fabrication("Fabrication interrompue : %s." % ("station trop loin" if not near_station(str(fab_r.get("station", ""))) else "il manque des ingrédients"))
+		return
+	fab_t += delta
+	if fab_t < duree_fabrication(fab_r):
+		return
+	fab_t = 0.0
+	craft(fab_r)
+	fab_n -= 1
+	if fab_n > 0:
+		Game.play_ui("fouille", -8.0, 0.1, 0.9)
+	else:
+		fab_r = {}
 
 
 func craft(r: Dictionary) -> bool:

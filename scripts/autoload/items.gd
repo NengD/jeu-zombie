@@ -92,6 +92,8 @@ const DB := {
 	"sac_toile": {"name": "Sac en toile", "type": "armor", "slot": "dos", "armor": 0.0, "weight": 0.4},
 	# --- objets à placer (base)
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
+	"feu_camp": {"name": "Feu de camp (à placer)", "type": "placeable", "weight": 3.0, "desc": "Station de cuisson. Se pose dehors comme dedans."},
+	"plan_couture": {"name": "Plan de couture (à placer)", "type": "placeable", "weight": 5.0, "desc": "Station pour coudre les vêtements, sacs et cuirs."},
 	"barricade": {"name": "Barricade (à placer)", "type": "placeable", "weight": 4.0},
 	"caisse_stockage": {"name": "Caisse de stockage (à placer)", "type": "placeable", "weight": 4.0},
 	"piques": {"name": "Piques en bois (piège à placer)", "type": "placeable", "weight": 5.0},
@@ -131,7 +133,7 @@ const SIZES := {
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
-	"etabli": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
+	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
 	"couteau_km2000": [1, 2],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
@@ -164,28 +166,35 @@ const CATEGORY_COLORS := {
 	"accessoire": Color(0.7, 0.8, 0.95), "lancer": Color(0.95, 0.6, 0.4), "outil": Color(0.95, 0.75, 0.35),
 }
 
-# bench = true : nécessite d'être près d'un établi
+# Catégories de l'arbre des recettes (ordre d'affichage) et stations de fabrication.
+const CATEGORIES_FAB := [["outils", "Outils et matériaux"], ["armes", "Armes"], ["munitions", "Munitions"], ["soins", "Soins"], ["nourriture", "Nourriture"], ["vetements", "Vêtements"], ["construction", "Construction"]]
+const STATIONS := {"": "à la main", "etabli": "Établi", "feu": "Feu de camp ou brasero", "couture": "Plan de couture"}
+
+# cat : catégorie ; station : "" (à la main), "etabli", "feu", "couture" ;
+# duree : secondes par objet (raccourcie par le niveau de fabrication) ; niv : niveau de fabrication requis
 const RECIPES := [
-	{"out": "bandage", "qty": 1, "needs": {"tissu": 2}, "bench": false},
-	{"out": "etabli", "qty": 1, "needs": {"planche": 4, "clous": 6, "ferraille": 2}, "bench": false},
-	{"out": "barricade", "qty": 1, "needs": {"planche": 3, "clous": 4}, "bench": false},
-	{"out": "marteau", "qty": 1, "needs": {"ferraille": 2, "planche": 1}, "bench": false},
-	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "bench": false},
-	{"out": "barbeles", "qty": 1, "needs": {"ferraille": 4, "clous": 2}, "bench": true},
-	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "bench": true},
-	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "bench": true},
-	{"out": "trousse", "qty": 1, "needs": {"bandage": 2, "alcool": 1, "antidouleur": 1}, "bench": true},
-	{"out": "batte_cloutee", "qty": 1, "needs": {"batte": 1, "clous": 6, "ruban": 1}, "bench": true},
-	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "bench": true},
-	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "bench": true},
-	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "bench": true},
-	{"out": "ferraille", "qty": 2, "needs": {"piece_auto": 1}, "bench": false},
-	{"out": "mun_9mm", "qty": 10, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
-	{"out": "mun_12", "qty": 5, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
-	{"out": "mun_556", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "bench": true},
-	{"out": "mun_45", "qty": 8, "needs": {"poudre": 1, "ferraille": 1}, "bench": true},
-	{"out": "mun_545", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "bench": true},
-	{"out": "mun_762", "qty": 8, "needs": {"poudre": 2, "ferraille": 1}, "bench": true},
+	{"out": "bandage", "qty": 1, "needs": {"tissu": 2}, "cat": "soins", "station": "", "duree": 2.0, "niv": 0},
+	{"out": "trousse", "qty": 1, "needs": {"bandage": 2, "alcool": 1, "antidouleur": 1}, "cat": "soins", "station": "etabli", "duree": 6.0, "niv": 2},
+	{"out": "etabli", "qty": 1, "needs": {"planche": 4, "clous": 6, "ferraille": 2}, "cat": "construction", "station": "", "duree": 8.0, "niv": 0},
+	{"out": "feu_camp", "qty": 1, "needs": {"planche": 2, "tissu": 1}, "cat": "construction", "station": "", "duree": 4.0, "niv": 0},
+	{"out": "plan_couture", "qty": 1, "needs": {"planche": 3, "clous": 4, "tissu": 2}, "cat": "construction", "station": "", "duree": 6.0, "niv": 1},
+	{"out": "barricade", "qty": 1, "needs": {"planche": 3, "clous": 4}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
+	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
+	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 0},
+	{"out": "barbeles", "qty": 1, "needs": {"ferraille": 4, "clous": 2}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 1},
+	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 3},
+	{"out": "marteau", "qty": 1, "needs": {"ferraille": 2, "planche": 1}, "cat": "outils", "station": "", "duree": 4.0, "niv": 0},
+	{"out": "ferraille", "qty": 2, "needs": {"piece_auto": 1}, "cat": "outils", "station": "", "duree": 3.0, "niv": 0},
+	{"out": "batte_cloutee", "qty": 1, "needs": {"batte": 1, "clous": 6, "ruban": 1}, "cat": "armes", "station": "etabli", "duree": 5.0, "niv": 1},
+	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 1},
+	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 2},
+	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "cat": "vetements", "station": "etabli", "duree": 10.0, "niv": 3},
+	{"out": "mun_9mm", "qty": 10, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 2},
+	{"out": "mun_12", "qty": 5, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 2},
+	{"out": "mun_45", "qty": 8, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 3},
+	{"out": "mun_556", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 7.0, "niv": 4},
+	{"out": "mun_545", "qty": 10, "needs": {"poudre": 2, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 7.0, "niv": 4},
+	{"out": "mun_762", "qty": 8, "needs": {"poudre": 2, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 8.0, "niv": 5},
 ]
 
 # Tables de loot : [id, poids, min, max]
@@ -236,7 +245,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}

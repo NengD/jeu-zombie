@@ -209,6 +209,7 @@ func _brasero(p := Vector2.ZERO) -> void:
 	feu.light_energy = 2.5
 	feu.omni_range = 10.0
 	feu.position = base + Vector3(0, 0.6, 0)
+	feu.add_to_group("feu_camp")   # sert aussi de feu de cuisson
 	add_child(feu)
 	if b == null:
 		feu.position.y = _sol(p).y + 1.0

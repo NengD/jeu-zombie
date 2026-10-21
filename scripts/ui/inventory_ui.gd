@@ -127,8 +127,14 @@ var tooltip: PanelContainer
 var tooltip_label: Label
 var menu: PopupMenu
 var drag_layer: DragLayer
-var rec_list: ItemList
-var rec_desc: Label
+var rec_tree: Tree
+var rec_items: Array = []          # [TreeItem, indice de recette]
+var rec_desc: RichTextLabel
+var fab_bar: ProgressBar
+var fab_label: Label
+var craft_btn5: Button
+var craft_btn_max: Button
+var stop_btn: Button
 var craft_btn: Button
 var bench_label: Label
 var tab_cont: Button
@@ -139,6 +145,7 @@ var menu_ctx := {}
 var grid_views: Array = []
 var refresh_t := 0.0
 var show_craft := false
+var fab_vu := 0
 
 
 func _ready() -> void:
@@ -206,19 +213,45 @@ func _ready() -> void:
 	craft_box = VBoxContainer.new()
 	craft_box.add_theme_constant_override("separation", 8)
 	right_box.add_child(craft_box)
-	bench_label = _label(craft_box, "", 15, Color.WHITE)
-	rec_list = ItemList.new()
-	rec_list.custom_minimum_size = Vector2(CELL * 8, 420)
-	rec_list.add_theme_font_size_override("font_size", 15)
-	rec_list.fixed_icon_size = Vector2i(28, 28)
-	rec_list.item_selected.connect(func(_i): _update_recipe())
-	rec_list.item_activated.connect(func(_i): _craft())
-	craft_box.add_child(rec_list)
-	rec_desc = _label(craft_box, "", 15, Color.WHITE)
-	rec_desc.custom_minimum_size = Vector2(CELL * 8, 120)
-	rec_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rec_desc.clip_text = false
-	craft_btn = _button(craft_box, "Fabriquer", _craft)
+	bench_label = _label(craft_box, "", 14, Color.WHITE)
+	rec_tree = Tree.new()
+	rec_tree.custom_minimum_size = Vector2(CELL * 8, 380)
+	rec_tree.hide_root = true
+	rec_tree.add_theme_font_size_override("font_size", 15)
+	rec_tree.add_theme_constant_override("icon_max_width", 26)
+	rec_tree.item_selected.connect(_update_recipe)
+	rec_tree.item_activated.connect(func(): _craft(1))
+	craft_box.add_child(rec_tree)
+	rec_desc = RichTextLabel.new()
+	rec_desc.bbcode_enabled = true
+	rec_desc.fit_content = true
+	rec_desc.scroll_active = false
+	rec_desc.custom_minimum_size = Vector2(CELL * 8, 150)
+	rec_desc.add_theme_font_size_override("normal_font_size", 15)
+	rec_desc.add_theme_font_size_override("bold_font_size", 16)
+	craft_box.add_child(rec_desc)
+	fab_bar = ProgressBar.new()
+	fab_bar.custom_minimum_size = Vector2(CELL * 8, 22)
+	fab_bar.max_value = 1.0
+	fab_bar.show_percentage = false
+	craft_box.add_child(fab_bar)
+	fab_label = _label(fab_bar, "", 13, Color.WHITE)
+	fab_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var fond := StyleBoxFlat.new()
+	fond.bg_color = Color(0.15, 0.15, 0.13)
+	fab_bar.add_theme_stylebox_override("background", fond)
+	var plein := StyleBoxFlat.new()
+	plein.bg_color = Color(0.35, 0.55, 0.25)
+	fab_bar.add_theme_stylebox_override("fill", plein)
+	fab_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fab_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var bb := HBoxContainer.new()
+	bb.add_theme_constant_override("separation", 6)
+	craft_box.add_child(bb)
+	craft_btn = _button(bb, "Fabriquer ×1", func(): _craft(1))
+	craft_btn5 = _button(bb, "×5", func(): _craft(5))
+	craft_btn_max = _button(bb, "Maximum", func(): _craft(-1))
+	stop_btn = _button(bb, "Arrêter", func(): Game.player.arreter_fabrication("Fabrication arrêtée."))
 
 	# --- infobulle, menu contextuel, objet tenu
 	tooltip = PanelContainer.new()
@@ -462,6 +495,12 @@ func _process(delta: float) -> void:
 			tooltip.reset_size()
 		var mp := get_viewport().get_mouse_position()
 		tooltip.position = (mp + Vector2(18, 18)).min(vs - tooltip.size - Vector2(4, 4))
+	if craft_box.visible:
+		_maj_barre_fabrication()
+	# un objet fabriqué vient d'arriver dans le sac : redessiner les grilles
+	if Game.player.fab_n != fab_vu and held == null:
+		fab_vu = Game.player.fab_n
+		refresh()
 	refresh_t -= delta
 	if refresh_t <= 0.0:
 		refresh_t = 0.5
@@ -838,57 +877,114 @@ func _on_menu(id: int) -> void:
 
 
 # ------------------------------------------------------------------ fabrication
+## Arbre des recettes par catégorie (reconstruit à l'ouverture ; les couleurs suivent toutes les 0,5 s).
 func _refresh_recipes() -> void:
-	var keep := rec_list.get_selected_items()
-	rec_list.clear()
-	for r in Items.RECIPES:
-		var label := "%s%s" % [Items.nom(r.out), (" ×%d" % r.qty) if r.qty > 1 else ""]
-		if r.bench:
-			label += "   [établi]"
-		var idx := rec_list.add_item(label, Items.icon(r.out))
-		rec_list.set_item_icon_modulate(idx, icon_modulate(r.out))
+	var garde := _recette_choisie()
+	rec_tree.clear()
+	rec_items.clear()
+	var racine := rec_tree.create_item()
+	for c in Items.CATEGORIES_FAB:
+		var cat: TreeItem = null
+		for i in Items.RECIPES.size():
+			var r: Dictionary = Items.RECIPES[i]
+			if r.cat != c[0]:
+				continue
+			if cat == null:
+				cat = rec_tree.create_item(racine)
+				cat.set_text(0, c[1].to_upper())
+				cat.set_selectable(0, false)
+				cat.set_custom_color(0, Color(0.9, 0.8, 0.45))
+			var it := rec_tree.create_item(cat)
+			it.set_text(0, "%s%s" % [Items.nom(r.out), (" ×%d" % r.qty) if r.qty > 1 else ""])
+			it.set_icon(0, _icone_carree(r.out))
+			it.set_icon_max_width(0, 26)
+			it.set_icon_modulate(0, icon_modulate(r.out))
+			it.set_metadata(0, i)
+			rec_items.append([it, i])
+			if i == garde:
+				it.select(0)
 	_refresh_recipe_marks()
-	if keep.size() > 0 and keep[0] < rec_list.item_count:
-		rec_list.select(keep[0])
 	_update_recipe()
+
+
+func _recette_choisie() -> int:
+	var it := rec_tree.get_selected() if rec_tree else null
+	return int(it.get_metadata(0)) if it and it.get_metadata(0) != null else -1
 
 
 func _refresh_recipe_marks() -> void:
 	var p = Game.player
 	if p == null:
 		return
-	var near: bool = p.near_bench()
-	bench_label.text = "Établi à proximité : %s" % ("OUI" if near else "non (recettes [établi] bloquées)")
-	bench_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5) if near else Color(1.0, 0.7, 0.5))
-	for i in Items.RECIPES.size():
-		if i < rec_list.item_count:
-			var ok: bool = p.can_craft(Items.RECIPES[i])
-			rec_list.set_item_custom_fg_color(i, Color(0.6, 1.0, 0.6) if ok else Color(0.6, 0.6, 0.6))
+	var proches: PackedStringArray = []
+	for st in ["etabli", "feu", "couture"]:
+		if p.near_station(st):
+			proches.append(Items.STATIONS[st])
+	bench_label.text = "Stations à proximité : %s\nNiveau de fabrication : %d" %[", ".join(proches) if not proches.is_empty() else "aucune", p.niveau_fabrication()]
+	bench_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5) if not proches.is_empty() else Color(1.0, 0.75, 0.5))
+	# vert : fabricable ; blanc cassé : il manque des ingrédients ; gris : station ou niveau manquant
+	for ri in rec_items:
+		var r: Dictionary = Items.RECIPES[ri[1]]
+		var col := Color(0.55, 1.0, 0.55)
+		if p.niveau_fabrication() < int(r.niv) or not p.near_station(r.station):
+			col = Color(0.5, 0.5, 0.5)
+		elif not p.a_ingredients(r):
+			col = Color(0.85, 0.8, 0.72)
+		ri[0].set_custom_color(0, col)
+	_update_recipe()
 
 
 func _update_recipe() -> void:
-	var sel := rec_list.get_selected_items()
-	if sel.is_empty():
-		rec_desc.text = "Sélectionne une recette."
-		craft_btn.disabled = true
-		return
 	var p = Game.player
-	var r: Dictionary = Items.RECIPES[sel[0]]
-	var lines: PackedStringArray = []
-	for id in r.needs:
-		lines.append("%s %d× %s (tu as %d)" % ["✔" if p.count(id) >= r.needs[id] else "✘", r.needs[id], Items.nom(id), p.count(id)])
-	if r.bench:
-		lines.append(("✔" if p.near_bench() else "✘") + " Nécessite un établi")
-	rec_desc.text = "\n".join(lines)
-	craft_btn.disabled = not p.can_craft(r)
-
-
-func _craft() -> void:
-	var sel := rec_list.get_selected_items()
-	if sel.is_empty():
+	var i := _recette_choisie()
+	if i < 0 or p == null:
+		rec_desc.text = "Sélectionne une recette."
+		for b in [craft_btn, craft_btn5, craft_btn_max]:
+			b.disabled = true
 		return
-	Game.player.craft(Items.RECIPES[sel[0]])
-	refresh()
+	var r: Dictionary = Items.RECIPES[i]
+	var vert := "[color=#7cf07c]"
+	var rouge := "[color=#ff6a5a]"
+	var t := "[b]%s%s[/b]\n" % [Items.nom(r.out), (" ×%d" % r.qty) if r.qty > 1 else ""]
+	for id in r.needs:
+		var ok: bool = p.count(id) >= int(r.needs[id])
+		t += "%s%s %d× %s (tu as %d)[/color]\n" % [vert if ok else rouge, "✔" if ok else "✘", r.needs[id], Items.nom(id), p.count(id)]
+	if r.station != "":
+		t += "%sStation : %s[/color]\n" % [vert if p.near_station(r.station) else rouge, Items.STATIONS[r.station]]
+	if int(r.niv) > 0:
+		t += "%sFabrication niveau %d requis[/color]\n" % [vert if p.niveau_fabrication() >= int(r.niv) else rouge, r.niv]
+	t += "[color=#bbbbaa]Durée : %.1f s par objet[/color]" % p.duree_fabrication(r)
+	rec_desc.text = t
+	var occupe: bool = p.fab_n > 0
+	var n: int = p.max_craft(r) if p.can_craft(r) else 0
+	craft_btn.disabled = occupe or n < 1
+	craft_btn5.disabled = occupe or n < 5
+	craft_btn_max.disabled = occupe or n < 2
+	craft_btn_max.text = "Maximum (%d)" % n if n >= 2 else "Maximum"
+
+
+func _maj_barre_fabrication() -> void:
+	var p = Game.player
+	var k: float = p.progression_fabrication()
+	stop_btn.disabled = k < 0.0
+	if k < 0.0:
+		fab_bar.value = 0.0
+		fab_label.text = ""
+		return
+	fab_bar.value = k
+	fab_label.text = "%s : %d / %d" % [Items.nom(p.fab_r.out), p.fab_total - p.fab_n + 1, p.fab_total]
+
+
+## n = -1 : autant que les ingrédients le permettent.
+func _craft(n: int) -> void:
+	var i := _recette_choisie()
+	if i < 0:
+		return
+	var r: Dictionary = Items.RECIPES[i]
+	if n < 0:
+		n = Game.player.max_craft(r)
+	if Game.player.lancer_fabrication(r, n):
+		_update_recipe()
 
 
 # ------------------------------------------------------------------ compatibilité
@@ -896,3 +992,28 @@ func _craft() -> void:
 func _assign_slot(i: int, id: String) -> void:
 	Game.player.assign_hotbar(i, id)
 	_redraw_all()
+
+
+## Icône ramenée dans un carré de 28 px (les objets longs, comme la batte, restent petits dans l'arbre).
+var _icones_carrees := {}
+
+
+func _icone_carree(id: String) -> Texture2D:
+	if _icones_carrees.has(id):
+		return _icones_carrees[id]
+	var tex := Items.icon(id)
+	var out: Texture2D = tex
+	if tex:
+		var img := tex.get_image()
+		if img:
+			img = img.duplicate()
+			if img.is_compressed():
+				img.decompress()
+			img.convert(Image.FORMAT_RGBA8)
+			var k := 28.0 / maxf(img.get_width(), img.get_height())
+			img.resize(maxi(1, int(img.get_width() * k)), maxi(1, int(img.get_height() * k)), Image.INTERPOLATE_BILINEAR)
+			var carre := Image.create(28, 28, false, Image.FORMAT_RGBA8)
+			carre.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), (Vector2i(28, 28) - img.get_size()) / 2)
+			out = ImageTexture.create_from_image(carre)
+	_icones_carrees[id] = out
+	return out

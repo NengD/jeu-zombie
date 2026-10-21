@@ -2,6 +2,8 @@ extends StaticBody3D
 ## Objets de base posés par le joueur : établi et barricade.
 ## (La caisse de stockage utilise loot_container.gd.)
 
+const Effets = preload("res://scripts/effets.gd")
+
 var kind := "etabli"
 var health := 250.0
 var health_max := 250.0
@@ -23,6 +25,67 @@ func setup(p_kind: String) -> void:
 			_part(Vector3(0.7, 1.05, 0.25), Vector3(0.25, 0.2, 0.2), Color(0.3, 0.3, 0.35))  # étau
 			_part(Vector3(-0.5, 0.98, -0.1), Vector3(0.5, 0.06, 0.3), Color(0.4, 0.4, 0.42))  # outils
 			_shape(Vector3(0, 0.5, 0), Vector3(2.0, 1.0, 0.9))
+		"feu_camp":
+			# cercle de pierres, bûches croisées, braises, flammes et lumière vacillante
+			add_to_group("feu_camp")
+			health = 100.0
+			collision_layer = Game.LAYER_INTERACT
+			var pierre := Color(0.42, 0.41, 0.4)
+			for k in 9:
+				var a := k * TAU / 9.0
+				var pi := _part(Vector3(cos(a) * 0.48, 0.07, sin(a) * 0.48), Vector3(0.2, 0.14, 0.16), pierre.lightened(randf() * 0.15))
+				pi.rotation.y = -a
+			for k in 4:
+				var b := _part(Vector3(0, 0.14, 0), Vector3(0.09, 0.09, 0.62), wood.darkened(0.45))
+				b.rotation = Vector3(0.5, k * PI / 4.0, 0)
+			_part(Vector3(0, 0.03, 0), Vector3(0.5, 0.04, 0.5), Color(0.15, 0.08, 0.04))
+			var mf := StandardMaterial3D.new()
+			mf.albedo_texture = Effets._texture("flamme")
+			mf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mf.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			mf.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mf.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			mf.albedo_color = Color(1.0, 0.6, 0.25)
+			for k in 3:
+				var f := MeshInstance3D.new()
+				var q := QuadMesh.new()
+				q.size = Vector2(0.45, 0.6)
+				f.mesh = q
+				f.material_override = mf
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				f.position = Vector3(randf_range(-0.08, 0.08), 0.32 + k * 0.07, randf_range(-0.08, 0.08))
+				add_child(f)
+				flammes.append(f)
+			lumiere_feu = OmniLight3D.new()
+			lumiere_feu.light_color = Color(1.0, 0.6, 0.3)
+			lumiere_feu.light_energy = 2.2
+			lumiere_feu.omni_range = 9.0
+			lumiere_feu.position = Vector3(0, 0.6, 0)
+			add_child(lumiere_feu)
+			_shape(Vector3(0, 0.2, 0), Vector3(1.1, 0.4, 1.1))
+		"plan_couture":
+			# table, rouleau de tissu, peau tendue sur un cadre, ciseaux
+			add_to_group("plan_couture")
+			_part(Vector3(0, 0.85, 0), Vector3(1.6, 0.08, 0.8), wood.lightened(0.1))
+			for x in [-0.72, 0.72]:
+				for z in [-0.32, 0.32]:
+					_part(Vector3(x, 0.41, z), Vector3(0.08, 0.82, 0.08), wood.darkened(0.2))
+			var rouleau := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.09
+			cm.bottom_radius = 0.09
+			cm.height = 0.7
+			rouleau.mesh = cm
+			var mt := StandardMaterial3D.new()
+			mt.albedo_color = Color(0.55, 0.25, 0.22)
+			rouleau.material_override = mt
+			rouleau.position = Vector3(-0.35, 0.98, -0.15)
+			rouleau.rotation.z = PI / 2.0
+			add_child(rouleau)
+			_part(Vector3(0.3, 0.9, 0.05), Vector3(0.6, 0.02, 0.45), Color(0.62, 0.45, 0.3))   # cuir étalé
+			_part(Vector3(0.45, 0.92, -0.25), Vector3(0.18, 0.015, 0.04), Color(0.7, 0.7, 0.72))   # ciseaux
+			_part(Vector3(-0.1, 0.9, 0.22), Vector3(0.12, 0.05, 0.12), Color(0.3, 0.3, 0.6))   # bobine
+			_shape(Vector3(0, 0.5, 0), Vector3(1.6, 1.0, 0.8))
 		"barricade":
 			add_to_group("barricade")
 			for y in [0.4, 1.15, 1.9]:
@@ -139,6 +202,10 @@ func get_prompt() -> String:
 	match kind:
 		"etabli":
 			return "[F] Utiliser l'établi"
+		"feu_camp":
+			return "[F] Feu de camp (cuisiner)"
+		"plan_couture":
+			return "[F] Plan de couture"
 		"piques":
 			return "Piques en bois (%d PV)" % int(health)
 		"barbeles":
@@ -175,6 +242,8 @@ var mode := 0                     # auto = s'allume à la nuit tombée
 var lumiere: SpotLight3D = null
 var verre: MeshInstance3D = null
 var mat_verre: StandardMaterial3D = null
+var flammes: Array = []             # feu de camp
+var lumiere_feu: OmniLight3D = null
 var projecteur_t := 0.0
 
 
@@ -187,6 +256,9 @@ func _maj_projecteur() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if lumiere_feu:
+		_animer_feu()
+		return
 	if lumiere:
 		projecteur_t -= delta
 		if projecteur_t <= 0.0:
@@ -220,7 +292,7 @@ func _physics_process(delta: float) -> void:
 
 
 func interact(player: Node) -> void:
-	if kind == "etabli":
+	if kind in ["etabli", "feu_camp", "plan_couture"]:
 		player.open_inventory()
 	elif kind == "projecteur":
 		mode = (mode + 1) % MODES.size()
@@ -236,3 +308,13 @@ func take_damage(amount: float, _from: Node = null) -> void:
 	if health <= 0.0:
 		Game.msg("Une barricade a cédé !")
 		queue_free()
+
+
+func _animer_feu() -> void:
+	var p = Game.player
+	if p == null or global_position.distance_squared_to(p.global_position) > 3600.0:
+		return
+	var t := Time.get_ticks_msec() / 1000.0 + get_instance_id() % 7
+	lumiere_feu.light_energy = 2.0 + sin(t * 13.0) * 0.3 + sin(t * 7.3) * 0.25
+	for k in flammes.size():
+		flammes[k].scale = Vector3.ONE * (0.85 + 0.2 * sin(t * (9.0 + k * 2.3) + k))

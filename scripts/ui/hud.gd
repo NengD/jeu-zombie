@@ -258,16 +258,19 @@ func _process(delta: float) -> void:
 	_layout(vs)
 	# caché dans un buisson : les zombies te voient beaucoup moins
 	# (ou soin en cours : objet et temps restant)
-	lbl_cache.visible = p.alive and not Game.ui_open and (p.cache_buisson or p.soin_t > 0.0)
+	lbl_cache.visible = p.alive and not Game.ui_open and (p.cache_buisson or p.soin_t > 0.0 or p.fab_n > 0)
 	if lbl_cache.visible:
-		if p.soin_t > 0.0:
+		if p.fab_n > 0 and p.soin_t <= 0.0:
+			lbl_cache.text = "Fabrication : %s %d / %d — %d %%" % [Items.nom(p.fab_r.out), p.fab_total - p.fab_n + 1, p.fab_total, int(p.progression_fabrication() * 100.0)]
+			lbl_cache.label_settings.font_color = Color(0.85, 0.9, 1.0)
+		elif p.soin_t > 0.0:
 			lbl_cache.text = "Soin : %s — %.1f s" % [Items.nom(p.soin_id), p.soin_t]
 			lbl_cache.label_settings.font_color = Color(1.0, 0.85, 0.5)
 		else:
 			lbl_cache.text = "Caché (accroupi)" if p.crouching else "Caché"
 			lbl_cache.label_settings.font_color = Color(0.65, 0.95, 0.6)
-		lbl_cache.size = Vector2(300, 30)
-		lbl_cache.position = vs / 2.0 + Vector2(-150, 42)
+		lbl_cache.size = Vector2(440, 30)
+		lbl_cache.position = vs / 2.0 + Vector2(-220, 42)
 	_maj_alerte(vs, p)
 	# messages
 	for m in messages.duplicate():
