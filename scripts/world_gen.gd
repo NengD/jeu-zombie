@@ -9,6 +9,7 @@ const LootContainer = preload("res://scripts/loot_container.gd")
 const Porte = preload("res://scripts/porte.gd")
 const Relief = preload("res://scripts/relief.gd")
 const Neon = preload("res://scripts/neon.gd")
+const Morceaux = preload("res://scripts/morceaux.gd")
 
 const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
@@ -108,17 +109,56 @@ func build(seed_value: int) -> Vector3:
 	decor = Node3D.new()
 	decor.name = "Decor"
 	add_child(decor)
+	morceaux = Morceaux.new()
+	morceaux.name = "Morceaux"
+	add_child(morceaux)
+	var t := Time.get_ticks_msec()
 	_ground()
 	_city()
 	_poi("Bellerive", Vector3.ZERO, Color(0.95, 0.95, 0.95))
+	t = _chrono("ville", t)
 	_countryside()
 	_military_base(Vector3(-255, 0, -250))
+	t = _chrono("campagne", t)
 	_regions()
+	t = _chrono("regions", t)
 	_relief()
+	t = _chrono("relief", t)
 	_trees()
 	_vegetation()
+	t = _chrono("arbres", t)
 	_commit()
+	t = _chrono("commit", t)
 	return spawn_point
+
+
+var chrono := {}   # durée de chaque étape de la génération (ms), pour les mesures
+var morceaux       # chargement par morceaux (morceaux.gd) : seules les cases proches restent dans l'arbre
+var tache_carte := -1
+
+
+func _carte_prete(img: Image) -> void:
+	Game.carte_relief = ImageTexture.create_from_image(img)
+
+
+func _exit_tree() -> void:
+	if tache_carte >= 0:
+		WorkerThreadPool.wait_for_task_completion(tache_carte)
+		tache_carte = -1
+
+
+## Après la génération (et la création des camps, qui dégagent leur terrain) : range les nœuds du monde
+## par cases et ne garde que celles autour de « p ».
+func ranger_par_morceaux(p: Vector3) -> void:
+	morceaux.ranger(self)
+	morceaux.ranger(decor)
+	morceaux.maj(p, true)
+
+
+func _chrono(nom: String, t: int) -> int:
+	var maintenant := Time.get_ticks_msec()
+	chrono[nom] = maintenant - t
+	return maintenant
 
 
 # ================================================================ géométrie
@@ -1895,9 +1935,13 @@ func _relief() -> void:
 	var sol := Node3D.new()
 	sol.name = "Sol"
 	add_child(sol)
-	relief.construire_maillage(sol, tm)
+	# tuiles du sol construites à l'approche du joueur (chargement par morceaux)
+	for cj in relief.nb_tuiles():
+		for ci in relief.nb_tuiles():
+			morceaux.differer(relief.centre_tuile(ci, cj), relief.tuile.bind(ci, cj, tm), sol)
 	relief.construire_collision(self, Game.LAYER_WORLD)
-	Game.carte_relief = ImageTexture.create_from_image(relief.image_carte(m))
+	# image de la carte (M) calculée en parallèle
+	tache_carte = WorkerThreadPool.add_task(func(): _carte_prete.call_deferred(relief.image_carte(m)))
 
 	# --- eau
 	var em := ShaderMaterial.new()
@@ -2249,21 +2293,32 @@ func _grotte_details(c: Vector3, x0: float, x1: float, z0: float, z1: float, hs:
 func degager(centre: Vector3, r: float) -> void:
 	var c2 := Vector2(centre.x, centre.z)
 	var dedans := func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(c2) < r
-	for n in get_children():
+	# les instances d'un MultiMesh d'arbres (case de 128 m) et les formes d'un corps de chunk sont à moins
+	# de 182 m de la première : on saute d'un coup les groupes trop loin (sinon tous les arbres de la carte à chaque camp)
+	var loin := func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(c2) > r + 182.0
+	var enfants := get_children()
+	enfants.append_array(morceaux.detaches(self))   # cases loin du joueur, hors de l'arbre
+	for n in enfants:
 		# arbres : instances des MultiMesh mises à l'échelle zéro
 		if n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh:
 			var mm: MultiMesh = (n as MultiMeshInstance3D).multimesh
+			if mm.instance_count == 0 or loin.call(mm.get_instance_transform(0).origin):
+				continue
 			for k in mm.instance_count:
 				var xf := mm.get_instance_transform(k)
 				if dedans.call(xf.origin):
 					mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3.ZERO), xf.origin))
 		# collisions (troncs, rochers…) : formes dont le centre est dans le cercle
 		elif n is StaticBody3D:
+			if n.position == Vector3.ZERO and n.get_child_count() > 0 and n.get_child(0) is CollisionShape3D and loin.call(n.get_child(0).position):
+				continue
 			for cs in n.get_children():
 				if cs is CollisionShape3D and dedans.call((cs as CollisionShape3D).position) and _petite_forme((cs as CollisionShape3D).shape):
 					cs.queue_free()
 	if decor:
-		for d in decor.get_children():
+		var objets := decor.get_children()
+		objets.append_array(morceaux.detaches(decor))
+		for d in objets:
 			if d is Node3D and dedans.call((d as Node3D).position):
 				d.queue_free()
 	for cle in Game.buissons:

@@ -204,48 +204,57 @@ func normale(i: int, j: int) -> Vector3:
 	return Vector3(-dx / ((ir - il) * PAS), 1.0, -dz / ((ju - jd) * PAS)).normalized()
 
 
-## Construit les morceaux de maillage du sol (128 m de côté) sous le nœud parent.
-func construire_maillage(parent: Node3D, materiau: Material) -> void:
-	var taille := 32
-	var nb := ceili(float(n - 1) / taille)
-	for cj in nb:
-		for ci in nb:
-			var i0 := ci * taille
-			var j0 := cj * taille
-			var i1 := mini(i0 + taille, n - 1)
-			var j1 := mini(j0 + taille, n - 1)
-			var w := i1 - i0 + 1
-			var verts := PackedVector3Array()
-			var norms := PackedVector3Array()
-			var cols := PackedColorArray()
-			var idx := PackedInt32Array()
-			for j in range(j0, j1 + 1):
-				for i in range(i0, i1 + 1):
-					var k := j * n + i
-					var y := h[k]
-					verts.append(Vector3(-demi + i * PAS, y, -demi + j * PAS))
-					var nr := normale(i, j)
-					norms.append(nr)
-					var roche := smoothstep(0.9, 0.7, nr.y)
-					var terre := rive[k] * (1.0 - roche)
-					var sec := smoothstep(12.0, 30.0, y) * (1.0 - roche)
-					cols.append(Color(roche, terre, sec))
-			for j in range(j1 - j0):
-				for i in range(w - 1):
-					var a := j * w + i
-					idx.append_array([a, a + 1, a + w, a + 1, a + w + 1, a + w])
-			var arr := []
-			arr.resize(Mesh.ARRAY_MAX)
-			arr[Mesh.ARRAY_VERTEX] = verts
-			arr[Mesh.ARRAY_NORMAL] = norms
-			arr[Mesh.ARRAY_COLOR] = cols
-			arr[Mesh.ARRAY_INDEX] = idx
-			var am := ArrayMesh.new()
-			am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-			am.surface_set_material(0, materiau)
-			var mi := MeshInstance3D.new()
-			mi.mesh = am
-			parent.add_child(mi)
+## Le sol est maillé en tuiles de TUILE × TUILE cellules (160 m), construites à la demande (chargement par morceaux).
+const TUILE := 32
+
+
+func nb_tuiles() -> int:
+	return ceili(float(n - 1) / TUILE)
+
+
+## Centre (en x, z) de la tuile (ci, cj).
+func centre_tuile(ci: int, cj: int) -> Vector3:
+	return Vector3(-demi + (ci + 0.5) * TUILE * PAS, 0.0, -demi + (cj + 0.5) * TUILE * PAS)
+
+
+## Maillage de la tuile (ci, cj) du sol.
+func tuile(ci: int, cj: int, materiau: Material) -> MeshInstance3D:
+	var i0 := ci * TUILE
+	var j0 := cj * TUILE
+	var i1 := mini(i0 + TUILE, n - 1)
+	var j1 := mini(j0 + TUILE, n - 1)
+	var w := i1 - i0 + 1
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	for j in range(j0, j1 + 1):
+		for i in range(i0, i1 + 1):
+			var k := j * n + i
+			var y := h[k]
+			verts.append(Vector3(-demi + i * PAS, y, -demi + j * PAS))
+			var nr := normale(i, j)
+			norms.append(nr)
+			var roche := smoothstep(0.9, 0.7, nr.y)
+			var terre := rive[k] * (1.0 - roche)
+			var sec := smoothstep(12.0, 30.0, y) * (1.0 - roche)
+			cols.append(Color(roche, terre, sec))
+	for j in range(j1 - j0):
+		for i in range(w - 1):
+			var a := j * w + i
+			idx.append_array([a, a + 1, a + w, a + 1, a + w + 1, a + w])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_COLOR] = cols
+	arr[Mesh.ARRAY_INDEX] = idx
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	am.surface_set_material(0, materiau)
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	return mi
 
 
 func construire_collision(parent: Node3D, couche: int) -> void:

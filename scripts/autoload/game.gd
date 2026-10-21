@@ -89,6 +89,8 @@ func _ready() -> void:
 
 func reset() -> void:
 	zones.clear()
+	_index_zones.clear()
+	_nb_zones_indexees = 0
 	pois.clear()
 	map_rects.clear()
 	relief = null
@@ -295,10 +297,31 @@ func prochain_lien(de: Dictionary, vers: Dictionary) -> Dictionary:
 
 
 func find_zone(pos: Vector3) -> Dictionary:
-	for z in zones:
-		if z.aabb.has_point(pos):
-			return z
+	_indexer_zones()
+	for i in _index_zones.get(Vector2i(floori(pos.x / 64.0), floori(pos.z / 64.0)), []):
+		if zones[i].aabb.has_point(pos):
+			return zones[i]
 	return {}
+
+
+## Zones indexées par cases de 64 m (numéros dans l'ordre de « zones » : même résultat qu'un parcours complet).
+var _index_zones := {}
+var _nb_zones_indexees := 0
+
+
+func _indexer_zones() -> void:
+	if _nb_zones_indexees > zones.size():   # zones vidées (nouvelle partie)
+		_index_zones.clear()
+		_nb_zones_indexees = 0
+	while _nb_zones_indexees < zones.size():
+		var ab: AABB = zones[_nb_zones_indexees].aabb
+		for cz in range(floori(ab.position.z / 64.0), floori(ab.end.z / 64.0) + 1):
+			for cx in range(floori(ab.position.x / 64.0), floori(ab.end.x / 64.0) + 1):
+				var k := Vector2i(cx, cz)
+				if not _index_zones.has(k):
+					_index_zones[k] = []
+				_index_zones[k].append(_nb_zones_indexees)
+		_nb_zones_indexees += 1
 
 
 func zombies_in_zone(zone: Dictionary) -> int:

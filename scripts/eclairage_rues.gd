@@ -17,7 +17,7 @@ func installer(lampadaires: Array, graine: int) -> void:
 			continue
 		var r := rng.randf()
 		var etat := 0 if r < 0.72 else (1 if r < 0.84 else 2)
-		var pos: Vector3 = (l as Node3D).global_position + Vector3(0, HAUT, 0)
+		var pos: Vector3 = (l as Node3D).position + Vector3(0, HAUT, 0)   # (décor au repère du monde)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(1.0, 0.85, 0.6)
 		mat.emission_enabled = true

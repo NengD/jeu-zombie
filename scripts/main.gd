@@ -33,12 +33,21 @@ func _ready() -> void:
 	Game.graine_monde = s
 	world = WorldGen.new()
 	world.name = "Monde"
-	add_child(world)
+	# le monde est construit hors de l'arbre : seules les cases proches du joueur y entreront (chargement par morceaux)
 	var spawn: Vector3 = world.build(s)
+	var t := Time.get_ticks_msec()
 	_creer_marche()
+	t = world._chrono("marche", t)
 	_creer_camps()
+	t = world._chrono("camps", t)
 	if OS.get_environment("SANS_FACADES") == "":   # (test de performance : sans les nouveaux effets)
 		_creer_ambiance()
+	t = world._chrono("ambiance", t)
+	var depart: Vector3 = spawn if charge.is_empty() else Sauvegarde._vd(charge.get("joueur", {}).get("pos", [spawn.x, spawn.y, spawn.z]))
+	world.ranger_par_morceaux(depart)
+	add_child(world)
+	move_child(world, 0)
+	t = world._chrono("morceaux", t)
 	var dn = DayNight.new()
 	dn.name = "Cycle"
 	add_child(dn)
@@ -52,6 +61,7 @@ func _ready() -> void:
 		Sauvegarde.appliquer_monde(self, charge)
 		Sauvegarde.appliquer_zombies(self, charge)
 		first_fill = false
+	t = world._chrono("zombies", t)
 	player = PLAYER_SCENE.instantiate()
 	add_child(player)
 	player.global_position = spawn + Vector3.UP * 0.1
@@ -66,6 +76,7 @@ func _ready() -> void:
 	if Game.admin:
 		add_child(preload("res://scripts/ui/admin_ui.gd").new())
 	_ambience()
+	t = world._chrono("joueur_ui", t)
 	if charge.is_empty():
 		Game.msg("Bienvenue. Trouve de quoi survivre. [F1] pour l'aide.")
 	else:
@@ -674,8 +685,9 @@ func _creer_ambiance() -> void:
 	eclairage.installer(world.lampadaires, Game.graine_monde)
 	var details = preload("res://scripts/details_monde.gd").new()
 	details.name = "DetailsMonde"
-	add_child(details)
 	details.installer(world, Game.graine_monde)
+	world.morceaux.ranger(details)   # décalques et déchets fixes : par cases, comme le monde
+	add_child(details)
 	var meteo = preload("res://scripts/meteo.gd").new()
 	meteo.name = "Meteo"
 	add_child(meteo)
