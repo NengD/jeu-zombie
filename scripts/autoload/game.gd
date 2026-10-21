@@ -363,7 +363,6 @@ func sfx_boucle(sound: String) -> AudioStream:
 
 ## Son spatialisé (zombies, impacts…)
 func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_dist := 60.0) -> void:
-	if OS.has_environment("LOG_SONS"): print("SON3D %.2f %s %.0f" % [Time.get_ticks_msec() / 1000.0, sound, pos.distance_to(player.global_position) if player else -1.0])
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:
@@ -380,9 +379,30 @@ func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_d
 	a.play()
 
 
+## Détonation d'une arme tirée par un PNJ (garde, bandit) : portée bien plus grande qu'un son ordinaire
+## et peu étouffée par la distance (un coup de feu bref perdait sinon presque tout son claquement).
+func play_tir(sound: String, pos: Vector3, vol_db := 0.0) -> void:
+	var s := sfx(sound)
+	var scene := get_tree().current_scene
+	if s == null or scene == null:
+		return
+	var a := AudioStreamPlayer3D.new()
+	a.stream = s
+	a.volume_db = vol_db
+	a.pitch_scale = randf_range(0.93, 1.07)
+	a.unit_size = 30.0
+	a.max_distance = 300.0
+	a.max_db = 4.0
+	a.attenuation_filter_cutoff_hz = 9000.0
+	a.attenuation_filter_db = -8.0
+	scene.add_child(a)
+	a.global_position = pos
+	a.finished.connect(a.queue_free)
+	a.play()
+
+
 ## Son non spatialisé (actions du joueur)
 func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06, pitch := 1.0) -> void:
-	if OS.has_environment("LOG_SONS"): print("SONUI %.2f %s" % [Time.get_ticks_msec() / 1000.0, sound])
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:

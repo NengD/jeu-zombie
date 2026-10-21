@@ -373,7 +373,7 @@ func _tirer(delta: float) -> void:
 	var famille: String = w.get("famille", "")
 	var son := "tir_pompe" if famille == "pompe" else ("tir_pistolet" if famille in ["pistolet", "smg"] else "tir_fusil")
 	var bouche := global_position + Vector3.UP * 1.45 - global_basis.z * 0.6
-	Game.play_3d(son, bouche, 0.0, 0.08, 120.0)
+	Game.play_tir(son, bouche, 2.0)
 	Game.make_noise(global_position, 45.0)
 	if arme_noeud and is_instance_valid(arme_noeud):
 		var pts := Accessoires.points(arme, arme_noeud)
