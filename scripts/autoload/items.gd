@@ -355,6 +355,40 @@ func prix_vente(id: String) -> int:
 	return maxi(1, v)
 
 
+## Démontage : la moitié des ingrédients de la recette la moins chère qui fabrique l'objet (par lot de `qty`),
+## jamais plus que ce qu'il a coûté. Ni la nourriture ni les matériaux transformés (planche, ferraille, cuir, ciment).
+const PART_DEMONTAGE := 0.5
+const NON_DEMONTABLES := ["planche", "ferraille", "cuir", "ciment"]
+
+
+func recette_demontage(id: String) -> Dictionary:
+	if id in NON_DEMONTABLES:
+		return {}
+	var best := {}
+	var best_cout := INF
+	for r in RECIPES:
+		if r.out != id or r.cat == "nourriture":
+			continue
+		var cout := 0.0
+		for ing in r.needs:
+			cout += prix(ing) * int(r.needs[ing])
+		cout /= float(r.qty)
+		if cout < best_cout:
+			best_cout = cout
+			best = r
+	return best
+
+
+## Ce que rend le démontage, ex. « 2 ferrailles, 0–1 bûche » (une demi-unité = une chance sur deux).
+func texte_demontage(r: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for ing in r.needs:
+		var x := float(r.needs[ing]) * PART_DEMONTAGE
+		var bas := int(floor(x))
+		parts.append(("%d" % bas if x == floor(x) else "%d–%d" % [bas, bas + 1]) + " " + nom(ing))
+	return ", ".join(parts)
+
+
 func nom(id: String) -> String:
 	return info(id).get("name", id)
 

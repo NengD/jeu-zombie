@@ -2181,6 +2181,63 @@ var fab_total := 0
 var fab_t := 0.0
 
 
+## Démonte un lot de l'objet (qty de sa recette) : rend environ la moitié des ingrédients (Items.recette_demontage).
+## `e` / `g` : entrée précise de l'inventaire (clic droit) ; sinon la première qui convient.
+func demonter(id: String, e: Dictionary = {}, g: Grille = null) -> bool:
+	var r := Items.recette_demontage(id)
+	if r.is_empty():
+		Game.msg("%s ne se démonte pas." % Items.nom(id))
+		return false
+	if not near_station(r.station):
+		Game.msg("Pour démonter : %s à proximité." % Items.STATIONS[r.station])
+		return false
+	if fab_n > 0:
+		Game.msg("Fabrication en cours.")
+		return false
+	var q := int(r.qty)
+	var vide := func(x: Dictionary) -> bool: return x.contenu == null or (x.contenu as Grille).entrees.is_empty()
+	if Items.grid(id).x > 0:
+		# sac, gilet : une entrée par objet, qui doit être vide
+		if e.is_empty():
+			for gg in grilles():
+				for x in gg.entrees:
+					if x.id == id and vide.call(x):
+						e = x
+						g = gg
+						break
+				if not e.is_empty():
+					break
+		if e.is_empty() or g == null:
+			Game.msg("Aucun %s vide à démonter." % Items.nom(id))
+			return false
+		if not vide.call(e):
+			Game.msg("Vide d'abord %s." % Items.nom(id))
+			return false
+		g.retirer_entree(e)
+	elif count(id) < q:
+		Game.msg("Il en faut %d pour démonter (lot de fabrication)." % q)
+		return false
+	elif not e.is_empty() and g != null and int(e.n) >= q:
+		if int(e.n) > q:
+			e.n = int(e.n) - q
+		else:
+			g.retirer_entree(e)
+	else:
+		remove_item(id, q)
+	_check_hotbar()
+	var rendu: PackedStringArray = []
+	for ing in r.needs:
+		var x := float(r.needs[ing]) * Items.PART_DEMONTAGE
+		var k := int(floor(x)) + (1 if randf() < x - floor(x) else 0)
+		if k > 0:
+			add_item(ing, k)
+			rendu.append("%d× %s" % [k, Items.nom(ing)])
+	Game.msg("Démonté : %s%s → %s" % [Items.nom(id), (" ×%d" % q) if q > 1 else "", ", ".join(rendu) if not rendu.is_empty() else "rien de récupérable"])
+	Game.play_ui("fouille", -6.0, 0.1, 0.75)
+	Game.play_ui("impact_metal", -14.0, 0.1, 1.2)
+	return true
+
+
 func lancer_fabrication(r: Dictionary, n: int) -> bool:
 	if fab_n > 0 or n <= 0 or not can_craft(r):
 		return false

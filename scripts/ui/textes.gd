@@ -36,6 +36,8 @@ const GUIDE := """[b]LES BASES[/b]
 [b]COMBAT[/b]
 • Les armes à feu font beaucoup de bruit et attirent les zombies de loin. Les armes blanches sont discrètes.
 • Viser la tête inflige 2,5× plus de dégâts et ignore l'armure des zombies policiers et militaires.
+• Recul selon l'arme : pistolet sec et court, fusil à pompe brutal, fusil d'assaut régulier (la visée se stabilise en rafale),
+  fusil de précision gros coup unique. La visée revient ensuite doucement au centre ; baisser la souris compense plus vite.
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
 • Chaque coup affiche ses [b]dégâts[/b] au-dessus de la cible (orange : tir à la tête, doré : coup critique) ;
@@ -95,11 +97,16 @@ const GUIDE := """[b]LES BASES[/b]
   (tu peux marcher pendant ce temps, mais un coup reçu ou une station trop loin interrompt la série).
 • Stations à fabriquer et à poser : établi, [b]feu de camp[/b] (2 planches + 1 tissu, se pose dehors ; les braseros des camps
   servent aussi) et [b]plan de couture[/b] (3 planches + 4 clous + 2 tissus). [F] sur une station ouvre la fabrication.
+• [b]Démonter[/b] (clic droit sur l'objet > Démonter, ou bouton sous la recette) : rend environ la moitié des ingrédients
+  de sa recette la moins chère (une demi-unité = une chance sur deux), à la même station, par lot de fabrication
+  (ex. 5 flèches). Pas la nourriture ni les matériaux (planche, ferraille, cuir, ciment) ; un sac doit être vide.
 
 [b]ARC ET CHASSE[/b]
 • Arc (fermes, camping, ou établi : 2 planches + 1 cuir + 2 tissus). Maintiens le clic gauche pour bander, relâche pour tirer :
   plus la corde est tendue, plus la flèche va loin et fait mal. Clic droit : lever l'arc et viser. Les traits sous le viseur
   montrent où tombe la flèche à 20, 40 et 60 m. Presque silencieux.
+• Discrétion : un zombie tué d'une flèche sans t'avoir vu tombe sans alerter ses voisins ; s'il n'est que blessé,
+  il part voir d'où vient le tir (sans encore savoir où tu es).
 • Flèches : 1 planche + 2 plumes (ou 1 tissu) + 1 ferraille, ou 1 os pour la pointe. Plantées dans le décor, on les ramasse
   souvent ([F]) ; dans un animal ou un zombie, on les retrouve parfois en dépeçant ou en fouillant le corps.
 • Animaux : cerfs, biches et sangliers en forêt, faisans et lapins dans les champs. Ils entendent les bruits et te voient de loin :
@@ -199,7 +206,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Armes de mêlée : coup vers l'avant ; battes et machette alternent avec un balayage latéral. Les armes lourdes frappent plus lentement mais repoussent le zombie. Maintenir le clic : coup puissant. Clic droit : parade (80 % de dégâts en moins, repousse le zombie).
 
 [b]COUPS DE GRÂCE[/b]
-• Un gros coup peut renverser un zombie. Près d'un zombie à terre ou d'un rampant : [F] Achever : coup de talon à mains nues, arme abattue (hache, batte) ou lame plantée (couteau, machette, matraque), ou balle à bout portant avec une arme chargée (+10 XP).
+• Un gros coup peut renverser un zombie. Près d'un zombie à terre ou d'un rampant : [F] Achever : coup de talon à mains nues, arme abattue (hache, batte) ou lame plantée (couteau, machette, matraque), ou balle à bout portant avec une arme chargée (+10 XP). Le geste dure une demi-seconde.
 
 [b]ZOMBIES[/b]
 • Coureurs, gros zombies, rampants. Bras et jambes peuvent être arrachés ; sans jambes, le zombie rampe.

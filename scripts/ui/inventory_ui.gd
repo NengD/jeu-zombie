@@ -6,7 +6,7 @@ extends CanvasLayer
 ##   glisser-déposer un objet entre les grilles, vers l'équipement ou la barre rapide
 ##   R pendant le glissement : tourner l'objet
 ##   double-clic : utiliser / équiper        Ctrl + clic : transfert rapide
-##   clic droit : menu (utiliser, équiper, diviser, jeter…)
+##   clic droit : menu (utiliser, équiper, démonter, diviser, jeter…)
 ##   déposer hors de la fenêtre : jeter au sol
 
 const CELL := 52.0
@@ -136,6 +136,7 @@ var craft_btn5: Button
 var craft_btn_max: Button
 var stop_btn: Button
 var craft_btn: Button
+var demonter_btn: Button
 var bench_label: Label
 var tab_cont: Button
 var tab_craft: Button
@@ -252,6 +253,7 @@ func _ready() -> void:
 	craft_btn5 = _button(bb, "×5", func(): _craft(5))
 	craft_btn_max = _button(bb, "Maximum", func(): _craft(-1))
 	stop_btn = _button(bb, "Arrêter", func(): Game.player.arreter_fabrication("Fabrication arrêtée."))
+	demonter_btn = _button(craft_box, "Démonter", func(): _demonter_choisi())
 
 	# --- infobulle, menu contextuel, objet tenu
 	tooltip = PanelContainer.new()
@@ -821,6 +823,8 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 				menu.add_item("Placer", 0)
 	if storage and is_instance_valid(storage) and storage.grille:
 		menu.add_item("Déposer dans le conteneur" if mine else "Prendre", 1)
+	if mine and not Items.recette_demontage(e.id).is_empty():
+		menu.add_item("Démonter (%s)" % Items.texte_demontage(Items.recette_demontage(e.id)), 6)
 	if int(e.n) > 1:
 		menu.add_item("Diviser la pile", 2)
 	if mine:
@@ -873,6 +877,8 @@ func _on_menu(id: int) -> void:
 				close()
 				insp.ouvrir(cible)
 			return
+		6:
+			p.demonter(e.id, e, g)
 	refresh()
 
 
@@ -939,7 +945,7 @@ func _update_recipe() -> void:
 	var i := _recette_choisie()
 	if i < 0 or p == null:
 		rec_desc.text = "Sélectionne une recette."
-		for b in [craft_btn, craft_btn5, craft_btn_max]:
+		for b in [craft_btn, craft_btn5, craft_btn_max, demonter_btn]:
 			b.disabled = true
 		return
 	var r: Dictionary = Items.RECIPES[i]
@@ -954,7 +960,12 @@ func _update_recipe() -> void:
 	if int(r.niv) > 0:
 		t += "%sFabrication niveau %d requis[/color]\n" % [vert if p.niveau_fabrication() >= int(r.niv) else rouge, r.niv]
 	t += "[color=#bbbbaa]Durée : %.1f s par objet[/color]" % p.duree_fabrication(r)
+	var rd := Items.recette_demontage(r.out)
+	if not rd.is_empty():
+		t += "\n[color=#bbbbaa]Démontage%s : %s%s[/color]" % [(" (lot de %d)" % rd.qty) if rd.qty > 1 else "", Items.texte_demontage(rd), (" — " + Items.STATIONS[rd.station]) if rd.station != "" else ""]
 	rec_desc.text = t
+	demonter_btn.disabled = rd.is_empty() or p.count(r.out) < int(rd.get("qty", 1)) or p.fab_n > 0
+	demonter_btn.text = "Démonter %s (tu en as %d)" % [Items.nom(r.out), p.count(r.out)] if not rd.is_empty() else "Ne se démonte pas"
 	var occupe: bool = p.fab_n > 0
 	var n: int = p.max_craft(r) if p.can_craft(r) else 0
 	craft_btn.disabled = occupe or n < 1
@@ -973,6 +984,13 @@ func _maj_barre_fabrication() -> void:
 		return
 	fab_bar.value = k
 	fab_label.text = "%s : %d / %d" % [Items.nom(p.fab_r.out), p.fab_total - p.fab_n + 1, p.fab_total]
+
+
+## Démonte un lot de l'objet que fabrique la recette choisie.
+func _demonter_choisi() -> void:
+	var i := _recette_choisie()
+	if i >= 0 and Game.player.demonter(Items.RECIPES[i].out):
+		refresh()
 
 
 ## n = -1 : autant que les ingrédients le permettent.
