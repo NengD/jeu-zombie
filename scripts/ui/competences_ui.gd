@@ -2,6 +2,8 @@ extends CanvasLayer
 ## Écran « Personnage » (touche K) : niveau global et points d'attribut,
 ## compétences Combat / Fabrication / Exploration et leurs talents.
 
+const Recolte = preload("res://scripts/recolte.gd")
+
 var fond: ColorRect
 var contenu: VBoxContainer
 
@@ -97,7 +99,7 @@ func _maj() -> void:
 			_barre(bloc, d.xp, Progression.xp_comp(d.niv), Color(0.45, 0.75, 0.95), "%d / %d XP" % [d.xp, Progression.xp_comp(d.niv)], 0)
 		else:
 			_label(bloc, "Niveau maximum atteint", 14, Color(0.6, 0.9, 0.6))
-		_label(bloc, _gains(c), 13, Color(0.55, 0.58, 0.55))
+		_label(bloc, _gains(c, int(d.niv)), 13, Color(0.55, 0.58, 0.55))
 		_label(bloc, "Points de talent : %d" % d.points, 16, Color(0.9, 0.8, 0.45) if d.points > 0 else Color(0.7, 0.7, 0.68))
 		for tid in Progression.TALENTS:
 			var ti: Dictionary = Progression.TALENTS[tid]
@@ -141,12 +143,15 @@ func _apres_talent(t: String) -> void:
 	_maj()
 
 
-func _gains(c: String) -> String:
+func _gains(c: String, niv: int) -> String:
+	var recolte := "\nRécolte %s : %d %% de coups en moins, +%d %% de ressources (niveau %d)." % ["des épaves" if c == "fabrication" else "des arbres et rochers", roundi((1.0 - Recolte.moins_de_coups(niv)) * 100.0), roundi((Recolte.plus_de_ressources(niv) - 1.0) * 100.0), niv]
 	match c:
 		"combat":
 			return "XP : tuer des zombies (plus pour policiers et militaires), toucher un zombie au corps à corps ou avec une arme à feu."
 		"fabrication":
-			return "XP : fabriquer des objets, poser des établis, caisses, barricades."
+			return "XP : fabriquer des objets, poser des établis, caisses, barricades." + recolte
+		"survie":
+			return "XP : couper des arbres, briser des rochers, chasser, dépecer, relever un collet, se soigner, manger, encaisser des coups." + recolte
 		_:
 			return "XP : fouiller meubles et corps, découvrir bâtiments et lieux importants."
 

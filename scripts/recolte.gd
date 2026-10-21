@@ -69,7 +69,31 @@ func _trouver(pos: Vector3) -> Array:
 	return best
 
 
-func _coups_requis(genre: String, i: int, outil: String) -> int:
+## Compétence qui règle le rendement : survie pour les arbres et les rochers, fabrication pour les épaves.
+static func competence(genre: String) -> String:
+	return "fabrication" if genre == "e" else "survie"
+
+
+## Bonus de compétence (niveau 0 à 10) : -4 % de coups par niveau (au moins 2), +6 % de ressources par niveau.
+static func moins_de_coups(niv: int) -> float:
+	return 1.0 - 0.04 * niv
+
+
+static func plus_de_ressources(niv: int) -> float:
+	return 1.0 + 0.06 * niv
+
+
+func _niv(joueur: Node, genre: String) -> int:
+	if joueur == null or joueur.get("prog") == null:
+		return 0
+	return int(joueur.prog.comp[competence(genre)].niv)
+
+
+func _coups_requis(genre: String, i: int, outil: String, niv := 0) -> int:
+	return maxi(2, int(round(_coups_base(genre, i, outil) * moins_de_coups(niv))))
+
+
+func _coups_base(genre: String, i: int, outil: String) -> int:
 	match genre:
 		"a":
 			var s: float = (world.arbres_ref[i][3] as Transform3D).basis.get_scale().x
@@ -99,7 +123,9 @@ func frapper(pos: Vector3, dir: Vector3, outil: String, joueur: Node) -> bool:
 		return true
 	var cle := genre + str(i)
 	var n := int(coups.get(cle, 0)) + 1
-	var requis := _coups_requis(genre, i, outil)
+	var niv := _niv(joueur, genre)
+	var requis := _coups_requis(genre, i, outil, niv)
+	var bonus := plus_de_ressources(niv)
 	coups[cle] = n
 	Game.make_noise(pos, 14.0)
 	match genre:
@@ -123,33 +149,38 @@ func frapper(pos: Vector3, dir: Vector3, outil: String, joueur: Node) -> bool:
 	match genre:
 		"a":
 			_abattre(i, dir, true)
-			_donner(joueur, "buche", 2 + int(round(2.0 * (world.arbres_ref[i][3] as Transform3D).basis.get_scale().x)))
-			if randf() < 0.3:
+			_donner(joueur, "buche", _qte((2.0 + round(2.0 * (world.arbres_ref[i][3] as Transform3D).basis.get_scale().x)) * bonus))
+			if randf() < 0.3 * bonus:
 				_donner(joueur, "planche", 1)
 			joueur.prog.gagner("survie", 6)
 		"r":
 			_briser(i, true)
 			var k: float = world.rochers[i].k
-			_donner(joueur, "pierre", 2 + int(round(1.5 * k)))
-			if randf() < 0.3:
-				_donner(joueur, "minerai", randi_range(1, 1 + int(k)))
+			_donner(joueur, "pierre", _qte((2.0 + round(1.5 * k)) * bonus))
+			if randf() < 0.3 * bonus:
+				_donner(joueur, "minerai", _qte(randi_range(1, 1 + int(k)) * bonus))
 			if randf() < 0.12:
 				_donner(joueur, "ferraille", 1)
 			joueur.prog.gagner("survie", 6)
 		_:
 			_vider(i, true)
-			_donner(joueur, "ferraille", randi_range(2, 4))
-			_donner(joueur, "piece_auto", randi_range(1, 2))
-			if randf() < 0.5:
+			_donner(joueur, "ferraille", _qte(randi_range(2, 4) * bonus))
+			_donner(joueur, "piece_auto", _qte(randi_range(1, 2) * bonus))
+			if randf() < 0.5 * bonus:
 				_donner(joueur, "pneu", 1)
 			if randf() < 0.35:
 				_donner(joueur, "batterie", 1)
 			if randf() < 0.25:
 				_donner(joueur, "essence", 1)
 			if randf() < 0.4:
-				_donner(joueur, "tissu", randi_range(1, 2))
+				_donner(joueur, "tissu", _qte(randi_range(1, 2) * bonus))
 			joueur.prog.gagner("fabrication", 8)
 	return true
+
+
+## Quantité arrondie au hasard (2,4 -> 2 ou 3, 3 fois sur 5 deux) : le bonus compte même sur de petites quantités.
+func _qte(x: float) -> int:
+	return int(floor(x)) + (1 if randf() < x - floor(x) else 0)
 
 
 func _donner(joueur: Node, id: String, n: int) -> void:

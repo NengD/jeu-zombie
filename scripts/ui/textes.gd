@@ -111,6 +111,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,
   il reste une souche), la [b]pioche[/b] brise les rochers (pierres, parfois du minerai de fer ou de la ferraille), et
   les deux démontent les [b]épaves de voitures[/b] (ferraille, pièces auto, pneu, batterie, essence, tissu ; l'épave vidée noircit).
+• Rendement selon la compétence (écran Personnage, K) : par niveau, 4 % de coups en moins et 6 % de ressources en plus
+  (niveau 10 : -40 % de coups, +60 % de ressources) ; [b]Survie[/b] pour les arbres et rochers, [b]Fabrication[/b] pour les épaves.
 • Les coups font du bruit (les zombies viennent voir). Rien ne repousse, mais il y a des milliers d'arbres et de rochers.
 • Bûche → 3 planches à l'établi (1 seule à la main) ; minerai + bûche → ferraille au feu ; 4 pierres + eau → ciment (établi) ;
   feu de camp en pierres et bûches ; barricade de pneus ; projecteur sur batterie ; flèches à pointe de pierre.
