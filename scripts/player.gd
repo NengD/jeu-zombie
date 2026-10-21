@@ -653,7 +653,7 @@ func _update_camera(delta: float) -> void:
 	var cwi := Items.info(cw)
 	var is_gun: bool = cwi.get("type", "") == "gun"
 	var avec_arc := cw == "arc" and placing == ""
-	arc_vise = move_toward(arc_vise, 1.0 if avec_arc and (aiming or arc_tension > 0.0) else 0.0, delta * 6.0)
+	arc_vise = move_toward(arc_vise, 1.0 if avec_arc and (aiming or arc_tension > 0.0 or cooldown > 0.0) else 0.0, delta * 6.0)   # (arc gardé levé un instant après le tir)
 	var vise := (aiming and is_gun and reload_t <= 0.0 and placing == "") or (avec_arc and arc_vise > 0.5)
 	ads = move_toward(ads, 1.0 if vise else 0.0, delta * (5.5 if vise else 7.0))
 	var k_ads := smoothstep(0.0, 1.0, ads)
@@ -720,7 +720,7 @@ func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: f
 			arc_modele.maj(arc_tension, arc_tension > 0.0 or arc_vise > 0.6)
 		return
 	if cw == "arc" and arc_modele and is_instance_valid(arc_modele):
-		arc_modele.maj(arc_tension, (arc_tension > 0.0 or arc_vise > 0.6) and count("fleche") > 0)
+		arc_modele.maj(arc_tension, (arc_tension > 0.0 or arc_vise > 0.6) and count("fleche") > 0 and cooldown <= 0.0, bras_ik.allonge)
 		bras_ik.arme = arc_modele
 		bras_ik.arc = true
 		bras_ik.arc_vise = arc_vise

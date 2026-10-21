@@ -60,8 +60,8 @@ func _branche(t: float, s: float) -> Vector3:
 
 
 ## Corde et flèche pour une tension donnée (0 = au repos, 1 = pleine allonge).
-func maj(tension: float, avec_fleche: bool) -> void:
-	var enc := Vector3(0, lerpf(BAND, -ALLONGE, clampf(tension, 0.0, 1.0)), 0)
+func maj(tension: float, avec_fleche: bool, allonge := ALLONGE) -> void:
+	var enc := Vector3(0, lerpf(BAND, -allonge, clampf(tension, 0.0, 1.0)), 0)
 	_tendre(corde_h, _pointe_h, enc)
 	_tendre(corde_b, enc, _pointe_b)
 	fleche.visible = avec_fleche
