@@ -739,7 +739,7 @@ func _use(e: Dictionary, g: Grille) -> void:
 			p.consume_entry(e, g)
 		"armor":
 			p.equip_entry(e, g)
-		"melee", "gun":
+		"melee", "gun", "arc":
 			if _is_player_grid(g):
 				p.use_item(e.id)
 			else:
@@ -808,7 +808,7 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 			menu.add_item("Se soigner", 0)
 		"armor":
 			menu.add_item("Équiper", 0)
-		"melee", "gun":
+		"melee", "gun", "arc":
 			if mine:
 				menu.add_item("Prendre en main", 0)
 			if t == "gun" and mine and Accessoires.table().has(e.id):

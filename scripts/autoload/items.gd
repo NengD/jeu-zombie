@@ -26,6 +26,7 @@ const DB := {
 	"piece_auto": {"name": "Pièces auto", "type": "material", "weight": 1.2},
 	"essence": {"name": "Jerrican d'essence", "type": "material", "weight": 2.5},
 	"cle_molette": {"name": "Clé à molette", "type": "outil", "weight": 0.5},
+	"plume": {"name": "Plumes", "type": "material", "weight": 0.01, "desc": "Empennage des flèches."},
 	# --- munitions
 	"mun_9mm": {"name": "Balles 9×19 mm", "type": "ammo", "weight": 0.012, "modele": "cart_9mm"},
 	"mun_45": {"name": "Balles .45 ACP", "type": "ammo", "weight": 0.021, "modele": "cart_45"},
@@ -40,6 +41,7 @@ const DB := {
 	"mun_338": {"name": "Balles .338 Lapua", "type": "ammo", "weight": 0.046, "modele": "cart_338"},
 	"mun_127": {"name": "Balles 12.7×99 mm", "type": "ammo", "weight": 0.11, "modele": "cart_127"},
 	"mun_4570": {"name": "Balles .45-70", "type": "ammo", "weight": 0.03, "modele": "cart_4570"},
+	"fleche": {"name": "Flèche", "type": "ammo", "weight": 0.03, "desc": "Munition de l'arc. Souvent récupérable après le tir."},
 	# --- armes blanches
 	"poings": {"name": "Poings", "type": "melee", "damage": 9.0, "rate": 0.5, "range": 1.6, "stamina": 5.0, "len": 0.0, "color": Color(0.8, 0.6, 0.5)},
 	"batte": {"name": "Batte de baseball", "type": "melee", "damage": 36.0, "rate": 0.8, "range": 2.2, "stamina": 14.0, "len": 0.85, "color": Color(0.55, 0.38, 0.2), "weight": 1.0},
@@ -48,6 +50,8 @@ const DB := {
 	"hache": {"name": "Hache", "type": "melee", "damage": 65.0, "rate": 1.05, "range": 2.1, "stamina": 20.0, "len": 0.75, "color": Color(0.5, 0.15, 0.1), "weight": 1.8},
 	"matraque": {"name": "Matraque", "type": "melee", "damage": 30.0, "rate": 0.55, "range": 1.9, "stamina": 9.0, "len": 0.55, "color": Color(0.1, 0.1, 0.1), "weight": 0.6},
 	"couteau_km2000": {"name": "Couteau de combat KM2000", "type": "melee", "damage": 31.0, "rate": 0.4, "range": 1.7, "stamina": 7.0, "len": 0.3, "color": Color(0.2, 0.2, 0.2), "weight": 0.35},
+	# --- arc (modèle construit par le code) : maintenir le clic pour bander, relâcher pour tirer
+	"arc": {"name": "Arc de chasse", "type": "arc", "ammo": "fleche", "damage": 95.0, "range": 75.0, "noise": 3.0, "len": 0.0, "weight": 1.1, "desc": "Maintenir le clic gauche pour bander, relâcher pour tirer : plus la corde est tendue, plus la flèche va loin et fait mal. Presque silencieux. Les flèches se ramassent souvent."},
 	# --- armes à feu : modèles « low-poly » de D_U (Sketchfab, CC Attribution — voir CREDITS.txt)
 	# famille : prise en main et accessoires ; calibre = munition ; pitch : hauteur du son du tir
 	# semi : pas de pompe ; verrou / levier : réarmement manuel après chaque tir ; cartouches : chargement une à une ;
@@ -134,7 +138,7 @@ const SIZES := {
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
 	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
-	"couteau_km2000": [1, 2],
+	"couteau_km2000": [1, 2], "arc": [1, 4],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
 	"m4a1": [4, 2], "m5_scw": [3, 2], "urgi": [4, 2], "lr300": [4, 2], "mcx": [4, 2],
@@ -148,7 +152,7 @@ const SIZES := {
 # Quantité maximale par case (piles). Par défaut 1.
 const STACKS := {
 	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "mun_45": 40, "mun_50ae": 28, "mun_46": 60, "mun_545": 60, "mun_762x39": 60,
-	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
+	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
 	"poudre": 10, "cuir": 3, "piece_auto": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 }
 
@@ -163,7 +167,7 @@ const CATEGORY_COLORS := {
 	"food": Color(0.95, 0.75, 0.45), "drink": Color(0.55, 0.8, 1.0), "heal": Color(1.0, 0.45, 0.45),
 	"material": Color(0.82, 0.8, 0.75), "ammo": Color(0.95, 0.82, 0.4), "armor": Color(0.6, 0.85, 0.55),
 	"placeable": Color(0.85, 0.65, 0.4), "melee": Color(0.85, 0.85, 0.9), "gun": Color(0.85, 0.85, 0.9),
-	"accessoire": Color(0.7, 0.8, 0.95), "lancer": Color(0.95, 0.6, 0.4), "outil": Color(0.95, 0.75, 0.35),
+	"accessoire": Color(0.7, 0.8, 0.95), "lancer": Color(0.95, 0.6, 0.4), "outil": Color(0.95, 0.75, 0.35), "arc": Color(0.85, 0.72, 0.5),
 }
 
 # Catégories de l'arbre des recettes (ordre d'affichage) et stations de fabrication.
@@ -186,6 +190,9 @@ const RECIPES := [
 	{"out": "marteau", "qty": 1, "needs": {"ferraille": 2, "planche": 1}, "cat": "outils", "station": "", "duree": 4.0, "niv": 0},
 	{"out": "ferraille", "qty": 2, "needs": {"piece_auto": 1}, "cat": "outils", "station": "", "duree": 3.0, "niv": 0},
 	{"out": "batte_cloutee", "qty": 1, "needs": {"batte": 1, "clous": 6, "ruban": 1}, "cat": "armes", "station": "etabli", "duree": 5.0, "niv": 1},
+	{"out": "arc", "qty": 1, "needs": {"planche": 2, "cuir": 1, "tissu": 2}, "cat": "armes", "station": "etabli", "duree": 12.0, "niv": 2},
+	{"out": "fleche", "qty": 5, "needs": {"planche": 1, "plume": 2, "ferraille": 1}, "cat": "munitions", "station": "", "duree": 5.0, "niv": 1},
+	{"out": "fleche", "qty": 4, "needs": {"planche": 1, "tissu": 1, "ferraille": 1}, "cat": "munitions", "station": "", "duree": 5.0, "niv": 1},
 	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 1},
 	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 2},
 	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "cat": "vetements", "station": "etabli", "duree": 10.0, "niv": 3},
@@ -219,11 +226,12 @@ const LOOT := {
 		["urgi", 1.5, 1, 1], ["mcx", 1.2, 1, 1], ["ak74m", 1.2, 1, 1], ["draco", 1, 1, 1], ["uar10", 1, 1, 1], ["mcx_spear", 0.8, 1, 1], ["spear_assaulter", 0.8, 1, 1], ["l96", 0.6, 1, 1], ["c14", 0.4, 1, 1], ["mg5", 0.4, 1, 1], ["gepard", 0.2, 1, 1],
 		["lunette_uar", 1.5, 1, 1], ["lunette_hawke", 1, 1, 1], ["lunette_sb", 0.6, 1, 1], ["viseur_holo", 1.5, 1, 1], ["silencieux_socom", 0.8, 1, 1], ["silencieux_762", 1, 1, 1], ["silencieux_slx", 0.6, 1, 1], ["frein_762", 1.2, 1, 1], ["silencieux_mp7", 0.6, 1, 1]],
 	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["batte", 1, 1, 1], ["ciment", 1.5, 1, 1]],
-	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1]],
+	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
 	"camp_bandit": [["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
 		["bandage", 6, 1, 3], ["trousse", 2, 1, 1], ["antidouleur", 4, 1, 2], ["conserve", 6, 1, 3], ["eau", 5, 1, 2], ["alcool", 4, 1, 2],
 		["ferraille", 5, 1, 3], ["poudre", 4, 1, 3], ["glock19", 1.5, 1, 1], ["mr920", 1, 1, 1], ["draco", 0.6, 1, 1], ["rgd5", 1.2, 1, 2],
 		["point_rouge", 0.8, 1, 1], ["silencieux_9mm", 0.6, 1, 1], ["machette", 1.5, 1, 1], ["sac_a_dos", 1, 1, 1], ["gilet_police", 0.6, 1, 1]],
+	"camping": [["conserve", 10, 1, 2], ["eau", 10, 1, 2], ["barre", 8, 1, 3], ["soda", 6, 1, 2], ["tissu", 8, 1, 3], ["bandage", 5, 1, 2], ["alcool", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["hache", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["fleche", 4, 3, 8], ["sac_a_dos", 1.5, 1, 1], ["ruban", 3, 1, 1], ["mun_12", 0.8, 2, 4]],
 	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
 	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["mun_545", 3, 6, 15], ["mun_45", 3, 4, 10], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3],
 		["glock19", 1.2, 1, 1], ["desert_eagle", 0.5, 1, 1], ["mp5k", 0.6, 1, 1], ["toz34", 0.6, 1, 1], ["ak74", 0.4, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["chargeur_etendu", 1, 1, 1]],
@@ -245,7 +253,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
@@ -332,7 +340,7 @@ func icon(id: String) -> Texture2D:
 
 func is_weapon(id: String) -> bool:
 	var t = info(id).get("type", "")
-	return t == "melee" or t == "gun" or t == "lancer"
+	return t == "melee" or t == "gun" or t == "lancer" or t == "arc"
 
 
 ## Famille d'une arme à feu (pistolet, smg, pompe, fusil, ak, dmr, sniper, levier, mitrailleuse).

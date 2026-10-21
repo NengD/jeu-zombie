@@ -1,5 +1,6 @@
 extends CanvasLayer
 const Textes = preload("res://scripts/ui/textes.gd")
+const Fleche = preload("res://scripts/fleche.gd")
 ## Interface en jeu : réticule, jauges, arme, barre rapide, messages,
 ## heure, aide (F1), pause (Échap), écran de mort.
 
@@ -12,12 +13,23 @@ class Crosshair extends Control:
 	var ennemi := false # le réticule passe sur un zombie ou un bandit
 	var bloque := Vector2(-1, -1)   # point d'impact réel quand un obstacle coupe la ligne de tir
 	var impacts: Array = []         # [angle (0 = devant, sens horaire), opacité] des coups reçus
+	var arc := -1.0                 # arc tenu : tension (0..1), sinon -1
+	var chute: Array = []            # arc : écart à l'écran du point d'impact à 20, 40 et 60 m
 
 	func _draw() -> void:
 		var c := size / 2.0
 		var col := Color(1, 0.35, 0.3, 0.9) if ennemi else Color(1, 1, 1, 0.85)
 		var g := spread
-		if melee:
+		if arc >= 0.0:
+			# viseur d'arc : cercle qui se resserre avec la tension, repères de chute en dessous (20, 40, 60 m)
+			var r := lerpf(30.0, 7.0, arc)
+			draw_arc(c, r, 0.0, TAU, 32, Color(0, 0, 0, 0.35), 3.0)
+			draw_arc(c, r, 0.0, TAU, 32, col, 1.5)
+			draw_circle(c, 1.8, col)
+			for k in 3:
+				var y := c.y + (float(chute[k]) if k < chute.size() else 14.0 + k * 13.0)
+				draw_line(Vector2(c.x - 6 + k * 1.5, y), Vector2(c.x + 6 - k * 1.5, y), Color(col, 0.6), 1.5)
+		elif melee:
 			draw_circle(c, 3.0, Color(0, 0, 0, 0.35))
 			draw_circle(c, 2.0, col)
 		elif not vise:
@@ -315,6 +327,8 @@ func _process(delta: float) -> void:
 			lbl_ammo.text = "Rechargement…"
 		else:
 			lbl_ammo.text = ("PRÊT  " if p.arme_prete_t > 0.0 else "") + "%d / %d" % [int(p.mags.get(wid, 0)), p.count(w.ammo)]
+	elif w.get("type", "") == "arc":
+		lbl_ammo.text = "%d flèche%s" % [p.count("fleche"), "s" if p.count("fleche") > 1 else ""]
 	elif w.get("type", "") == "lancer":
 		lbl_ammo.text = "× %d" % p.count(wid)
 	else:
@@ -355,7 +369,15 @@ func _process(delta: float) -> void:
 	# réticule dynamique : écart = vraie dispersion du tir projetée à l'écran (+ recul en cours)
 	var cw: String = p.current_weapon()
 	var ws: Dictionary = p.arme_stats(cw)
-	cross.melee = ws.get("type", "") != "gun"
+	cross.melee = not ws.get("type", "") in ["gun", "arc"]
+	cross.arc = p.arc_tension if cw == "arc" else -1.0
+	if cw == "arc" and p.camera:
+		cross.chute.clear()
+		var v := lerpf(20.0, 62.0, maxf(p.arc_tension, 0.35))
+		var demi_fov := tan(deg_to_rad(p.camera.fov) * 0.5)
+		for d in [20.0, 40.0, 60.0]:
+			var t: float = d / v
+			cross.chute.append(clampf(0.5 * Fleche.GRAVITE * t * t / d / demi_fov * cross.size.y * 0.5, 4.0, 300.0))
 	var target_spread := 4.0
 	if not cross.melee and p.camera:
 		var demi := deg_to_rad(p.camera.fov) * 0.5

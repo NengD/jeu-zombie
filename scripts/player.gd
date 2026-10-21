@@ -443,6 +443,9 @@ func _move(delta: float, can_act: bool) -> void:
 	var mouille := Game.dans_eau(global_position)
 	if mouille:
 		speed = minf(speed, WALK * 0.55)
+	if arc_tension > 0.0:
+		speed = minf(speed, AIM_SPEED)
+		sprinting = false
 	if soin_t > 0.0:
 		speed = minf(speed, WALK * 0.5)   # on se soigne en marchant lentement
 		sprinting = false
@@ -648,10 +651,14 @@ func _update_camera(delta: float) -> void:
 	var cw := current_weapon()
 	var cwi := Items.info(cw)
 	var is_gun: bool = cwi.get("type", "") == "gun"
-	var vise := aiming and is_gun and reload_t <= 0.0 and placing == ""
+	var avec_arc := cw == "arc" and placing == ""
+	arc_vise = move_toward(arc_vise, 1.0 if avec_arc and (aiming or arc_tension > 0.0) else 0.0, delta * 6.0)
+	var vise := (aiming and is_gun and reload_t <= 0.0 and placing == "") or (avec_arc and arc_vise > 0.5)
 	ads = move_toward(ads, 1.0 if vise else 0.0, delta * (5.5 if vise else 7.0))
 	var k_ads := smoothstep(0.0, 1.0, ads)
 	var fov_vise := FOV_AIM * float(arme_stats(cw).get("fov_visee", 1.0)) if is_gun else FOV_AIM
+	if avec_arc:
+		fov_vise = lerpf(FOV_AIM + 8.0, FOV_AIM - 4.0, arc_tension)   # le regard se resserre en bandant
 	camera.fov = lerpf(FOV, lerpf(FOV, fov_vise, 0.6), k_ads)
 	# --- caméra 3e personne : se rapproche de l'épaule en visant (aussi avec une arme de mêlée en parade)
 	var k_cam := maxf(k_ads, smoothstep(0.0, 1.0, bloque_k) * 0.4)
@@ -708,7 +715,21 @@ func _update_camera(delta: float) -> void:
 ## Désactivé pendant les coups à mains nues, le lancer et les animations verrouillées.
 func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: float) -> void:
 	if bras_ik == null:
+		if arc_modele and is_instance_valid(arc_modele):
+			arc_modele.maj(arc_tension, arc_tension > 0.0 or arc_vise > 0.6)
 		return
+	if cw == "arc" and arc_modele and is_instance_valid(arc_modele):
+		arc_modele.maj(arc_tension, (arc_tension > 0.0 or arc_vise > 0.6) and count("fleche") > 0)
+		bras_ik.arme = arc_modele
+		bras_ik.arc = true
+		bras_ik.arc_vise = arc_vise
+		bras_ik.tension = arc_tension
+		bras_ik.main_g_tendue = false
+		bras_ik.achevement = -1.0
+		bras_ik.poids = move_toward(bras_ik.poids, 1.0 if alive and p_lock <= 0.0 else 0.0, delta * 6.0)
+		bras_ik.cible_visee = _aim_point(80.0)
+		return
+	bras_ik.arc = false
 	var arme_ok := alive and hand_weapon != null and is_instance_valid(hand_weapon)
 	var deux_mains: bool = cwi.get("type", "") == "melee" and cw in FpsArms.TWO_HANDED_MELEE
 	# à deux mains seulement pendant le coup, la charge et la parade (au repos : arme portée d'une main)
@@ -1224,6 +1245,9 @@ func _update_combat(delta: float, can_act: bool) -> void:
 		if reload_t <= 0.0:
 			_finish_reload()
 		return
+	if current_weapon() == "arc":
+		_maj_arc(delta, can_act)
+		return
 	if not can_act or placing != "" or cooldown > 0.0:
 		return
 	var id := current_weapon()
@@ -1658,6 +1682,10 @@ func _refresh_weapon_model() -> void:
 	for c in hand.get_children():
 		c.queue_free()
 	hand_weapon = null
+	if arc_modele and is_instance_valid(arc_modele):
+		arc_modele.queue_free()
+	arc_modele = null
+	arc_tension = 0.0
 	reload_t = 0.0
 	var id := current_weapon()
 	var w := Items.info(id)
@@ -1666,6 +1694,18 @@ func _refresh_weapon_model() -> void:
 	if muzzle_light.get_parent() != self:
 		muzzle_light.get_parent().remove_child(muzzle_light)
 		add_child(muzzle_light)
+	if id == "arc":
+		# arc construit par le code, dans la main gauche (le poing gauche du personnage)
+		arc_modele = preload("res://scripts/arc.gd").new()
+		var main_g: Node3D = modele.find_child("MainSimple_l", true, false)
+		if main_g and bras_ik:
+			main_g.add_child(arc_modele)
+			arc_modele.transform = Transform3D(bras_ik._repere_main.get("_l", Basis.IDENTITY), bras_ik._centre_poing_g)
+		else:
+			hand.add_child(arc_modele)
+			arc_modele.rotation = Vector3(0, PI / 2.0, 0)
+		hand_weapon = arc_modele
+		return
 	if id == "poings":
 		return
 	# modèle 3D de l'arme, dans la main du personnage
@@ -1888,7 +1928,7 @@ func use_item(id: String) -> void:
 			var f := _find_entry(id)
 			if not f.is_empty():
 				equip_entry(f[1], f[0])
-		"melee", "gun":
+		"melee", "gun", "arc":
 			var i := hotbar.find(id)
 			if i < 0:
 				i = hotbar.find("")
@@ -2337,3 +2377,62 @@ func _update_player_anim(delta: float) -> void:
 		_p_anim("visee")
 	else:
 		_p_anim("idle")
+
+
+# ================================================================ arc
+## Tension tant que le clic gauche est maintenu, tir au relâchement (dégâts et vitesse selon la tension).
+const ARC_TENSION_DUREE := 0.9
+const Fleche = preload("res://scripts/fleche.gd")
+var arc_tension := 0.0
+var arc_vise := 0.0                 # 0 = arc baissé, 1 = levé en position de tir
+var arc_plein_t := 0.0              # temps à pleine tension : le bras finit par trembler
+var arc_modele: Node3D = null
+
+
+func _maj_arc(delta: float, can_act: bool) -> void:
+	if not can_act or placing != "":
+		arc_tension = 0.0           # inventaire ouvert pendant la tension : on relâche sans tirer
+		return
+	var tient := Input.is_action_pressed("tirer") and cooldown <= 0.0
+	if tient and arc_tension <= 0.0 and count("fleche") <= 0 and not (Game.admin and Game.admin_munitions):
+		if fire_queued > 0.0:
+			Game.msg("Plus de flèches.")
+			Game.play_ui("clic_vide", -8.0, 0.05, 0.6)
+		fire_queued = 0.0
+		return
+	fire_queued = 0.0
+	if tient:
+		if arc_tension <= 0.0:
+			Game.play_ui("fouille", -12.0, 0.05, 0.55)   # la corde grince
+		arc_tension = minf(1.0, arc_tension + delta / ARC_TENSION_DUREE)
+		if arc_tension >= 1.0:
+			arc_plein_t += delta
+			if arc_plein_t > 2.0:
+				_depenser_endurance(6.0 * delta)
+	elif arc_tension > 0.0:
+		if arc_tension > 0.12:
+			_tirer_fleche(arc_tension)
+			cooldown = 0.45
+		arc_tension = 0.0
+		arc_plein_t = 0.0
+
+
+func _tirer_fleche(k: float) -> void:
+	if not (Game.admin and Game.admin_munitions):
+		remove_item("fleche", 1)
+	var w := Items.info("arc")
+	var origine := lean_pivot.global_position
+	var vise := _aim_point(float(w.range))
+	var dir := (vise - origine).normalized()
+	# précision : meilleure bandé à fond, moins bonne en marchant ou quand le bras tremble
+	var moving := Vector2(velocity.x, velocity.z).length() > 1.0
+	var ecart := deg_to_rad((0.35 + 1.4 * (1.0 - k)) * (1.8 if moving else 1.0) * (1.0 + clampf(arc_plein_t - 2.0, 0.0, 3.0) * 0.5) * (0.75 if prog.a("main_sure") else 1.0))
+	dir = dir.rotated(camera.global_basis.x.normalized(), randf_range(-ecart, ecart)).rotated(Vector3.UP, randf_range(-ecart, ecart))
+	var f = Fleche.new()
+	f.tirer(self, origine + dir * 0.5, dir * lerpf(20.0, 62.0, k), float(w.damage) * (0.25 + 0.75 * k * k))
+	get_parent().add_child(f)
+	Game.play_ui("vent_leger", -6.0, 0.1, 1.7)
+	Game.play_ui("clic_vide", -10.0, 0.05, 0.45)   # claquement de la corde
+	Game.make_noise(global_position, float(w.noise))
+	if count("fleche") <= 0 and not (Game.admin and Game.admin_munitions):
+		Game.msg("Dernière flèche tirée.")

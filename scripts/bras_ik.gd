@@ -23,10 +23,15 @@ var main_g_tendue := false         # lancer de grenade : bras gauche tendu vers 
 var achevement := -1.0             # coup de grâce à l'arme de mêlée : progression 0..1 (-1 = aucun)
 var cible_achev := Vector3.ZERO    # tête du zombie à terre (monde)
 var longueur_arme := 0.6           # longueur de l'arme de mêlée (m), pour amener la lame sur la cible
+var arc := false                   # arc tenu par la main gauche (l'arme est le modèle de l'arc, scripts/arc.gd)
+var arc_vise := 0.0                # 0 = arc baissé, 1 = levé en position de tir
+var tension := 0.0                 # 0..1 : main droite de l'encoche jusqu'à la joue
 
 var _os := {}
 var _repere_main := {}             # côté -> base « repère de la main » exprimée dans le repère de l'os
 var _centre_poing_g := Vector3.ZERO   # centre du poing gauche (mains simples), repère de l'os de la main
+var _centre_poing_d := Vector3.ZERO
+var _tete := -1
 var _vertebres: Array[int] = []       # os du buste penchés vers le point visé
 
 
@@ -37,6 +42,12 @@ func _ready() -> void:
 	var poing_g: Node3D = sk.get_node_or_null("MainSimple_l/Poing")
 	if poing_g:
 		_centre_poing_g = poing_g.position
+	var poing_d: Node3D = sk.get_node_or_null("MainSimple_r/Poing")
+	if poing_d:
+		_centre_poing_d = poing_d.position
+	for n in ["head", "Head", "neck_01"]:
+		if _tete < 0:
+			_tete = sk.find_bone(n)
 	for n in ["spine_01", "spine_02", "spine_03"]:
 		var b := sk.find_bone(n)
 		if b >= 0:
@@ -72,6 +83,9 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var lat_t := (droite - dir_t * droite.dot(dir_t)).normalized()   # paume vers le bas, pouce vers l'intérieur
 		var base_t: Basis = Basis(dir_t, lat_t.cross(dir_t), lat_t) * (_repere_main._l as Basis).inverse()
 		_bras(sk, "_l", Transform3D(base_t, e_g + dir_t * 0.52 - droite * 0.04), e_g - haut * 0.5 - droite * 0.3)
+		return
+	if arc:
+		_arc(sk, inv_sk, droite, haut, avant)
 		return
 	# coup de grâce avec une arme de mêlée : arme levée puis abattue sur la tête du zombie à terre
 	if achevement >= 0.0:
@@ -271,3 +285,46 @@ func _orienter(base: Basis, axe_local: Vector3, voulu: Vector3) -> Basis:
 	if actuel.dot(v) > 0.99999:
 		return base
 	return Basis(Quaternion(actuel, v)) * base
+
+
+## Arc : buste tourné de trois quarts (épaule gauche vers la cible), bras gauche tendu sur la poignée,
+## main droite sur la corde, tirée jusqu'à la joue selon `tension`. Arc baissé : tenu le long du corps.
+func _arc(sk: Skeleton3D, inv_sk: Transform3D, droite: Vector3, haut: Vector3, avant: Vector3) -> void:
+	var k_v := clampf(arc_vise, 0.0, 1.0)
+	var cible := inv_sk * cible_visee
+	# buste : rotation vers la gauche (position de tir de profil) et inclinaison vers le point visé
+	if not _vertebres.is_empty() and k_v > 0.001:
+		var d0 := (cible - sk.get_bone_global_pose(_os.upperarm_r).origin).normalized()
+		var tangage := clampf(asin(clampf(d0.dot(haut), -1.0, 1.0)), -0.8, 0.8) * 0.7
+		for v in _vertebres:
+			var g := sk.get_bone_global_pose(v)
+			var b := Basis(haut, 0.55 * k_v * poids / _vertebres.size()) * Basis(droite, tangage * k_v * poids / _vertebres.size())
+			sk.set_bone_global_pose(v, Transform3D(b * g.basis, g.origin))
+	var e_g := sk.get_bone_global_pose(_os.upperarm_l).origin
+	var e_d := sk.get_bone_global_pose(_os.upperarm_r).origin
+	# point d'ancrage : sous la pommette droite ; la flèche part de là vers la cible
+	var tete := sk.get_bone_global_pose(_tete).origin if _tete >= 0 else (e_d + e_g) * 0.5 + haut * 0.25
+	var ancre := tete - haut * 0.07 + droite * 0.035 + avant * 0.06
+	var dir := (cible - ancre).normalized()
+	# arc levé : poignée à une allonge devant l'ancre ; baissé : main gauche basse, arc incliné vers le sol
+	var z_leve := (haut - dir * haut.dot(dir)).normalized()
+	var leve := Transform3D(Basis(dir.cross(z_leve), dir, z_leve), ancre + dir * 0.66)
+	var y_bas := (avant * 0.55 - haut * 0.8 - droite * 0.1).normalized()
+	var z_bas := (avant - y_bas * avant.dot(y_bas)).normalized()
+	var bas := Transform3D(Basis(y_bas.cross(z_bas), y_bas, z_bas), e_g + avant * 0.18 - haut * 0.42 + droite * 0.05)
+	var w_arc := bas.interpolate_with(leve, smoothstep(0.0, 1.0, k_v))
+	var base_g: Basis = w_arc.basis.orthonormalized() * (_repere_main._l as Basis).inverse()
+	_bras(sk, "_l", Transform3D(base_g, w_arc.origin - base_g * _centre_poing_g), e_g - droite * 0.35 - haut * 0.45)
+	if k_v <= 0.001:
+		return
+	# repère réel de l'arc (le bras a pu ne pas atteindre la cible) : la main droite va sur l'encoche
+	var g_l := sk.get_bone_global_pose(_os.hand_l)
+	var reel := Transform3D(g_l.basis.orthonormalized() * (_repere_main._l as Basis), g_l * _centre_poing_g)
+	var enc: Vector3 = reel * Vector3(0, lerpf(-0.14, -0.64, clampf(tension, 0.0, 1.0)), 0)
+	var dir_r := reel.basis.y.normalized()
+	var z_r := reel.basis.z.normalized()
+	var base_d: Basis = Basis(dir_r, z_r.cross(dir_r), z_r) * (_repere_main._r as Basis).inverse()
+	var p_sauve := poids
+	poids *= k_v
+	_bras(sk, "_r", Transform3D(base_d, enc - base_d * _centre_poing_d), enc + droite * 0.3 - dir_r * 0.3 + haut * 0.05)
+	poids = p_sauve

@@ -827,6 +827,9 @@ func interact(player: Node) -> void:
 				grille.ajouter_entree(player.nouvelle_entree(id))
 			else:
 				grille.ajouter(id, int(found[id]))
+	if int(get_meta("fleches", 0)) > 0:   # flèches restées plantées dans le corps
+		grille.ajouter("fleche", int(get_meta("fleches", 0)))
+		remove_meta("fleches")
 	player.open_storage(self)
 
 

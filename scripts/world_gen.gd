@@ -2802,7 +2802,7 @@ func _camping(p: Vector3, u: Vector3, v: Vector3) -> void:
 ## Caravane (fouillable) : caisse blanche sur roues, bande colorée et vitres.
 func _caravane(c: Vector3, u: Vector3, v: Vector3) -> void:
 	var t := _taille_ab(u, v, 2.3, 6.0, 2.5)
-	_container(c + Vector3(0, 0.35, 0), t, Color(0.92, 0.9, 0.84), "Caravane", "maison", 3)
+	_container(c + Vector3(0, 0.35, 0), t, Color(0.92, 0.9, 0.84), "Caravane", "camping", 3)
 	_box(c + Vector3(0, 1.35, 0), Vector3(t.x + 0.04, 0.18, t.z + 0.04), Color(0.25, 0.45, 0.7), false, "uni")
 	_box(c + Vector3(0, 2.05, 0), Vector3(t.x + 0.03, 0.45, t.z + 0.03) - _taille_ab(u, v, 0.0, 1.2, 0.0), Color(0.12, 0.14, 0.16), false, "vitre")
 	for sgn in [-1.0, 1.0]:
@@ -2814,7 +2814,7 @@ func _tente(c: Vector3, u: Vector3, v: Vector3, col: Color) -> void:
 	var lu := 2.2
 	var lv := 2.6
 	var h := 1.4
-	var ct := _container(c, _taille_ab(u, v, lu, lv, h), col, "Tente", "maison", 1)
+	var ct := _container(c, _taille_ab(u, v, lu, lv, h), col, "Tente", "camping", 1)
 	ct.mesh_i.visible = false
 	var f0 := c - v * lv / 2.0 + Vector3(0, h, 0)
 	var f1 := c + v * lv / 2.0 + Vector3(0, h, 0)
