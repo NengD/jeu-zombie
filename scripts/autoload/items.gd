@@ -27,6 +27,11 @@ const DB := {
 	"essence": {"name": "Jerrican d'essence", "type": "material", "weight": 2.5},
 	"cle_molette": {"name": "Clé à molette", "type": "outil", "weight": 0.5},
 	"plume": {"name": "Plumes", "type": "material", "weight": 0.01, "desc": "Empennage des flèches."},
+	# --- chasse : produits du dépeçage
+	"viande_crue": {"name": "Viande crue", "type": "food", "food": 18.0, "weight": 0.4, "cru": true, "desc": "À cuire au feu de camp ou au brasero. Crue, elle peut rendre malade."},
+	"peau": {"name": "Peau brute", "type": "material", "weight": 0.8, "desc": "À tanner pour obtenir du cuir."},
+	"os": {"name": "Os", "type": "material", "weight": 0.2, "desc": "Pointes de flèches, outils, bouillon."},
+	"graisse": {"name": "Graisse animale", "type": "material", "weight": 0.2, "desc": "Sert au tannage et à la cuisine."},
 	# --- munitions
 	"mun_9mm": {"name": "Balles 9×19 mm", "type": "ammo", "weight": 0.012, "modele": "cart_9mm"},
 	"mun_45": {"name": "Balles .45 ACP", "type": "ammo", "weight": 0.021, "modele": "cart_45"},
@@ -138,7 +143,7 @@ const SIZES := {
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
 	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
-	"couteau_km2000": [1, 2], "arc": [1, 4],
+	"couteau_km2000": [1, 2], "arc": [1, 4], "peau": [2, 2], "viande_crue": [1, 1],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
 	"m4a1": [4, 2], "m5_scw": [3, 2], "urgi": [4, 2], "lr300": [4, 2], "mcx": [4, 2],
@@ -152,7 +157,7 @@ const SIZES := {
 # Quantité maximale par case (piles). Par défaut 1.
 const STACKS := {
 	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "mun_45": 40, "mun_50ae": 28, "mun_46": 60, "mun_545": 60, "mun_762x39": 60,
-	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
+	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "viande_crue": 4, "peau": 2, "os": 6, "graisse": 4, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
 	"poudre": 10, "cuir": 3, "piece_auto": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 }
 
@@ -253,7 +258,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}

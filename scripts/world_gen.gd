@@ -95,6 +95,7 @@ var conteneurs: Array = []   # meubles fouillables, dans l'ordre de génération
 var reserved: Array = []   # Rect2 occupés (pour placer les arbres)
 var guards: Array = []     # zombies à placer : {pos, kind, radius}
 var trees: Array = []      # Vector3
+var champs: Array = []     # Rect2 des champs des fermes (faune : faisans, lapins)
 var spawn_point := Vector3.ZERO
 var spawn_zone: Dictionary = {}
 var half := 0.0
@@ -1553,6 +1554,7 @@ func _farm(c: Vector3, hx: float, hz: float, label: String) -> void:
 		var r := Rect2(fc.x - 20, fc.z - 15, 40, 30)
 		if _overlaps(r):
 			continue
+		champs.append(r)
 		var fcol: Color = [Color(0.45, 0.4, 0.2), Color(0.35, 0.3, 0.18), Color(0.3, 0.38, 0.18)][i % 3]
 		if i % 3 == 2:
 			_flat(r, 0.012, Color(1.0, 0.95, 0.75), "herbe")

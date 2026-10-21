@@ -45,6 +45,9 @@ Décor (tous CC0 — domaine public) :
 — Casiers, classeurs, bureaux, caisses, glissières, cônes, bancs, palettes, cartons : « The Base Mesh » (https://thebasemesh.com)
 — Voitures : « Cars » de Quaternius (https://quaternius.com)
    (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_props.gd)
+— Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius (https://quaternius.com), licence CC0
+   (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_animaux.gd).
+   Sanglier, lapin, faisan, arc et flèches : modèles construits par le code du jeu.
 — Textures photo (asphalte, béton, briques, carrelage, écorce, enduit, herbe, métal, parpaing, parquet, planches,
    roche, terre, toit, tôle, trottoir, tuiles) : Poly Haven (https://polyhaven.com), licence CC0, en 2k
    (outils/godot/installer_textures.gd ; anciennes textures générées dans outils/textures_generees/).

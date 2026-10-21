@@ -59,6 +59,10 @@ func _ready() -> void:
 	var dn = DayNight.new()
 	dn.name = "Cycle"
 	add_child(dn)
+	var faune = preload("res://scripts/faune.gd").new()   # animaux sauvages par cases autour du joueur
+	faune.name = "Faune"
+	add_child(faune)
+	faune.installer(world)
 	zombies_root = Node3D.new()
 	zombies_root.name = "Zombies"
 	add_child(zombies_root)
