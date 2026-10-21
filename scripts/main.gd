@@ -63,6 +63,11 @@ func _ready() -> void:
 	faune.name = "Faune"
 	add_child(faune)
 	faune.installer(world)
+	var recolte = preload("res://scripts/recolte.gd").new()   # arbres, rochers, épaves récoltables
+	recolte.name = "Recolte"
+	add_child(recolte)
+	recolte.installer(world)
+	Game.recolte = recolte
 	zombies_root = Node3D.new()
 	zombies_root.name = "Zombies"
 	add_child(zombies_root)

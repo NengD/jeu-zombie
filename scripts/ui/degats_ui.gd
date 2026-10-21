@@ -18,6 +18,10 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Game.degats_infliges.connect(_on_degats)
+	Game.texte_flottant.connect(func(pos: Vector3, txt: String, col: Color):
+		if nombres.size() >= MAX_NOMBRES:
+			nombres.pop_front()
+		nombres.append({"pos": pos, "txt": txt, "col": col, "taille": 18, "t": 0.0, "dx": 0.0}))
 
 
 func _on_degats(cible: Node3D, montant: float, pos: Vector3, genre: int) -> void:

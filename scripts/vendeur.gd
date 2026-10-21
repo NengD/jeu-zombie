@@ -7,7 +7,7 @@ const ModeleUtil = preload("res://scripts/modele_util.gd")
 
 const METIERS := {
 	"armurier": {"titre": "Armurier", "toile": Color(0.55, 0.16, 0.12), "stock": [
-		"batte", "matraque", "machette", "couteau_km2000", "hache",
+		"batte", "matraque", "machette", "couteau_km2000", "hache", "pioche",
 		"glock19", "m45a1", "mr920", "toz34", "marlin", "mp5k",
 		"mun_9mm", "mun_45", "mun_12", "mun_4570", "mun_762r", "mun_556",
 		"rgd5", "point_rouge", "silencieux_9mm", "chargeur_etendu", "laser"]},

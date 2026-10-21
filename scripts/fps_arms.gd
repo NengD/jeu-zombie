@@ -39,7 +39,7 @@ const POUCE_POSE := {"verticale": Vector3(-0.45, -0.22, -0.86), "garde": Vector3
 const POUCE_RAYON := 0.0115
 const POIGNET := Vector3(0.0, 0.003, 0.052)
 
-const TWO_HANDED_MELEE := ["batte", "batte_cloutee", "hache"]
+const TWO_HANDED_MELEE := ["batte", "batte_cloutee", "hache", "pioche"]
 
 # Poses : angles de flexion (degrés) [1re, 2e, 3e phalange] pour index, majeur, annulaire, auriculaire, puis pouce.
 const POSES := {

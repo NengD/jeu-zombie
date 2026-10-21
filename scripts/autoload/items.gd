@@ -28,6 +28,12 @@ const DB := {
 	"essence": {"name": "Jerrican d'essence", "type": "material", "weight": 2.5},
 	"cle_molette": {"name": "Clé à molette", "type": "outil", "weight": 0.5},
 	"plume": {"name": "Plumes", "type": "material", "weight": 0.01, "desc": "Empennage des flèches."},
+	# --- récolte (hache : arbres ; pioche : rochers ; les deux : épaves de voitures)
+	"buche": {"name": "Bûche", "type": "material", "weight": 2.5, "desc": "Bois coupé à la hache. À fendre en planches à l'établi, ou à brûler."},
+	"pierre": {"name": "Pierre", "type": "material", "weight": 1.2, "desc": "Cassée à la pioche. Foyers, pointes de flèches, ciment."},
+	"minerai": {"name": "Minerai de fer", "type": "material", "weight": 1.5, "desc": "Trouvé parfois en cassant les rochers. Fondu au feu : ferraille."},
+	"pneu": {"name": "Pneu", "type": "material", "weight": 6.0, "desc": "Démonté d'une épave. Barricades lourdes."},
+	"batterie": {"name": "Batterie de voiture", "type": "material", "weight": 9.0, "desc": "Démontée d'une épave. Alimente un projecteur."},
 	# --- chasse : produits du dépeçage
 	"viande_crue": {"name": "Viande crue", "type": "food", "food": 18.0, "weight": 0.4, "cru": true, "desc": "À cuire au feu de camp ou au brasero. Crue, elle peut rendre malade."},
 	"peau": {"name": "Peau brute", "type": "material", "weight": 0.8, "desc": "À tanner pour obtenir du cuir."},
@@ -56,6 +62,7 @@ const DB := {
 	"batte": {"name": "Batte de baseball", "type": "melee", "damage": 36.0, "rate": 0.8, "range": 2.2, "stamina": 14.0, "len": 0.85, "color": Color(0.55, 0.38, 0.2), "weight": 1.0},
 	"batte_cloutee": {"name": "Batte cloutée", "type": "melee", "damage": 52.0, "rate": 0.85, "range": 2.2, "stamina": 15.0, "len": 0.85, "color": Color(0.45, 0.3, 0.18), "weight": 1.2},
 	"machette": {"name": "Machette", "type": "melee", "damage": 46.0, "rate": 0.6, "range": 2.0, "stamina": 11.0, "len": 0.6, "color": Color(0.6, 0.62, 0.65), "weight": 0.8},
+	"pioche": {"name": "Pioche", "type": "melee", "damage": 60.0, "rate": 1.2, "range": 2.1, "stamina": 22.0, "len": 0.85, "color": Color(0.45, 0.45, 0.47), "weight": 2.6, "desc": "Arme lourde ; casse les rochers (pierre, minerai) et démonte les épaves."},
 	"hache": {"name": "Hache", "type": "melee", "damage": 65.0, "rate": 1.05, "range": 2.1, "stamina": 20.0, "len": 0.75, "color": Color(0.5, 0.15, 0.1), "weight": 1.8},
 	"matraque": {"name": "Matraque", "type": "melee", "damage": 30.0, "rate": 0.55, "range": 1.9, "stamina": 9.0, "len": 0.55, "color": Color(0.1, 0.1, 0.1), "weight": 0.6},
 	"couteau_km2000": {"name": "Couteau de combat KM2000", "type": "melee", "damage": 31.0, "rate": 0.4, "range": 1.7, "stamina": 7.0, "len": 0.3, "color": Color(0.2, 0.2, 0.2), "weight": 0.35},
@@ -145,7 +152,8 @@ const DB := {
 # Taille dans l'inventaire (largeur, hauteur en cases). Par défaut 1×1.
 const SIZES := {
 	"eau": [1, 2], "ration": [1, 2], "trousse": [2, 2], "alcool": [1, 2], "planche": [1, 3], "cuir": [2, 1],
-	"matraque": [1, 3], "machette": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4],
+	"matraque": [1, 3], "machette": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4], "pioche": [2, 4],
+	"buche": [1, 2], "pneu": [2, 2], "batterie": [2, 1],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4], "sac_chasse": [3, 3], "capuche_cuir": [2, 2], "ragout": [1, 2], "bouillon": [1, 2],
@@ -165,7 +173,7 @@ const SIZES := {
 const STACKS := {
 	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "mun_45": 40, "mun_50ae": 28, "mun_46": 60, "mun_545": 60, "mun_762x39": 60,
 	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "viande_crue": 4, "peau": 2, "os": 6, "graisse": 4, "viande_cuite": 4, "medicament": 5, "collet": 5, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
-	"poudre": 10, "cuir": 3, "piece_auto": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
+	"poudre": 10, "cuir": 3, "piece_auto": 3, "buche": 4, "pierre": 10, "minerai": 10, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 }
 
 # Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
@@ -201,6 +209,17 @@ const RECIPES := [
 	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 3},
 	{"out": "marteau", "qty": 1, "needs": {"ferraille": 2, "planche": 1}, "cat": "outils", "station": "", "duree": 4.0, "niv": 0},
 	{"out": "ferraille", "qty": 2, "needs": {"piece_auto": 1}, "cat": "outils", "station": "", "duree": 3.0, "niv": 0},
+	# --- ressources récoltées (bûches, pierres, minerai, pièces d'épaves)
+	{"out": "planche", "qty": 3, "needs": {"buche": 1}, "cat": "outils", "station": "etabli", "duree": 5.0, "niv": 0},
+	{"out": "planche", "qty": 1, "needs": {"buche": 1}, "cat": "outils", "station": "", "duree": 8.0, "niv": 0},
+	{"out": "ferraille", "qty": 2, "needs": {"minerai": 2, "buche": 1}, "cat": "outils", "station": "feu", "duree": 12.0, "niv": 2},
+	{"out": "ciment", "qty": 1, "needs": {"pierre": 4, "eau": 1}, "cat": "construction", "station": "etabli", "duree": 10.0, "niv": 2},
+	{"out": "pioche", "qty": 1, "needs": {"ferraille": 4, "buche": 1, "ruban": 1}, "cat": "armes", "station": "etabli", "duree": 14.0, "niv": 2},
+	{"out": "hache", "qty": 1, "needs": {"ferraille": 3, "buche": 1, "ruban": 1}, "cat": "armes", "station": "etabli", "duree": 12.0, "niv": 1},
+	{"out": "feu_camp", "qty": 1, "needs": {"buche": 2, "pierre": 3}, "cat": "construction", "station": "", "duree": 4.0, "niv": 0},
+	{"out": "barricade", "qty": 1, "needs": {"pneu": 2, "planche": 1}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
+	{"out": "projecteur", "qty": 1, "needs": {"batterie": 1, "ferraille": 2, "ruban": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 2},
+	{"out": "fleche", "qty": 4, "needs": {"planche": 1, "plume": 2, "pierre": 1}, "cat": "munitions", "station": "", "duree": 6.0, "niv": 1},
 	{"out": "batte_cloutee", "qty": 1, "needs": {"batte": 1, "clous": 6, "ruban": 1}, "cat": "armes", "station": "etabli", "duree": 5.0, "niv": 1},
 	{"out": "arc", "qty": 1, "needs": {"planche": 2, "cuir": 1, "tissu": 2}, "cat": "armes", "station": "etabli", "duree": 12.0, "niv": 2},
 	{"out": "fleche", "qty": 5, "needs": {"planche": 1, "plume": 2, "ferraille": 1}, "cat": "munitions", "station": "", "duree": 5.0, "niv": 1},
@@ -230,7 +249,7 @@ const LOOT := {
 	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
 	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
-	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
+	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["pioche", 1.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
 	"hopital": [["medicament", 6, 1, 2], ["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
 	"pharmacie": [["medicament", 8, 1, 2], ["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
 	"garage": [["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
@@ -247,13 +266,13 @@ const LOOT := {
 		["urgi", 1.5, 1, 1], ["mcx", 1.2, 1, 1], ["ak74m", 1.2, 1, 1], ["draco", 1, 1, 1], ["uar10", 1, 1, 1], ["mcx_spear", 0.8, 1, 1], ["spear_assaulter", 0.8, 1, 1], ["l96", 0.6, 1, 1], ["c14", 0.4, 1, 1], ["mg5", 0.4, 1, 1], ["gepard", 0.2, 1, 1],
 		["lunette_uar", 1.5, 1, 1], ["lunette_hawke", 1, 1, 1], ["lunette_sb", 0.6, 1, 1], ["viseur_holo", 1.5, 1, 1], ["silencieux_socom", 0.8, 1, 1], ["silencieux_762", 1, 1, 1], ["silencieux_slx", 0.6, 1, 1], ["frein_762", 1.2, 1, 1], ["silencieux_mp7", 0.6, 1, 1]],
 	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["batte", 1, 1, 1], ["ciment", 1.5, 1, 1]],
-	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
+	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
 	"camp_bandit": [["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
 		["bandage", 6, 1, 3], ["trousse", 2, 1, 1], ["antidouleur", 4, 1, 2], ["conserve", 6, 1, 3], ["eau", 5, 1, 2], ["alcool", 4, 1, 2],
 		["ferraille", 5, 1, 3], ["poudre", 4, 1, 3], ["glock19", 1.5, 1, 1], ["mr920", 1, 1, 1], ["draco", 0.6, 1, 1], ["rgd5", 1.2, 1, 2],
 		["point_rouge", 0.8, 1, 1], ["silencieux_9mm", 0.6, 1, 1], ["machette", 1.5, 1, 1], ["sac_a_dos", 1, 1, 1], ["gilet_police", 0.6, 1, 1]],
 	"camping": [["conserve", 10, 1, 2], ["eau", 10, 1, 2], ["barre", 8, 1, 3], ["soda", 6, 1, 2], ["tissu", 8, 1, 3], ["bandage", 5, 1, 2], ["alcool", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["hache", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["fleche", 4, 3, 8], ["sac_a_dos", 1.5, 1, 1], ["ruban", 3, 1, 1], ["mun_12", 0.8, 2, 4]],
-	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
+	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
 	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["mun_545", 3, 6, 15], ["mun_45", 3, 4, 10], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3],
 		["glock19", 1.2, 1, 1], ["desert_eagle", 0.5, 1, 1], ["mp5k", 0.6, 1, 1], ["toz34", 0.6, 1, 1], ["ak74", 0.4, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["chargeur_etendu", 1, 1, 1]],
 	"boss": [["mun_762", 8, 30, 60], ["mun_338", 4, 10, 20], ["mun_127", 3, 5, 10], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["rgd5", 5, 2, 4],
@@ -274,7 +293,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}

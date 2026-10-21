@@ -66,7 +66,7 @@ var fire_queued := 0.0
 const ARME_COUP := 0.3            # progression où l'arme est ramenée en arrière (tenue pendant la charge)
 const IMPACT_COUP := 0.45         # progression où le coup porte
 const LAMES := ["hache", "machette", "couteau_km2000"]
-const CONTONDANTES := ["batte", "batte_cloutee", "matraque"]
+const CONTONDANTES := ["batte", "batte_cloutee", "matraque", "pioche"]
 const BALAYAGE := ["batte", "batte_cloutee", "machette"]   # alternent coup vers l'avant et balayage latéral
 var coup_lateral := false         # le coup en cours est un balayage (de droite à gauche)
 var increvable_jour := -1         # jour où le talent Increvable a servi
@@ -1498,7 +1498,11 @@ func _porter_coup(w: Dictionary, dmg: float) -> void:
 			elif float(w.get("weight", 0.0)) >= 1.5 or (id in CONTONDANTES and prog.a("frappeur")):
 				hit.collider.repousser(dir, 3.0, 0.6)
 	elif not hit.is_empty():
-		Game.play_3d("impact_mur", hit.position, -6.0, 0.2, 20.0)
+		# hache, pioche : coup porté à un arbre, un rocher ou une épave (récolte)
+		if Game.recolte and Game.recolte.frapper(hit.position, dir, id, self):
+			secousse = maxf(secousse, 0.45)
+		else:
+			Game.play_3d("impact_mur", hit.position, -6.0, 0.2, 20.0)
 
 
 func _maj_melee(delta: float) -> void:

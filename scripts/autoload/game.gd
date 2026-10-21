@@ -5,6 +5,8 @@ signal noise_made(pos: Vector3, radius: float)
 signal notify(text: String)
 signal hit_confirmed(headshot: bool, kill: bool)
 signal degats_infliges(cible: Node3D, montant: float, pos: Vector3, genre: int)   # genre : 0 normal, 1 tête, 2 critique
+signal texte_flottant(pos: Vector3, texte: String, couleur: Color)   # (récolte : coups portés)
+var recolte: Node = null           # scripts/recolte.gd (arbres, rochers, épaves)
 var coup_critique := false         # le coup en cours du joueur est un coup critique (talent)
 var explosion_joueur := false      # dégâts d'une grenade lancée par le joueur en cours
 signal player_died

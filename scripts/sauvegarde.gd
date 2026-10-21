@@ -100,6 +100,8 @@ static func sauver(main: Node) -> bool:
 		if is_instance_valid(c) and (c.searched or c.grille != null):
 			cont[str(c.uid)] = {"f": c.searched, "g": grille_vers(c.grille) if c.grille else null}
 	d["conteneurs"] = cont
+	if Game.recolte and is_instance_valid(Game.recolte):
+		d["recolte"] = Game.recolte.etat()
 	if main.has_method("etat_camps"):
 		d["camps"] = main.etat_camps()
 		d["primes"] = main.primes_payees
@@ -158,6 +160,9 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 	if int(d.get("monde", 1)) != main.world.VERSION_MONDE:
 		cont = {}
 		d.erase("portes")
+		d.erase("recolte")
+	if d.has("recolte") and Game.recolte:
+		Game.recolte.appliquer(d.recolte)
 	for c in main.world.conteneurs:
 		var k := str(c.uid)
 		if cont.has(k):

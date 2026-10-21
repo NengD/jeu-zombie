@@ -38,6 +38,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Viser la tête inflige 2,5× plus de dégâts et ignore l'armure des zombies policiers et militaires.
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
+• Chaque coup affiche ses [b]dégâts[/b] au-dessus de la cible (orange : tir à la tête, doré : coup critique) ;
+  une petite [b]barre de vie[/b] apparaît au-dessus des ennemis touchés ou visés, puis s'efface.
 
 [b]INVENTAIRE[/b]
 • Chaque objet occupe des cases : une conserve 1×1, une batte 1×4, un sac 3×3…
@@ -104,6 +106,15 @@ const GUIDE := """[b]LES BASES[/b]
   approche accroupi, caché dans les buissons. Le sanglier peut charger !
 • Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
 • Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
+
+[b]RÉCOLTE : HACHE ET PIOCHE[/b]
+• Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,
+  il reste une souche), la [b]pioche[/b] brise les rochers (pierres, parfois du minerai de fer ou de la ferraille), et
+  les deux démontent les [b]épaves de voitures[/b] (ferraille, pièces auto, pneu, batterie, essence, tissu ; l'épave vidée noircit).
+• Les coups font du bruit (les zombies viennent voir). Rien ne repousse, mais il y a des milliers d'arbres et de rochers.
+• Bûche → 3 planches à l'établi (1 seule à la main) ; minerai + bûche → ferraille au feu ; 4 pierres + eau → ciment (établi) ;
+  feu de camp en pierres et bûches ; barricade de pneus ; projecteur sur batterie ; flèches à pointe de pierre.
+• La pioche (quincaillerie, fermes, granges, ou établi : 4 ferrailles + 1 bûche + 1 ruban) est aussi une arme lourde.
 
 [b]CUISINE ET MALADIE[/b]
 • Au feu de camp ou au brasero : viande cuite, bouillon d'os, ragoût de chasse ; tannage (2 peaux + 1 graisse → 1 cuir).

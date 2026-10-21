@@ -95,6 +95,12 @@ var conteneurs: Array = []   # meubles fouillables, dans l'ordre de génération
 var reserved: Array = []   # Rect2 occupés (pour placer les arbres)
 var guards: Array = []     # zombies à placer : {pos, kind, radius}
 var trees: Array = []      # Vector3
+# récolte (scripts/recolte.gd) : par arbre [clé du MultiMesh, n° d'instance, collision, transform] ;
+# rochers et épaves : {n: modèle, cs: collision, k: taille}, dans l'ordre de génération (même graine = mêmes numéros)
+var arbres_ref: Array = []
+var arbres_mm := {}
+var rochers: Array = []
+var epaves: Array = []
 var champs: Array = []     # Rect2 des champs des fermes (faune : faisans, lapins)
 var spawn_point := Vector3.ZERO
 var spawn_zone: Dictionary = {}
@@ -452,6 +458,10 @@ func _prop(id: String, pos: Vector3, ang: float, solide := true, k := 1.0, dist 
 			add_child(b)
 			bodies[kch] = b
 		bodies[kch].add_child(cs)
+		if id == "rocher":
+			rochers.append({"n": n, "cs": cs, "k": k})
+		elif id.begins_with("voiture"):
+			epaves.append({"n": n, "cs": cs, "k": k})
 	return n
 
 
@@ -1705,6 +1715,7 @@ func _trees() -> void:
 			add_child(b)
 			corps_cases[kc] = b
 		corps_cases[kc].add_child(cs)
+		arbres_ref.append([cle, groupes[cle].size() - 1, cs, groupes[cle][-1]])
 	if not modeles_ok:
 		return
 	for cle in groupes:
@@ -1719,6 +1730,7 @@ func _trees() -> void:
 		mmi.multimesh = mm
 		mmi.visibility_range_end = 450.0
 		add_child(mmi)
+		arbres_mm[cle] = mm
 
 
 ## Buissons, rochers, souches et troncs morts dans la campagne ; buissons dans les jardins.
