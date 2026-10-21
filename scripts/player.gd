@@ -111,6 +111,12 @@ var reload_total := 1.0
 # --- tenue de l'arme en vue 1re personne
 var rec_vel := Vector3.ZERO
 var rec_rot := Vector3.ZERO
+var recul_profil: Dictionary = {}   # Items.RECUL_FAMILLE de la dernière arme tirée
+var recul_a_venir := 0.0            # tangage du recul pas encore appliqué à la visée (rad)
+var recul_cumul := 0.0              # tangage du recul appliqué, rendu peu à peu (rad)
+var recul_depuis := 9.0             # secondes depuis le dernier tir
+var arme_rec := Vector3.ZERO        # coup de l'arme tenue : x = relevée (rad), y = vers l'arrière (m), z = roulis
+var arme_rec_v := Vector3.ZERO
 var rec_rvel := Vector3.ZERO
 var ads := 0.0                    # 0 = à la hanche, 1 = en visée
 var sprint_k := 0.0
@@ -259,6 +265,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM if aiming else 1.0)
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
+		if event.relative.y > 0.0:   # le joueur compense le recul lui-même : rien à rendre
+			recul_cumul = maxf(0.0, recul_cumul - event.relative.y * sens)
 		return
 	if placing == "construction":
 		if constructeur.entree(event):
@@ -660,7 +668,7 @@ func _update_camera(delta: float) -> void:
 	camera.fov = lerpf(FOV, lerpf(FOV, fov_vise, 0.6), k_ads)
 	# --- caméra 3e personne : se rapproche de l'épaule en visant (aussi avec une arme de mêlée en parade)
 	var k_cam := maxf(k_ads, smoothstep(0.0, 1.0, bloque_k) * 0.4)
-	bras_camera.spring_length = lerpf(CAM_DIST, CAM_DIST_VISEE, k_cam) * (0.85 if crouching else 1.0)
+	bras_camera.spring_length = lerpf(CAM_DIST, CAM_DIST_VISEE, k_cam) * (0.85 if crouching else 1.0) + maxf(arme_rec.y, 0.0) * 1.5
 	bras_camera.position = CAM_EPAULE.lerp(CAM_EPAULE_VISEE, k_cam)
 	var hs := Vector2(velocity.x, velocity.z).length()
 	sprint_k = move_toward(sprint_k, 1.0 if (sprinting and hs > 3.0 and is_on_floor() and reload_t <= 0.0) else 0.0, delta * 5.0)
@@ -675,6 +683,10 @@ func _update_camera(delta: float) -> void:
 		reste -= dt
 		rec_rvel += (-rec_rot * 170.0 - rec_rvel * 17.0) * dt
 		rec_rot += rec_rvel * dt
+		if not recul_profil.is_empty():
+			arme_rec_v += (-arme_rec * float(recul_profil.raideur) - arme_rec_v * float(recul_profil.amort)) * dt
+			arme_rec += arme_rec_v * dt
+	_maj_recul_visee(delta)
 	# léger recul de la caméra à chaque tir
 	camera.rotation = Vector3(rec_rot.x * 0.25, 0.0, 0.0)
 	_maj_melee(delta)
@@ -788,6 +800,7 @@ func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: f
 	bras_ik.visee = move_toward(bras_ik.visee, en_joue, delta * 8.0)
 	bras_ik.sprint = 0.0 if bras_ik.recharge else smoothstep(0.0, 1.0, sprint_k)
 	bras_ik.cible_visee = _aim_point(80.0)
+	bras_ik.recul_arme = arme_rec
 
 
 ## Copie du chargeur de l'arme tenue, portée par la main gauche pendant le rechargement.
@@ -1286,6 +1299,27 @@ func _aim_point(max_range: float) -> Vector3:
 	return hit.position
 
 
+## Recul de la visée : le tangage du tir monte selon la famille (sec pour un pistolet, en douceur pour un
+## fusil de précision), puis revient doucement au centre ; ce que le joueur a déjà compensé à la souris n'est pas rendu.
+func _maj_recul_visee(delta: float) -> void:
+	if recul_profil.is_empty():
+		return
+	recul_depuis += delta
+	var avant := head.rotation.x
+	if recul_a_venir > 0.0:
+		var part := recul_a_venir * (1.0 - exp(-float(recul_profil.montee) * delta))
+		if recul_a_venir < 0.0005:
+			part = recul_a_venir
+		recul_a_venir -= part
+		head.rotation.x = clampf(head.rotation.x + part, -1.45, 1.45)
+		recul_cumul += head.rotation.x - avant
+	# retour au centre, aussi entre deux balles d'une rafale (la montée se stabilise : rafale contrôlable)
+	if recul_cumul > 0.0 and recul_depuis > float(recul_profil.delai):
+		var ret := minf(recul_cumul, maxf(recul_cumul * (1.0 - exp(-float(recul_profil.retour) * delta)), 0.01 * delta))
+		recul_cumul -= ret
+		head.rotation.x = clampf(head.rotation.x - ret, -1.45, 1.45)
+
+
 func _fire_gun(id: String, w: Dictionary) -> void:
 	if int(mags.get(id, 0)) <= 0:
 		cooldown = 0.3
@@ -1312,12 +1346,18 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 			touche = true
 	if touche:
 		prog.gagner("combat", 2)   # XP de combat aussi avec les armes à feu
-	head.rotation.x = clampf(head.rotation.x + float(w.recoil), -1.45, 1.45)
-	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * 0.3)
+	# recul propre à la famille de l'arme : la visée monte (vite ou en douceur), puis revient au centre
+	recul_profil = Items.RECUL_FAMILLE.get(w.get("famille", ""), Items.RECUL_FAMILLE.fusil)
+	var rp: Dictionary = recul_profil
+	recul_a_venir += float(w.recoil) * float(rp.haut)
+	recul_depuis = 0.0
+	rotate_y(randf_range(-1.0, 1.0) * float(w.recoil) * float(rp.lat))
 	# recul visible de l'arme (moins fort en visée, l'épaule encaisse)
-	var force := clampf(float(w.recoil) * 14.0, 0.35, 1.6) * (0.55 if aiming else 1.0)
-	rec_vel += Vector3(randf_range(-0.12, 0.12), 0.18, 1.5) * force
-	rec_rvel += Vector3(2.6, randf_range(-0.5, 0.5), randf_range(-0.9, 0.9)) * force
+	var force := clampf(float(w.recoil) * 14.0, 0.3, 2.2) * (0.7 if aiming else 1.0)
+	var omega := sqrt(float(rp.raideur)) * 1.5
+	arme_rec_v += Vector3(float(rp.arme_rot), float(rp.arme_recul), randf_range(-0.3, 0.3) * float(rp.arme_rot)) * force * omega
+	var sec := force * float(rp.secousse) * (0.55 if aiming else 1.0)
+	rec_rvel += Vector3(2.6, randf_range(-0.5, 0.5), randf_range(-0.9, 0.9)) * sec
 	muzzle_t = 0.05
 	shoot_pose_t = 1.5
 	_effets_tir(id, w)

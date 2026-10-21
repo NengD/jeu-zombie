@@ -26,7 +26,8 @@ var longueur_arme := 0.6           # longueur de l'arme de mêlée (m), pour ame
 var arc := false                   # arc tenu par la main gauche (l'arme est le modèle de l'arc, scripts/arc.gd)
 var arc_vise := 0.0                # 0 = arc baissé, 1 = levé en position de tir
 var tension := 0.0                 # 0..1 : main droite de l'encoche jusqu'à la joue
-var allonge := 0.64                # distance poignée -> ancre calculée (corde à pleine tension), lue par l'arc
+var recul_arme := Vector3.ZERO     # coup du tir : x = canon relevé (rad), y = arme poussée en arrière (m), z = roulis
+var allonge := 0.64               # distance poignée -> ancre calculée (corde à pleine tension), lue par l'arc
 const ARC_ROT_BUSTE := 1.0         # buste tourné de profil en position de tir (rad)
 
 var _os := {}
@@ -130,6 +131,11 @@ func _process_modification_with_delta(_delta: float) -> void:
 			w_sprint = Transform3D(_base_canon((haut * 0.5 + avant * 0.35 - droite * 0.8).normalized(), haut), epaule_d + avant * 0.2 - haut * 0.32 - droite * 0.02)
 		w_repos = w_repos.interpolate_with(w_sprint, sprint)
 	var w_arme := w_repos.interpolate_with(w_joue, visee)
+	# recul du tir : canon relevé autour de la poignée, arme poussée vers l'épaule
+	if recul_arme != Vector3.ZERO and not recharge:
+		var bw := w_arme.basis.orthonormalized()
+		w_arme.basis = Basis(bw.z, recul_arme.z) * Basis(bw.x, recul_arme.x) * w_arme.basis
+		w_arme.origin += bw.z * recul_arme.y + haut * recul_arme.y * 0.3
 	# rechargement : arme ramenée devant le torse et inclinée (décalages exprimés dans le repère du personnage)
 	if recharge:
 		var rc := Basis(droite, haut, -avant)

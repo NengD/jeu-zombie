@@ -297,6 +297,21 @@ const PRIX := {
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
+## Recul par famille d'arme (la valeur « recoil » de chaque arme reste la base) :
+## haut / lat = part du recul en tangage / en lacet ; montee = vitesse à laquelle la visée monte (1/s) ;
+## retour = vitesse du retour au centre (1/s) après delai (s) sans tirer ; arme_rot (rad) / arme_recul (m) = coup
+## de l'arme tenue (relevée, poussée vers l'arrière) ; raideur / amort = ressort de l'arme ; secousse = caméra.
+const RECUL_FAMILLE := {
+	"pistolet": {"haut": 1.0, "lat": 0.35, "montee": 45.0, "retour": 8.0, "delai": 0.06, "arme_rot": 0.45, "arme_recul": 0.15, "raideur": 520.0, "amort": 34.0, "secousse": 0.8},
+	"smg": {"haut": 0.75, "lat": 0.45, "montee": 30.0, "retour": 9.0, "delai": 0.045, "arme_rot": 0.3, "arme_recul": 0.12, "raideur": 320.0, "amort": 26.0, "secousse": 0.5},
+	"fusil": {"haut": 0.8, "lat": 0.22, "montee": 26.0, "retour": 7.0, "delai": 0.05, "arme_rot": 0.25, "arme_recul": 0.12, "raideur": 280.0, "amort": 24.0, "secousse": 0.6},
+	"ak": {"haut": 0.9, "lat": 0.35, "montee": 26.0, "retour": 6.5, "delai": 0.05, "arme_rot": 0.27, "arme_recul": 0.13, "raideur": 260.0, "amort": 22.0, "secousse": 0.7},
+	"mitrailleuse": {"haut": 0.75, "lat": 0.4, "montee": 24.0, "retour": 6.0, "delai": 0.05, "arme_rot": 0.2, "arme_recul": 0.1, "raideur": 240.0, "amort": 22.0, "secousse": 0.7},
+	"dmr": {"haut": 1.05, "lat": 0.3, "montee": 22.0, "retour": 5.0, "delai": 0.1, "arme_rot": 0.25, "arme_recul": 0.1, "raideur": 200.0, "amort": 18.0, "secousse": 0.9},
+	"pompe": {"haut": 1.45, "lat": 0.5, "montee": 22.0, "retour": 3.2, "delai": 0.16, "arme_rot": 0.32, "arme_recul": 0.1, "raideur": 140.0, "amort": 13.0, "secousse": 1.7},
+	"levier": {"haut": 1.2, "lat": 0.3, "montee": 20.0, "retour": 3.5, "delai": 0.15, "arme_rot": 0.25, "arme_recul": 0.08, "raideur": 140.0, "amort": 13.0, "secousse": 1.3},
+	"sniper": {"haut": 1.25, "lat": 0.2, "montee": 18.0, "retour": 2.8, "delai": 0.22, "arme_rot": 0.22, "arme_recul": 0.075, "raideur": 120.0, "amort": 12.0, "secousse": 1.4},
+}
 const PRIX_MUNITION := {"mun_9mm": 1, "mun_45": 1, "mun_46": 2, "mun_12": 2, "mun_4570": 3, "mun_50ae": 3, "mun_545": 2, "mun_556": 2, "mun_762x39": 2, "mun_762": 3, "mun_762r": 2, "mun_338": 6, "mun_127": 8}
 
 
