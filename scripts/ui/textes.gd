@@ -86,12 +86,37 @@ const GUIDE := """[b]LES BASES[/b]
 • Clic droit sur un emplacement pour le vider.
 • Une arme dans un emplacement se prend en main ; un consommable (bandage, eau…) s'utilise directement.
 
+[b]FABRICATION[/b] (Tab, onglet Fabrication)
+• Les recettes sont rangées par catégorie : outils et matériaux, armes, munitions, soins, nourriture, vêtements, construction.
+• Ingrédients que tu as en vert, ceux qui manquent en rouge. Chaque recette demande une station, un niveau de fabrication
+  et un temps (plus court quand le niveau monte). Fabrique ×1, ×5 ou le maximum ; la barre montre la progression
+  (tu peux marcher pendant ce temps, mais un coup reçu ou une station trop loin interrompt la série).
+• Stations à fabriquer et à poser : établi, [b]feu de camp[/b] (2 planches + 1 tissu, se pose dehors ; les braseros des camps
+  servent aussi) et [b]plan de couture[/b] (3 planches + 4 clous + 2 tissus). [F] sur une station ouvre la fabrication.
+
+[b]ARC ET CHASSE[/b]
+• Arc (fermes, camping, ou établi : 2 planches + 1 cuir + 2 tissus). Maintiens le clic gauche pour bander, relâche pour tirer :
+  plus la corde est tendue, plus la flèche va loin et fait mal. Clic droit : lever l'arc et viser. Les traits sous le viseur
+  montrent où tombe la flèche à 20, 40 et 60 m. Presque silencieux.
+• Flèches : 1 planche + 2 plumes (ou 1 tissu) + 1 ferraille, ou 1 os pour la pointe. Plantées dans le décor, on les ramasse
+  souvent ([F]) ; dans un animal ou un zombie, on les retrouve parfois en dépeçant ou en fouillant le corps.
+• Animaux : cerfs, biches et sangliers en forêt, faisans et lapins dans les champs. Ils entendent les bruits et te voient de loin :
+  approche accroupi, caché dans les buissons. Le sanglier peut charger !
+• Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
+• Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
+
+[b]CUISINE ET MALADIE[/b]
+• Au feu de camp ou au brasero : viande cuite, bouillon d'os, ragoût de chasse ; tannage (2 peaux + 1 graisse → 1 cuir).
+• Au plan de couture : veste et capuche de cuir, sac de chasse, sac à dos.
+• Manger de la viande crue peut rendre malade (intoxication) : faim et soif baissent vite, endurance réduite, nausées.
+  Ça passe avec le temps, ou tout de suite avec des médicaments anti-nausée (pharmacies, hôpitaux).
+
 [b]CONSTRUIRE SA BASE[/b]
 1. Fabrique un établi (Tab) : 4 planches + 6 clous + 2 ferrailles.
 2. Vide un bâtiment de tous ses zombies : le coin en haut à droite affiche « bâtiment sûr ».
 3. Dans l'inventaire, sélectionne l'établi puis « Utiliser » : un fantôme vert apparaît.
    Clic gauche pour poser, molette ou R pour tourner, clic droit pour annuler.
-4. Près de l'établi, les recettes [établi] se débloquent : munitions, armes, vestes, sac à dos, caisse de stockage…
+4. Près de l'établi, ses recettes se débloquent : munitions, armes, caisse de stockage… (voir FABRICATION).
 5. Les barricades se posent n'importe où, par exemple dans une porte. Les zombies peuvent les casser.
 
 [b]CONSTRUIRE TA PROPRE MAISON[/b] (marteau : 2 ferrailles + 1 planche)
