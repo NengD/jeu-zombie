@@ -13,7 +13,8 @@
 - Vérifier visuellement le minimum : une ou deux armes représentatives, images réduites, pas de rendu de toutes les armes.
 - Filtrer les sorties de commandes (grep, tail) pour ne garder que les erreurs et les résultats utiles.
 - Réponses courtes : ce qui a été fait, puis la liste d'améliorations (3 à 6 idées, une ligne chacune).
-- Pour une grosse demande, faire un plan court et avancer étape par étape ; proposer une nouvelle session quand la conversation devient longue.
+- Pour une grosse demande, faire un plan court et avancer étape par étape.
+- **Avant chaque série de changements, juger s'il vaut mieux démarrer une nouvelle session** (ou confier le travail à une session existante qui a déjà le contexte) et le dire à l'utilisateur : oui si la conversation est déjà longue, si la demande est un gros chantier indépendant, ou si elle peut avancer en parallèle ; non pour une petite retouche ou une suite directe de ce qui vient d'être fait. Deux sessions ne modifient jamais les mêmes fichiers en même temps dans ce dossier.
 
 ## Projet
 - Jeu de survie zombie en monde ouvert, **Godot 4.7.2** (GDScript), dossier de projet : `E:\_jeu perso\JeuZombie\jeu-zombie`.
