@@ -93,9 +93,14 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 			else:
 				c = Color(c.r * teinte.r, c.g * teinte.g, c.b * teinte.b)
 				if zombie:
-					# vêtements sales et délavés
+					# vêtements sales et délavés (les déchirures sont peintes par le calque de sang)
 					c = c.lerp(Color(c.v, c.v, c.v), 0.4).lerp(Color(0.28, 0.24, 0.18), 0.25 * a.sale).darkened(0.15)
 			m3.set_surface_override_material(s, _recolore(base, c))
+		if zombie:
+			m3.set_instance_shader_parameter("dechire", clampf(0.35 + a.sale * 0.6, 0.0, 1.0))
+			m3.set_instance_shader_parameter("sale", a.sale)
+			m3.set_instance_shader_parameter("peau", peau)
+			m3.set_instance_shader_parameter("graine", a.graine)
 		if sang_mat:
 			m3.material_overlay = sang_mat
 			m3.set_instance_shader_parameter("sang", a.sang if zombie else 0.0)
@@ -304,3 +309,4 @@ static func _teinter_cheveux(mi: MeshInstance3D, c: Color, zombie: bool) -> void
 
 static func _rgb(c: Color) -> Vector3:
 	return Vector3(c.r, c.g, c.b)
+

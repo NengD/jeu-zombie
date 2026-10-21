@@ -53,6 +53,7 @@ var demembre: Node = null
 var aspect := {}            # apparence (couleurs des morceaux arrachés)
 var squelette: Skeleton3D = null
 var pieds_ik = null                 # pieds posés sur le sol (scripts/pieds_ik.gd)
+var allure := randf_range(0.82, 1.18)   # cadence propre à chaque zombie (démarches variées)
 var a_terre := 0.0          # renversé : reste au sol, peut être achevé
 var etourdi := 0.0          # repoussé par une parade ou un coup lourd : ne peut plus attaquer un instant
 var ralenti_t := 0.0        # empêtré dans des barbelés / des piques
@@ -194,6 +195,8 @@ func _apply_look() -> void:
 			pieds_ik.masque = Game.LAYER_WORLD
 			pieds_ik.active = false
 			squelette.add_child(pieds_ik)
+			# chaque zombie a sa démarche : buste penché d'un côté, plus ou moins voûté
+			pieds_ik.penche = randf_range(-0.22, 0.22)
 		_armer()
 		if ap:
 			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
@@ -857,11 +860,11 @@ func _update_anim(delta: float) -> void:
 		_anim("rampe", clampf(hs / 0.55, 0.25, 2.0) if hs > 0.05 else 0.25)
 		return
 	if hs > 2.0 / echelle:
-		_anim("course", clampf(hs / (3.1 if anim_noms else 3.0), 0.6, 1.8))
+		_anim("course", clampf(hs / (3.1 if anim_noms else 3.0), 0.6, 1.8) * allure)
 	elif hs > 0.15:
-		_anim("marche", clampf(hs / (0.95 if anim_noms else 0.65), 0.5, 2.2))
+		_anim("marche", clampf(hs / (0.95 if anim_noms else 0.65), 0.5, 2.2) * allure)
 	else:
-		_anim("idle")
+		_anim("idle", allure)
 
 
 

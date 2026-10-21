@@ -18,6 +18,9 @@ var parcelles := {}               # Vector2i -> MultiMeshInstance3D
 var a_creer: Array = []
 var herbe_mesh: ArrayMesh
 var herbe_mat: ShaderMaterial
+var fleur_mesh: ArrayMesh
+var fleur_mat: ShaderMaterial
+const COULEURS_FLEURS := [Color(0.95, 0.94, 0.88), Color(0.95, 0.85, 0.25), Color(0.62, 0.45, 0.85), Color(0.85, 0.22, 0.18), Color(0.98, 0.7, 0.8)]
 var centre_actuel := Vector2i(999999, 999999)
 
 
@@ -29,6 +32,11 @@ func installer(p_world: Node, graine: int) -> void:
 	herbe_mesh = _touffe()
 	herbe_mat = ShaderMaterial.new()
 	herbe_mat.shader = HerbeShader
+	fleur_mesh = _fleurs()
+	fleur_mat = ShaderMaterial.new()
+	fleur_mat.shader = preload("res://shaders/fleur.gdshader")
+	_routes_abimees()
+	_dechets()
 	_regler_qualite()
 	Game.graphismes_changes.connect(_regler_qualite)
 
@@ -38,6 +46,7 @@ func _regler_qualite() -> void:
 	rayon_parcelles = [0, 3, 4, 6][q]
 	densite = [0, 350, 550, 800][q]
 	herbe_mat.set_shader_parameter("distance_max", (rayon_parcelles + 0.5) * PARCELLE)
+	fleur_mat.set_shader_parameter("distance_max", (rayon_parcelles + 0.5) * PARCELLE)
 	for k in parcelles:
 		parcelles[k].queue_free()
 	parcelles.clear()
@@ -95,6 +104,28 @@ static func texture(nom: String) -> Texture2D:
 					if g > 0.55 and d < 1.0:
 						a = maxf(a, 1.0)
 					c = Color(0.23, 0.02, 0.02, a * 0.9)
+				"nid":
+					# nid-de-poule : fond sombre et humide, bord de gravillons clairs, contour irrégulier
+					var d := u.length() + (b - 0.5) * 0.5
+					var fond := smoothstep(0.62, 0.5, d)
+					var bord := smoothstep(0.8, 0.62, d) * (1.0 - fond)
+					var grain := bruit.get_noise_2d(x * 6.0, y * 6.0) * 0.5 + 0.5
+					c = Color(0.05, 0.05, 0.05, fond * 0.95)
+					if bord > 0.0:
+						c = Color(0.32 + grain * 0.15, 0.31 + grain * 0.14, 0.29 + grain * 0.12, bord * 0.85)
+				"bord":
+					# bord de route effrité : arraché côté v = 1, découpe irrégulière, gravillons
+					var v := float(y) / n
+					var limite := 0.45 + (b - 0.5) * 0.5
+					var a := smoothstep(limite, limite + 0.08, v) * smoothstep(1.0, 0.75, absf(u.x))
+					var g2 := bruit.get_noise_2d(x * 5.0, y * 5.0) * 0.5 + 0.5
+					c = Color(0.2 + g2 * 0.12, 0.18 + g2 * 0.1, 0.14 + g2 * 0.08, a * 0.9)
+				"suie":
+					# traînée de suie qui monte (v = 0 en haut) : panache noir, plus dense en bas
+					var v2 := 1.0 - float(y) / n
+					var largeur := 0.35 + v2 * 0.55 + (b - 0.5) * 0.35
+					var a := smoothstep(largeur, largeur * 0.55, absf(u.x)) * smoothstep(1.0, 0.25, v2) * (0.55 + b * 0.45)
+					c = Color(0.03, 0.025, 0.02, clampf(a, 0.0, 1.0) * 0.92)
 				"fissure":
 					var dmin := 99.0
 					for s in fissure:
@@ -131,6 +162,29 @@ func _decalques_facades() -> void:
 		if ab.size.x < 3.0 or ab.size.z < 3.0:
 			continue
 		var y := ab.position.y
+		# bâtiment incendié (1 sur 10) : grandes traînées de suie qui montent du sol et des fenêtres
+		if rng.randf() < 0.1:
+			for i in rng.randi_range(1, 3):
+				var cote_s := rng.randi() % 4
+				var t_s := rng.randf_range(0.15, 0.85)
+				var ps: Vector3
+				var ns: Vector3
+				match cote_s:
+					0:
+						ps = Vector3(ab.position.x + ab.size.x * t_s, y, ab.position.z)
+						ns = Vector3(0, 0, -1)
+					1:
+						ps = Vector3(ab.position.x + ab.size.x * t_s, y, ab.end.z)
+						ns = Vector3(0, 0, 1)
+					2:
+						ps = Vector3(ab.position.x, y, ab.position.z + ab.size.z * t_s)
+						ns = Vector3(-1, 0, 0)
+					_:
+						ps = Vector3(ab.end.x, y, ab.position.z + ab.size.z * t_s)
+						ns = Vector3(1, 0, 0)
+				var hs := minf(ab.size.y, rng.randf_range(4.0, 7.0))
+				var bs := Basis(ns.cross(Vector3.UP).normalized(), ns, Vector3.UP)
+				_decal("suie", ps + Vector3(0, hs / 2.0 + rng.randf_range(0.0, 1.5), 0), Vector3(rng.randf_range(2.5, 4.5), 0.8, hs), 0.0, bs)
 		for cote in 4:
 			var long := ab.size.x if cote < 2 else ab.size.z
 			var nb := clampi(int(long / 6.0), 1, 4)
@@ -157,6 +211,149 @@ func _decalques_facades() -> void:
 				var haut := rng.randf_range(1.4, 2.8)
 				var base := Basis(normale.cross(Vector3.UP).normalized(), normale, Vector3.UP)
 				_decal("coulures", p + Vector3(0, haut / 2.0, 0), Vector3(rng.randf_range(2.0, 4.5), 0.8, haut), 0.0, base)
+
+
+## Routes abîmées : nids-de-poule, bords effrités, herbe qui pousse dans les fissures et le long des bords.
+func _routes_abimees() -> void:
+	var touffes: Array = []
+	for rt in world.routes:
+		var r: Rect2 = rt.r
+		var le_long_x: bool = rt.x
+		var longueur := r.size.x if le_long_x else r.size.y
+		var largeur := r.size.y if le_long_x else r.size.x
+		if longueur < 4.0 or largeur < 2.0:
+			continue
+		var rot := 0.0 if le_long_x else PI / 2.0
+		# point de la route : t le long (0..1), s en travers (0..1)
+		var pt := func(t: float, s: float) -> Vector3:
+			var x: float = r.position.x + (t * r.size.x if le_long_x else s * r.size.x)
+			var z: float = r.position.y + (s * r.size.y if le_long_x else t * r.size.y)
+			return Vector3(x, Game.hauteur(x, z), z)
+		# nids-de-poule (un tous les 35 m environ)
+		for i in int(longueur / 70.0 * rng.randf_range(0.6, 1.4)):
+			var p: Vector3 = pt.call(rng.randf(), rng.randf_range(0.15, 0.85))
+			var tl := rng.randf_range(0.7, 1.6)
+			_decal("nid", p + Vector3(0, 0.25, 0), Vector3(tl, 1.0, tl * rng.randf_range(0.7, 1.0)), rng.randf() * TAU)
+		# bords effrités et herbe le long des deux bords
+		for cote in [0.0, 1.0]:
+			var pas := 1.6
+			var t := rng.randf() * pas
+			while t < longueur:
+				var u := t / longueur
+				if rng.randf() < 0.025:
+					var e: Vector3 = pt.call(u, cote)
+					var base := Basis(Vector3.UP, rot + (PI if cote > 0.5 else 0.0))
+					_decal("bord", e + Vector3(0, 0.25, 0), Vector3(rng.randf_range(2.0, 4.0), 1.0, 1.2), 0.0, base)
+				if rng.randf() < 0.4:
+					var s: float = cote + (rng.randf_range(0.02, 0.12) / largeur) * (1.0 if cote < 0.5 else -1.0)
+					var g: Vector3 = pt.call(u, s)
+					var k := rng.randf_range(0.3, 0.65)
+					touffes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(k, k * rng.randf_range(0.7, 1.2), k)), g + Vector3(0, -0.02, 0)), Color(1.0, 1.0, 0.85, rng.randf())])
+				t += pas
+		# herbe dans les fissures, au milieu de la chaussée (rare)
+		for i in int(longueur / 20.0):
+			var g2: Vector3 = pt.call(rng.randf(), rng.randf_range(0.2, 0.8))
+			for j in rng.randi_range(2, 4):
+				var k2 := rng.randf_range(0.25, 0.45)
+				var dec := Vector3(rng.randf_range(-0.4, 0.4), 0, rng.randf_range(-0.4, 0.4))
+				touffes.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * k2), g2 + dec + Vector3(0, -0.02, 0)), Color(1.1, 1.05, 0.7, rng.randf())])
+	_multimesh_par_cases(herbe_mesh, herbe_mat, touffes, 100.0)
+
+
+## Déchets dans la ville : feuilles mortes, papiers et cartons le long des murs et sur les trottoirs.
+func _dechets() -> void:
+	var feuilles: Array = []
+	var papiers: Array = []
+	var cartons: Array = []
+	var couleurs_feuilles := [Color(0.55, 0.35, 0.12), Color(0.68, 0.45, 0.15), Color(0.45, 0.3, 0.14), Color(0.62, 0.52, 0.2), Color(0.5, 0.22, 0.1)]
+	var pose := func(p: Vector3, taille: Vector3, angle: float) -> Transform3D:
+		# à plat, légèrement incliné, tourné au hasard
+		var b := Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, rng.randf_range(-0.15, 0.15)) * Basis.from_scale(taille)
+		return Transform3D(b, Vector3(p.x, Game.hauteur(p.x, p.z) + 0.02, p.z))
+	for z in Game.zones:
+		var ab: AABB = z.aabb
+		if ab.size.x < 3.0 or ab.size.z < 3.0 or ab.position.y > 1.0:
+			continue
+		# le long de chaque mur, à l'extérieur : amas de feuilles et papiers
+		for cote in 4:
+			var long := ab.size.x if cote < 2 else ab.size.z
+			for i in int(long / 3.0):
+				if rng.randf() < 0.55:
+					continue
+				var t := rng.randf()
+				var ecart := rng.randf_range(0.15, 0.9)
+				var p: Vector3
+				match cote:
+					0: p = Vector3(ab.position.x + ab.size.x * t, 0, ab.position.z - ecart)
+					1: p = Vector3(ab.position.x + ab.size.x * t, 0, ab.end.z + ecart)
+					2: p = Vector3(ab.position.x - ecart, 0, ab.position.z + ab.size.z * t)
+					_: p = Vector3(ab.end.x + ecart, 0, ab.position.z + ab.size.z * t)
+				if not Game.find_zone(p + Vector3.UP).is_empty():
+					continue
+				for j in rng.randi_range(6, 16):
+					var q := p + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
+					var tf := rng.randf_range(0.1, 0.16)
+					var cf: Color = couleurs_feuilles[rng.randi() % couleurs_feuilles.size()]
+					feuilles.append([pose.call(q, Vector3(tf, 1.0, tf * 1.4), rng.randf() * TAU), cf.darkened(rng.randf_range(0.0, 0.25))])
+				if rng.randf() < 0.35:
+					var g := rng.randf_range(0.55, 0.9)
+					papiers.append([pose.call(p + Vector3(rng.randf_range(-0.5, 0.5), 0, rng.randf_range(-0.5, 0.5)), Vector3(0.21, 1.0, 0.29), rng.randf() * TAU), Color(g, g, g * 0.95)])
+				if rng.randf() < 0.08:
+					cartons.append([pose.call(p, Vector3(rng.randf_range(0.35, 0.6), 1.0, rng.randf_range(0.3, 0.5)), rng.randf() * TAU), Color(0.55, 0.42, 0.28).darkened(rng.randf_range(0.0, 0.3))])
+	# papiers épars dans les rues
+	var demi: float = Game.city_half
+	for i in 500:
+		var p2 := Vector3(rng.randf_range(-demi, demi), 0, rng.randf_range(-demi, demi))
+		if not Game.find_zone(p2 + Vector3.UP).is_empty():
+			continue
+		var g3 := rng.randf_range(0.5, 0.92)
+		papiers.append([pose.call(p2, Vector3(0.21, 1.0, 0.29) * rng.randf_range(0.7, 1.2), rng.randf() * TAU), Color(g3, g3, g3 * 0.93)])
+	var plat := QuadMesh.new()
+	plat.size = Vector2(1, 1)
+	plat.orientation = PlaneMesh.FACE_Y
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.95
+	_multimesh_par_cases(plat, mat, feuilles + papiers, 90.0)
+	var boite := BoxMesh.new()
+	boite.size = Vector3(1, 0.05, 1)
+	_multimesh_par_cases(boite, mat, cartons, 110.0)
+
+
+## Objets nombreux et fixes, regroupés par cases de 48 m (chacune dessinée seulement de près).
+func _multimesh_par_cases(mesh: Mesh, mat: Material, objets: Array, distance: float) -> void:
+	var cases := {}
+	for o in objets:
+		var p: Vector3 = (o[0] as Transform3D).origin
+		var c := Vector2i(floori(p.x / 48.0), floori(p.z / 48.0))
+		if not cases.has(c):
+			cases[c] = []
+		cases[c].append(o)
+	for c in cases:
+		var liste: Array = cases[c]
+		var centre := Vector3((c.x + 0.5) * 48.0, 0.0, (c.y + 0.5) * 48.0)
+		centre.y = (liste[0][0] as Transform3D).origin.y
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = mesh
+		mm.instance_count = liste.size()
+		for i in liste.size():
+			var xf: Transform3D = liste[i][0]
+			xf.origin -= centre
+			mm.set_instance_transform(i, xf)
+			mm.set_instance_color(i, liste[i][1])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.position = centre
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.visibility_range_end = distance
+		mmi.visibility_range_end_margin = 8.0
+		mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		add_child(mmi)
 
 
 ## Taches d'huile, fissures, saleté et un peu de sang sur les routes et trottoirs de la ville.
@@ -216,6 +413,37 @@ func _touffe() -> ArrayMesh:
 	return st.commit()
 
 
+## Petit groupe de 3 fleurs : tige fine (UV.x = 0) et corolle en croix (UV.x = 1) ; UV.y = hauteur relative.
+func _fleurs() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := RandomNumberGenerator.new()
+	r.seed = 977
+	for f in 3:
+		var base := Vector3(r.randf_range(-0.1, 0.1), 0, r.randf_range(-0.1, 0.1))
+		var h := r.randf_range(0.32, 0.55)
+		var ang := r.randf() * TAU
+		var lat := Vector3(cos(ang), 0, sin(ang)) * 0.008
+		var haut := base + Vector3(r.randf_range(-0.04, 0.04), h, r.randf_range(-0.04, 0.04))
+		# tige
+		for v in [[base - lat, 0.0], [base + lat, 0.0], [haut + lat, 1.0], [base - lat, 0.0], [haut + lat, 1.0], [haut - lat, 1.0]]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(0.0, v[1]))
+			st.add_vertex(v[0])
+		# corolle : deux carrés croisés, un peu inclinés
+		var t := r.randf_range(0.06, 0.09)
+		for k in 2:
+			var a2 := ang + k * PI / 2.0
+			var u := Vector3(cos(a2), 0.0, sin(a2)) * t
+			var w := Vector3(-sin(a2), 0.35, cos(a2)).normalized() * t
+			var c := haut + Vector3(0, 0.01, 0)
+			for v2 in [c - u - w, c + u - w, c + u + w, c - u - w, c + u + w, c - u + w]:
+				st.set_normal(Vector3.UP)
+				st.set_uv(Vector2(1.0, 1.0))
+				st.add_vertex(v2)
+	return st.commit()
+
+
 func _process(_delta: float) -> void:
 	var p = Game.player
 	if p == null or rayon_parcelles <= 0:
@@ -271,6 +499,7 @@ func _parcelle(k: Vector2i) -> Node3D:
 	mm.mesh = herbe_mesh
 	var r := RandomNumberGenerator.new()
 	r.seed = hash(k) + 17
+	var fleurs := []
 	var xfs := []
 	var x0 := k.x * PARCELLE
 	var z0 := k.y * PARCELLE
@@ -299,8 +528,16 @@ func _parcelle(k: Vector2i) -> Node3D:
 				continue
 			var y: float = Game.hauteur(x, z)
 			var s := r.randf_range(0.7, 1.4)
-			xfs.append([Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3(s, s * r.randf_range(0.8, 1.3), s)), Vector3(x, y - 0.03, z)),
-					Color(r.randf_range(0.85, 1.1), r.randf_range(0.9, 1.1), r.randf_range(0.8, 1.0), r.randf())])
+			var teinte := Color(r.randf_range(0.85, 1.1), r.randf_range(0.9, 1.1), r.randf_range(0.8, 1.0), r.randf())
+			# plaques d'herbe sèche (jaunie, plus claire)
+			var sec := clampf(sin(x * 0.07 + 1.3) * sin(z * 0.05 - 0.4) * 1.6 + r.randf_range(-0.35, 0.35) - 0.25, 0.0, 1.0)
+			if sec > 0.0:
+				teinte = Color(lerpf(teinte.r, 1.45, sec), lerpf(teinte.g, 1.12, sec), lerpf(teinte.b, 0.55, sec), teinte.a)
+			xfs.append([Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3(s, s * r.randf_range(0.8, 1.3), s)), Vector3(x, y - 0.03, z)), teinte])
+			# fleurs des champs, par petits groupes
+			if r.randf() < 0.08:
+				var fc: Color = COULEURS_FLEURS[int(absf(sin(x * 0.13) * cos(z * 0.11)) * 97.0) % COULEURS_FLEURS.size()]
+				fleurs.append([Transform3D(Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3.ONE * r.randf_range(0.8, 1.25)), Vector3(x, y - 0.02, z)), Color(fc.r, fc.g, fc.b, r.randf())])
 	mm.instance_count = xfs.size()
 	for i in xfs.size():
 		mm.set_instance_transform(i, xfs[i][0])
@@ -309,4 +546,18 @@ func _parcelle(k: Vector2i) -> Node3D:
 	mmi.material_override = herbe_mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)
+	if not fleurs.is_empty():
+		var mf := MultiMesh.new()
+		mf.transform_format = MultiMesh.TRANSFORM_3D
+		mf.use_colors = true
+		mf.mesh = fleur_mesh
+		mf.instance_count = fleurs.size()
+		for i in fleurs.size():
+			mf.set_instance_transform(i, fleurs[i][0])
+			mf.set_instance_color(i, fleurs[i][1])
+		var mif := MultiMeshInstance3D.new()
+		mif.multimesh = mf
+		mif.material_override = fleur_mat
+		mif.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.add_child(mif)   # libérée avec la parcelle
 	return mmi

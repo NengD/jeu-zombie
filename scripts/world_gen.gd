@@ -875,8 +875,15 @@ func _fenetre(along_x: bool, face: float, sgn: float, a: float, y: float, kind: 
 	var cadre: Color = CADRES[rng.randi() % CADRES.size()]
 	_sur_facade(along_x, face, sgn, a, yc, 0.03, larg + 0.14, haut + 0.14, 0.06, cadre, "uni")
 	var r := rng.randf()
-	if r < 0.07:
+	if r < 0.16:
 		_sur_facade(along_x, face, sgn, a, yc, 0.065, larg, haut, 0.02, Color(0.03, 0.03, 0.035), "uni")   # vitre brisée
+		# restes de verre accrochés dans un ou deux coins du cadre
+		for i in rng.randi_range(1, 2):
+			var lw := larg * rng.randf_range(0.2, 0.42)
+			var lh := haut * rng.randf_range(0.18, 0.45)
+			var sx := -1.0 if rng.randf() < 0.5 else 1.0
+			var sy := -1.0 if rng.randf() < 0.5 else 1.0
+			_sur_facade(along_x, face, sgn, a + sx * (larg - lw) / 2.0, yc + sy * (haut - lh) / 2.0, 0.07, lw, lh, 0.015, Color(0.6, 0.66, 0.72).darkened(rng.randf_range(0.0, 0.3)), "vitre")
 	else:
 		var teinte := Color(0.62, 0.68, 0.74).darkened(rng.randf_range(0.0, 0.3))
 		_sur_facade(along_x, face, sgn, a, yc, 0.065, larg, haut, 0.02, teinte, "vitre")
@@ -894,8 +901,8 @@ func _fenetre(along_x: bool, face: float, sgn: float, a: float, y: float, kind: 
 			if rng.randf() < 0.12:
 				continue   # volet arraché
 			_sur_facade(along_x, face, sgn, a + sd * (larg / 2.0 + 0.36), yc, 0.04, 0.6, haut + 0.1, 0.04, vc.darkened(rng.randf_range(0.0, 0.25)), "planches")
-	if r > 0.9 and y < INT_H:
-		# planches clouées
+	if (r > 0.8 and y < INT_H) or (r > 0.94 and y >= INT_H):
+		# planches clouées (souvent au rez-de-chaussée, parfois aux étages)
 		for i in 3:
 			var ty := y0 + haut * (0.2 + i * 0.3)
 			_sur_facade(along_x, face, sgn, a + rng.randf_range(-0.1, 0.1), ty, 0.11, larg + 0.3, 0.2, 0.03, Color(0.75, 0.6, 0.45), "planches")
