@@ -81,7 +81,7 @@ static func sauver(main: Node) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
 		return false
-	var d := {"version": 3, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
+	var d := {"version": 3, "monde": main.world.VERSION_MONDE, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
 			"date": Time.get_datetime_string_from_system(false, true)}
 	# joueur
 	var eq := {}
@@ -153,6 +153,11 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 	if main.has_method("appliquer_camps") and d.has("camps"):
 		main.appliquer_camps(d.camps)
 		main.primes_payees = Array(d.get("primes", []))
+	# sauvegarde d'une version plus ancienne de la génération : les numéros des meubles et des portes
+	# ne désignent plus les mêmes objets, on garde alors la carte telle que générée
+	if int(d.get("monde", 1)) != main.world.VERSION_MONDE:
+		cont = {}
+		d.erase("portes")
 	for c in main.world.conteneurs:
 		var k := str(c.uid)
 		if cont.has(k):

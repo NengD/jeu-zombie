@@ -62,9 +62,11 @@ class Cadre extends Control:
 			var nom: String = poi.name
 			var grand := nom in ["Bellerive", "Valmont"]
 			var moyen := grand or nom.begins_with("Village") or nom.begins_with("Hameau") or nom == "Base militaire"
-			draw_circle(pp, 9.0 if grand else 6.0, poi.color)
-			# noms : villes et villages toujours, le reste en zoomant (camps de bandits encore plus près)
-			var montrer := moyen or zoom >= (4.5 if nom == "Camp de bandits" else 2.6)
+			# lieux dans une ville (boutiques, église…) : petit point, nommés seulement de près
+			var en_ville: bool = not moyen and Game.in_city(poi.pos)
+			draw_circle(pp, 9.0 if grand else (4.5 if en_ville else 6.0), poi.color)
+			# noms : villes et villages toujours, le reste en zoomant (camps de bandits et lieux de ville encore plus près)
+			var montrer := moyen or zoom >= (4.5 if nom == "Camp de bandits" else (5.0 if en_ville else 2.6))
 			if montrer:
 				var taille := 24 if grand else (18 if moyen else 15)
 				draw_string_outline(font, pp + Vector2(11, 6), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, 4, Color.BLACK)

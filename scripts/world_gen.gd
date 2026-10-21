@@ -15,6 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
+const VERSION_MONDE := 2  # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -30,9 +31,16 @@ const HOUSE_COLORS := [Color(0.62, 0.55, 0.45), Color(0.55, 0.42, 0.36), Color(0
 const CITY_COLORS := [Color(0.5, 0.5, 0.52), Color(0.42, 0.4, 0.38), Color(0.55, 0.5, 0.44), Color(0.36, 0.38, 0.42), Color(0.6, 0.58, 0.55), Color(0.45, 0.33, 0.28)]
 const CAR_COLORS := [Color(0.5, 0.1, 0.1), Color(0.15, 0.2, 0.35), Color(0.6, 0.6, 0.6), Color(0.1, 0.1, 0.1), Color(0.35, 0.38, 0.3), Color(0.55, 0.45, 0.3), Color(0.8, 0.8, 0.78)]
 
-# [nom, taille (long. le long du mur, hauteur, profondeur), couleur]
+# [nom, taille (long. le long du mur, hauteur, profondeur), couleur, table de butin (facultative, sinon le type du bâtiment)]
 const FURN := {
-	"maison": [["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18)], ["Commode", Vector3(1.0, 0.9, 0.5), Color(0.45, 0.32, 0.2)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)], ["Réfrigérateur", Vector3(0.8, 1.9, 0.7), Color(0.85, 0.85, 0.82)]],
+	"maison": [["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18)], ["Commode", Vector3(1.0, 0.9, 0.5), Color(0.45, 0.32, 0.2)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)], ["Réfrigérateur", Vector3(0.8, 1.9, 0.7), Color(0.85, 0.85, 0.82)],
+		["Table de chevet", Vector3(0.5, 0.6, 0.45), Color(0.45, 0.32, 0.2)], ["Bibliothèque", Vector3(1.0, 1.9, 0.4), Color(0.42, 0.3, 0.2)]],
+	"pharmacie": [["Armoire à pharmacie", Vector3(1.0, 1.9, 0.5), Color(0.85, 0.85, 0.88), "hopital"], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.8, 0.8, 0.78), "hopital"], ["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52), "magasin"]],
+	"bar": [["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22), "magasin"], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75), "magasin"], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68), "maison"]],
+	"eglise": [["Coffre", Vector3(1.0, 0.7, 0.6), Color(0.35, 0.25, 0.15), "maison"], ["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18), "maison"]],
+	"bibliotheque": [["Rayonnage de livres", Vector3(2.0, 2.0, 0.45), Color(0.42, 0.3, 0.2), "bureau"], ["Bureau", Vector3(1.6, 0.8, 0.8), Color(0.45, 0.35, 0.25), "bureau"], ["Classeur", Vector3(0.6, 1.3, 0.6), Color(0.45, 0.47, 0.5), "bureau"]],
+	"garage": [["Établi", Vector3(2.0, 0.95, 0.8), Color(0.45, 0.33, 0.2), "quincaillerie"], ["Étagère d'outils", Vector3(2.4, 1.8, 0.6), Color(0.55, 0.35, 0.15), "quincaillerie"], ["Bidons", Vector3(1.2, 1.0, 0.6), Color(0.7, 0.15, 0.1), "station"]],
+	"vetements": [["Portant", Vector3(2.0, 1.6, 0.6), Color(0.5, 0.5, 0.52), "maison"], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22), "magasin"]],
 	"magasin": [["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52)], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22)], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75)]],
 	"bureau": [["Bureau", Vector3(1.6, 0.8, 0.8), Color(0.45, 0.35, 0.25)], ["Armoire métallique", Vector3(1.0, 1.9, 0.5), Color(0.45, 0.47, 0.5)], ["Casier", Vector3(0.6, 1.9, 0.5), Color(0.4, 0.42, 0.45)]],
 	"quincaillerie": [["Étagère d'outils", Vector3(2.4, 1.8, 0.6), Color(0.55, 0.35, 0.15)], ["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52)], ["Bac à matériaux", Vector3(1.4, 0.8, 0.9), Color(0.4, 0.4, 0.3)]],
@@ -70,7 +78,8 @@ const MODELES_MEUBLES := {
 	"Vitrine": ["etagere_bois"], "Râtelier": ["etagere_murale"], "Armoire à armes": ["casier"],
 	"Caisse militaire": ["caisse_bois"], "Casier militaire": ["casier_mil"], "Caisse de munitions": ["caisse_mil"],
 	"Râtelier militaire": ["etagere_metal"], "Caisse en bois": ["caisse_bois"], "Établi de ferme": ["table_bois"],
-	"Coffre": ["caisse_mil"],
+	"Coffre": ["caisse_mil"], "Table de chevet": ["chevet"], "Bibliothèque": ["etagere_bois"],
+	"Rayonnage de livres": ["etagere_bois"], "Classeur": ["classeur"], "Établi": ["table_bois"], "Portant": ["etagere_metal"],
 }
 
 var rng := RandomNumberGenerator.new()
@@ -475,8 +484,8 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 	var z0 := c.z - d / 2.0
 	var z1 := c.z + d / 2.0
 	# étages : chaque étage fait INT_H de haut ; certains bâtiments n'ont qu'un grand volume
-	var un_seul := kind in ["grange", "station"] or label in ["Hangar", "Supermarché"]
-	var n := 1 if un_seul else clampi(int(floor((maxf(h, INT_H + 0.3) - 0.3) / INT_H + 0.25)), 1, 6)
+	var un_seul := kind in ["grange", "station", "garage", "eglise"] or label in ["Hangar", "Supermarché", "Centre commercial"]
+	var n := 1 if un_seul else clampi(int(floor((maxf(h, INT_H + 0.3) - 0.3) / INT_H + 0.25)), 1, 8)
 	var haut_etage := maxf(h - 0.3, INT_H) if un_seul else INT_H
 	h = n * haut_etage + 0.3
 	var sommet := n * haut_etage
@@ -489,9 +498,9 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 	else:
 		col = col.lightened(0.2)
 	var sol := "parquet"
-	if kind in ["magasin", "hopital", "station", "bureau", "police", "armurerie"]:
+	if kind in ["magasin", "hopital", "station", "bureau", "police", "armurerie", "pharmacie", "bar", "vetements"]:
 		sol = "carrelage"
-	elif kind in ["militaire", "armurerie_mil", "grange", "quincaillerie"]:
+	elif kind in ["militaire", "armurerie_mil", "grange", "quincaillerie", "garage"]:
 		sol = "beton"
 	var col_sol := Color(0.9, 0.88, 0.85) if sol != "parquet" else Color(1, 1, 1)
 	var mat_avant := cur_mat
@@ -620,14 +629,15 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 		zones_etages.append(zone)
 		var nf := furn
 		if nf < 0:
-			nf = clampi(int(w * d / 28.0), 2, 12)
+			nf = clampi(int(w * d / 22.0), 2, 14)   # intérieurs bien remplis
 		if k > 0:
 			nf = maxi(2, int(nf * 0.7))
 		_furnish(zone, kind, nf, placed)
+		_deco_piece(zone, kind, placed)
 		_plafonnier(Vector3(c.x + rng.randf_range(-w, w) * 0.15, base + haut_etage - (0.3 if k < n - 1 else 0.05), c.z + rng.randf_range(-d, d) * 0.15), kind, label != "")
 		if k > 0:
 			var rk := {"hopital": "patient", "police": "police", "militaire": "militaire", "armurerie_mil": "militaire"}
-			_residents(zone, 0.45, 2, rk.get(kind, "civil"))
+			_residents(zone, 0.45 if k < 4 else 0.15, 2, rk.get(kind, "civil"))
 	cur_mat = mat_avant
 	# liens d'escalier entre étages (pour que les zombies suivent)
 	if not cage.is_empty():
@@ -883,6 +893,10 @@ func _facade(kind: String, h: float) -> String:
 			return "parpaing"
 		"grange":
 			return "planches"
+		"garage":
+			return "parpaing"
+		"eglise":
+			return "enduit" if rng.randf() < 0.6 else "brique"
 		"hopital", "station", "police":
 			return "enduit"
 		"quincaillerie", "armurerie":
@@ -1012,11 +1026,15 @@ func _furnish(zone: Dictionary, kind: String, count: int, placed: Array) -> void
 			continue
 		placed.append(rect)
 		pos.y = ab.position.y
-		var cont := _container(pos, size3, f[2], f[0], kind)
+		var cont := _container(pos, size3, f[2], f[0], f[3] if f.size() > 3 else kind)
 		var choix: Array = MODELES_MEUBLES.get(f[0], [])
 		if not choix.is_empty():
 			var ang: float = {"n": 0.0, "s": PI, "w": PI / 2.0, "e": -PI / 2.0}[side]
 			cont.set_modele(choix[rng.randi() % choix.size()], ang)
+			# meuble d'intérieur : visible de moins loin et sans ombre portée (sous un toit)
+			if cont.modele:
+				Decor.distance(cont.modele, 45.0)
+			_sans_ombre(cont.modele)
 		else:
 			cont.set_texture("metal_peint")
 		n += 1
@@ -1087,13 +1105,16 @@ func _city(o: Vector3 = Vector3.ZERO, nb: int = NB, specials: Dictionary = {}, s
 		specials = {
 			Vector2i(2, 2): "police", Vector2i(4, 4): "hopital", Vector2i(4, 2): "supermarche",
 			Vector2i(2, 4): "armurerie", Vector2i(1, 3): "quincaillerie", Vector2i(3, 3): "parc",
-			Vector2i(5, 1): "parc",
+			Vector2i(5, 1): "parc", Vector2i(5, 3): "centre_commercial", Vector2i(1, 5): "eglise", Vector2i(3, 1): "bibliotheque",
+			Vector2i(1, 1): "garage", Vector2i(3, 5): "pharmacie", Vector2i(5, 5): "bar",
 		}
 	for bi in nb:
 		for bj in nb:
 			var bc := Vector3(ox - hv + (bi + 0.5) * BLOCK, 0, oz - hv + (bj + 0.5) * BLOCK)
 			var key := Vector2i(bi, bj)
 			var outer := bi == 0 or bj == 0 or bi == nb - 1 or bj == nb - 1
+			# centre-ville dense (immeubles hauts) au milieu, pavillons sur le pourtour
+			var dense := maxi(absi(bi - (nb - 1) / 2), absi(bj - (nb - 1) / 2)) <= 1
 			if specials.has(key):
 				match specials[key]:
 					"police": _police(bc)
@@ -1106,8 +1127,19 @@ func _city(o: Vector3 = Vector3.ZERO, nb: int = NB, specials: Dictionary = {}, s
 					"mairie": _small_special(bc, "bureau", "Hôtel de ville", Color(0.75, 0.72, 0.65), Color(0.8, 0.8, 0.7))
 					"entrepot": _small_special(bc, "grange", "Entrepôt", Color(0.5, 0.52, 0.55), Color(0.55, 0.55, 0.6))
 					"parc": _park(bc)
+					"centre_commercial": _centre_commercial(bc)
+					"eglise": _eglise(bc)
+					"bibliotheque": _small_special(bc, "bibliotheque", "Bibliothèque", Color(0.72, 0.62, 0.5), Color(0.7, 0.55, 0.85), 16.0, 13.0, 7.0, 10)
+					"garage": _garage(bc)
+					"pharmacie": _pharmacie(bc)
+					"bar": _small_special(bc, "bar", "Bar-restaurant", Color(0.55, 0.4, 0.3), Color(0.95, 0.5, 0.3), 15.0, 12.0, 4.5, 6)
 			elif outer:
 				_residential(bc, principale and key == spawn_block)
+			elif dense:
+				if rng.randf() < 0.5:
+					_apartments(bc, true)
+				else:
+					_commercial(bc, true)
 			elif rng.randf() < 0.35:
 				_apartments(bc)
 			else:
@@ -1155,20 +1187,17 @@ func _residential(bc: Vector3, is_spawn: bool) -> void:
 				first = false
 			else:
 				_residents(z, 0.4, 2)
-			# petit muret de jardin
-			if rng.randf() < 0.5:
-				var gx: float = bc.x + qx * 17.0
-				_box(Vector3(gx, 0.4, bc.z + qz * 8.5), Vector3(0.25, 0.8, 14.0), Color(0.85, 0.84, 0.8), true, "beton")
+			_jardin(bc, qx, qz, doors[0])
 	_reserve(Rect2(bc.x - 18, bc.z - 18, 36, 36))
 
 
-func _commercial(bc: Vector3) -> void:
+func _commercial(bc: Vector3, dense := false) -> void:
 	for sx in [-1.0, 1.0]:
 		var w := rng.randf_range(13.0, 16.0)
 		var d := rng.randf_range(26.0, 33.0)
-		var h := rng.randf_range(7.0, 16.0)
+		var h := rng.randf_range(12.0, 21.0) if dense else rng.randf_range(7.0, 16.0)
 		var col: Color = CITY_COLORS[rng.randi() % CITY_COLORS.size()]
-		var kind: String = ["magasin", "bureau", "maison", "magasin"][rng.randi() % 4]
+		var kind: String = (["bureau", "magasin", "bureau", "maison"] if dense else ["magasin", "bureau", "maison", "magasin"])[rng.randi() % 4]
 		var doors := ["e" if sx > 0 else "w"]
 		if rng.randf() < 0.5:
 			doors.append("s" if rng.randf() < 0.5 else "n")
@@ -1176,11 +1205,11 @@ func _commercial(bc: Vector3) -> void:
 		_residents(z, 0.55, 3)
 
 
-func _apartments(bc: Vector3) -> void:
+func _apartments(bc: Vector3, dense := false) -> void:
 	var w := rng.randf_range(26.0, 32.0)
 	var d := rng.randf_range(26.0, 32.0)
 	var col: Color = CITY_COLORS[rng.randi() % CITY_COLORS.size()]
-	var z := _building(bc, w, d, rng.randf_range(14.0, 26.0), col, ["n", "s"], "maison", "", true, 12, Color(0.47, 0.47, 0.5))
+	var z := _building(bc, w, d, rng.randf_range(18.0, 26.0) if dense else rng.randf_range(12.0, 20.0), col, ["n", "s"], "maison", "", true, 12, Color(0.47, 0.47, 0.5))
 	_residents(z, 0.8, 4)
 
 
@@ -1246,16 +1275,17 @@ func _supermarket(bc: Vector3) -> void:
 		guards.append({"pos": _random_in(z, 1.0), "kind": "civil", "radius": 8.0})
 
 
-func _small_special(bc: Vector3, kind: String, label: String, col: Color, map_col: Color) -> void:
-	var z := _building(bc + Vector3(-8.0, 0, -8.0), 15.0, 12.0, 4.5, col, ["n", "w"], kind, label, false, 8, map_col)
+func _small_special(bc: Vector3, kind: String, label: String, col: Color, map_col: Color, w := 15.0, d := 12.0, h := 4.5, furn := 8, maisons := [Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]) -> Dictionary:
+	var z := _building(bc + Vector3(-8.0, 0, -8.0), w, d, h, col, ["n", "w"], kind, label, false, furn, map_col)
 	_poi(label, bc + Vector3(-8.0, 0, -8.0), map_col)
 	for i in 3:
 		guards.append({"pos": _random_in(z, 1.0), "kind": "civil", "radius": 5.0})
 	# maisons sur le reste du pâté
-	for q in [Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+	for q in maisons:
 		var c := bc + Vector3(q.x * 8.5, 0, q.y * 8.5)
 		var hz := _building(c, rng.randf_range(9, 12), rng.randf_range(8, 11), 6.6, HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()], _doors_toward_roads(q.x, q.y), "maison", "", false, -1, Color(0.45, 0.4, 0.35))
 		_residents(hz, 0.4, 2)
+	return z
 
 
 # ================================================================ régions (carte de 5 km)
@@ -1277,6 +1307,7 @@ func _regions() -> void:
 		Vector2i(1, 1): "police", Vector2i(3, 3): "hopital", Vector2i(3, 1): "supermarche",
 		Vector2i(1, 3): "ecole", Vector2i(2, 2): "parc", Vector2i(2, 0): "pompiers",
 		Vector2i(0, 2): "mairie", Vector2i(4, 2): "armurerie", Vector2i(2, 4): "quincaillerie",
+		Vector2i(2, 3): "eglise", Vector2i(1, 2): "pharmacie", Vector2i(0, 4): "garage", Vector2i(4, 0): "bar",
 	}, Vector2i(-1, -1), false)
 	_poi("Valmont", VILLE_B, Color(0.95, 0.95, 0.95))
 	# route d'accès depuis l'autoroute est-ouest (alignée sur une rue de la ville)
@@ -1317,6 +1348,7 @@ func _regions() -> void:
 			continue
 		var zm := _building(c, rng.randf_range(9, 12), rng.randf_range(8, 10), 6.6, HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()], doors, "maison", "", false, -1, Color(0.45, 0.4, 0.35), "pente")
 		_residents(zm, 0.5, 2)
+	_nouveaux_lieux(hx, hz)
 	# voitures abandonnées sur les grandes routes lointaines
 	for i in 40:
 		var t := rng.randf_range(800.0, m - 30.0) * (1.0 if rng.randf() < 0.5 else -1.0)
@@ -1488,6 +1520,10 @@ func _farm(c: Vector3, hx: float, hz: float, label: String) -> void:
 		_box(Vector3(fc.x, 0.5, r.position.y), Vector3(40, 1.0, 0.12), Color(0.65, 0.5, 0.38), true, "planches")
 		_box(Vector3(fc.x - 10.5, 0.5, r.end.y), Vector3(19, 1.0, 0.12), Color(0.65, 0.5, 0.38), true, "planches")
 		_box(Vector3(fc.x + 10.5, 0.5, r.end.y), Vector3(19, 1.0, 0.12), Color(0.65, 0.5, 0.38), true, "planches")
+	# silo à grain derrière la grange (repère visible de loin)
+	var ps := c + Vector3(34.0, 0, -9.0)
+	if not _overlaps(Rect2(ps.x - 3.5, ps.z - 3.5, 7.0, 7.0)):
+		_silo(ps)
 	# chemin de terre jusqu'à la route
 	var start := Vector2(c.x, c.z + 12.0)
 	if absf(c.x - hx) < absf(c.z - hz):
@@ -2189,6 +2225,7 @@ func _plafonnier(p: Vector3, kind: String, important: bool) -> void:
 	tube.material_override = m
 	tube.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	tube.position = p + Vector3(0, -0.075, 0)
+	tube.visibility_range_end = 75.0
 	decor.add_child(tube)
 	var l := Neon.new()
 	l.light_color = Color(0.82, 0.9, 1.0)
@@ -2197,6 +2234,9 @@ func _plafonnier(p: Vector3, kind: String, important: bool) -> void:
 	l.omni_range = 7.5
 	l.omni_attenuation = 1.3
 	l.shadow_enabled = false
+	l.distance_fade_enabled = true     # lumières d'étage lointaines : estompées (coût par image)
+	l.distance_fade_begin = 60.0
+	l.distance_fade_length = 15.0
 	l.position = p + Vector3(0, -0.25, 0)
 	l.clignote = rng.randf() < 0.4
 	l.mat_tube = m
@@ -2336,3 +2376,453 @@ func _petite_forme(s: Shape3D) -> bool:
 		var t: Vector3 = (s as BoxShape3D).size
 		return t.x < 5.0 and t.z < 5.0 and t.y < 5.0
 	return false
+
+
+# ================================================================ quartiers et nouveaux lieux
+## Décor non fouillable posé dans les pièces : [modèle, nombre par étage], selon le type de bâtiment.
+const DECO_PIECES := {
+	"maison": [["canape", 1], ["table_bois", 1]], "ferme": [["table_bois", 1], ["canape", 1]],
+	"bureau": [["bureau_ecole", 3]], "bibliotheque": [["table_bois", 3]], "bar": [["table_bois", 4]],
+	"police": [["bureau_ecole", 2]], "hopital": [["bureau_ecole", 1]],
+}
+
+
+func _deco_piece(zone: Dictionary, kind: String, placed: Array) -> void:
+	var ab: AABB = zone.aabb
+	if ab.size.x < 5.0 or ab.size.z < 5.0:
+		return
+	for e in DECO_PIECES.get(kind, []):
+		var id: String = e[0]
+		var t := Decor.taille(id)
+		for i in int(e[1]):
+			for essai in 6:
+				var quart := rng.randi_range(0, 3)
+				var sx := t.x if quart % 2 == 0 else t.z
+				var sz := t.z if quart % 2 == 0 else t.x
+				var p := Vector3(rng.randf_range(ab.position.x + 1.3, ab.end.x - 1.3), ab.position.y, rng.randf_range(ab.position.z + 1.3, ab.end.z - 1.3))
+				var r := Rect2(p.x - sx / 2.0, p.z - sz / 2.0, sx, sz)
+				var ok := true
+				for pr in placed:
+					if (pr as Rect2).grow(0.7).intersects(r):
+						ok = false
+						break
+				for dp in zone.doors:
+					if Vector2(dp.pos.x, dp.pos.z).distance_to(Vector2(p.x, p.z)) < 3.0:
+						ok = false
+				for ps in zone.get("passages", []):
+					if Vector2(ps.x, ps.z).distance_to(Vector2(p.x, p.z)) < 2.2:
+						ok = false
+				if not ok:
+					continue
+				placed.append(r)
+				_sans_ombre(_prop(id, p, quart * PI / 2.0, true, 1.0, 30.0))
+				break
+
+
+## Objet d'intérieur : pas d'ombre portée (inutile sous un toit, et deux fois moins de dessin).
+func _sans_ombre(n: Node3D) -> void:
+	if n == null:
+		return
+	for g in n.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Jardin d'une maison de quartier pavillonnaire : pelouse, haie ou muret (jamais devant la porte), arbre.
+func _jardin(bc: Vector3, qx: float, qz: float, porte: String) -> void:
+	_flat(Rect2(bc.x + (0.4 if qx > 0 else -17.6), bc.z + (0.4 if qz > 0 else -17.6), 17.2, 17.2), 0.012, Color(0.85, 0.95, 0.8), "herbe")
+	if porte in ["e", "w"]:
+		if rng.randf() < 0.6:
+			_box(Vector3(bc.x + qx * 9.0, 0.55, bc.z + qz * 17.5), Vector3(16.0, 1.1, 0.7), Color(0.25, 0.4, 0.2), true, "herbe")
+	elif rng.randf() < 0.5:
+		_box(Vector3(bc.x + qx * 17.0, 0.4, bc.z + qz * 8.5), Vector3(0.25, 0.8, 14.0), Color(0.85, 0.84, 0.8), true, "beton")
+	if rng.randf() < 0.5:
+		trees.append(bc + Vector3(qx * 16.0, 0, qz * 16.0))
+
+
+## Côté (n, s, e, w) correspondant à une direction horizontale.
+func _cote(d: Vector3) -> String:
+	if absf(d.x) > absf(d.z):
+		return "e" if d.x > 0 else "w"
+	return "s" if d.z > 0 else "n"
+
+
+## Rectangle du sol couvert par [a0, a1] le long de u et [b0, b1] le long de v, à partir de o.
+func _rect_ab(o: Vector3, u: Vector3, v: Vector3, a0: float, a1: float, b0: float, b1: float) -> Rect2:
+	var p := o + u * a0 + v * b0
+	var q := o + u * a1 + v * b1
+	return Rect2(minf(p.x, q.x), minf(p.z, q.z), absf(q.x - p.x), absf(q.z - p.z))
+
+
+## Taille d'une boîte (lu le long de u, lv le long de v, hauteur h) dans les axes du monde.
+func _taille_ab(u: Vector3, v: Vector3, lu: float, lv: float, h: float) -> Vector3:
+	return Vector3(absf(u.x) * lu + absf(v.x) * lv, h, absf(u.z) * lu + absf(v.z) * lv)
+
+
+## Bâtiment posé dans le repère d'un lieu (u : largeur, v : vers la route) ; portes : avant, arriere, gauche, droite.
+func _bat_lieu(c: Vector3, u: Vector3, v: Vector3, a: float, b: float, lu: float, lv: float, h: float, col: Color, portes: Array, kind: String, label: String, furn: int, map_col: Color, toit := "plat") -> Dictionary:
+	var sens := {"avant": v, "arriere": -v, "gauche": -u, "droite": u}
+	var cotes: Array = []
+	for pt in portes:
+		cotes.append(_cote(sens[pt]))
+	var t := _taille_ab(u, v, lu, lv, h)
+	return _building(c + u * a + v * b, t.x, t.z, h, col, cotes, kind, label, false, furn, map_col, toit)
+
+
+## Emplacement libre (carré de demi-côté « demi ») près de « base », ou Vector3.INF.
+func _lieu_libre(base: Vector3, demi: float, portee: float) -> Vector3:
+	var lim := Game.map_half - demi - 60.0
+	for i in 40:
+		var f := minf(1.0, i / 12.0)
+		var p := base + Vector3(rng.randf_range(-portee, portee) * f, 0, rng.randf_range(-portee, portee) * f)
+		if absf(p.x) > lim or absf(p.z) > lim:
+			continue
+		if not _overlaps(Rect2(p.x - demi, p.z - demi, 2.0 * demi, 2.0 * demi)):
+			return p
+	return Vector3.INF
+
+
+## Lotissements, lieux de campagne reliés à l'autoroute la plus proche, châteaux d'eau.
+func _nouveaux_lieux(hx: float, hz: float) -> void:
+	_lotissement(Vector3.ZERO, NB, "Lotissement des Tilleuls")
+	_lotissement(VILLE_B, NB_B, "Lotissement du Moulin-Neuf")
+	# [position voulue, direction de la route, demi-côté, construction]
+	var lieux := [
+		[Vector3(-1250.0, 0, hz - 70.0), Vector3(0, 0, 1), 30.0, _scierie],
+		[Vector3(hx + 75.0, 0, 1000.0), Vector3(-1, 0, 0), 30.0, _camping],
+		[Vector3(700.0, 0, hz + 60.0), Vector3(0, 0, -1), 28.0, _relais_routier],
+	]
+	for l in lieux:
+		var demi: float = l[2]
+		var p := _lieu_libre(l[0], demi, 35.0)
+		if p == Vector3.INF:
+			continue
+		var v: Vector3 = l[1]
+		var u := Vector3(-v.z, 0, v.x)
+		(l[3] as Callable).call(p, u, v)
+		var bord := p + v * demi
+		if absf(v.z) > 0.5:
+			_road(Vector2(bord.x, bord.z), Vector2(bord.x, hz), 7.0, C_ASPHALT, false)
+		else:
+			_road(Vector2(bord.x, bord.z), Vector2(hx, bord.z), 7.0, C_ASPHALT, false)
+		_reserve(Rect2(p.x - demi, p.z - demi, 2.0 * demi, 2.0 * demi))
+	for e in [[Vector3(hx + 45.0, 0, -half - 90.0), "Château d'eau"], [Vector3(1380.0, 0, 1460.0), "Château d'eau de Pont-Rouge"]]:
+		var p := _lieu_libre(e[0], 8.0, 70.0)
+		if p != Vector3.INF:
+			_chateau_eau(p, e[1])
+
+
+# ---------------------------------------------------------------- lotissement
+## Lotissement neuf en périphérie d'une ville : rue en boucle partant de deux rues voisines de la ville,
+## maisons identiques des deux côtés (pelouse, allée, voiture), haies au fond des jardins.
+func _lotissement(o: Vector3, nb: int, nom: String) -> void:
+	var hv := nb * BLOCK / 2.0
+	var longueur := 112.0
+	var essais: Array = []
+	for dir in [Vector3(-1, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 0, 1)]:
+		for i in range(1, nb - 1):
+			essais.append([dir, i])
+	for k in range(essais.size() - 1, 0, -1):
+		var j := rng.randi_range(0, k)
+		var tmp = essais[k]
+		essais[k] = essais[j]
+		essais[j] = tmp
+	for e in essais:
+		var u: Vector3 = e[0]
+		var v := Vector3(absf(u.z), 0, absf(u.x))
+		var dep: Vector3 = o + u * (hv + 5.0) + v * (-hv + int(e[1]) * BLOCK)
+		var emprise := _rect_ab(dep, u, v, 6.0, longueur + 10.0, -24.0, BLOCK + 24.0)
+		if _overlaps(emprise):
+			continue
+		_construire_lotissement(dep, u, v, longueur, nom)
+		_reserve(emprise)
+		return
+
+
+func _construire_lotissement(dep: Vector3, u: Vector3, v: Vector3, lg: float, nom: String) -> void:
+	var pt := func(a: float, b: float) -> Vector2: return Vector2((dep + u * a + v * b).x, (dep + u * a + v * b).z)
+	_road(pt.call(0.0, 0.0), pt.call(lg, 0.0), 8.0)
+	_road(pt.call(0.0, BLOCK), pt.call(lg, BLOCK), 8.0)
+	_road(pt.call(lg, 0.0), pt.call(lg, BLOCK), 8.0)
+	var col: Color = HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()].lightened(0.15)
+	var lu := 10.0
+	var lv := 8.5
+	# [b du centre de la maison, sens de la rue (+v / -v)]
+	var rangs := [[-11.25, 1.0], [11.25, -1.0], [BLOCK - 11.25, 1.0], [BLOCK + 11.25, -1.0]]
+	var a := 16.0
+	while a <= lg - 8.0:
+		for rg in rangs:
+			var b: float = rg[0]
+			var s: float = rg[1]
+			var z := _bat_lieu(dep, u, v * s, a, b * s, lu, lv, 6.6, col, ["avant"], "maison", "", -1, Color(0.5, 0.45, 0.38), "pente")
+			_residents(z, 0.2, 2)
+			var bord := b + s * 7.25      # bord de la rue côté maison
+			var fond := b - s * 11.75     # fond du jardin
+			_flat(_rect_ab(dep, u, v, a - 7.5, a + 7.5, minf(bord, fond), maxf(bord, fond)), 0.012, Color(0.85, 0.95, 0.8), "herbe")
+			_flat(_rect_ab(dep, u, v, a + 5.8, a + 8.6, minf(bord, b), maxf(bord, b)), 0.02, Color(0.9, 0.9, 0.88), "beton")
+			if rng.randf() < 0.45:
+				var pc := dep + u * (a + 7.2) + v * ((bord + b) * 0.5)
+				_car(pc, absf(v.x) > 0.5, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.2))
+			if b < 0.0 or b > BLOCK:
+				_box(dep + u * a + v * fond + Vector3(0, 0.55, 0), _taille_ab(u, v, 15.0, 0.7, 1.1), Color(0.25, 0.4, 0.2), true, "herbe")
+			elif s < 0.0:
+				_box(dep + u * a + v * fond + Vector3(0, 0.6, 0), _taille_ab(u, v, 15.0, 0.08, 1.2), Color(0.6, 0.48, 0.36), true, "planches")
+		a += 15.0
+	_poi(nom, dep + u * (lg * 0.5) + v * (BLOCK * 0.5), Color(0.7, 0.85, 0.5))
+
+
+# ---------------------------------------------------------------- bâtiments de ville
+## Centre commercial : grande galerie, six boutiques le long des murs est et ouest (vitrines ouvertes, enseignes).
+func _centre_commercial(bc: Vector3) -> void:
+	var c := bc + Vector3(0, 0, -1.0)
+	var z := _building(c, 34.0, 30.0, 7.0, Color(0.72, 0.7, 0.66), ["s", "n"], "magasin", "Centre commercial", false, 0, Color(0.9, 0.55, 0.75))
+	var ab: AABB = z.aabb
+	var mat_avant := cur_mat
+	cur_mat = "enduit"
+	var types := ["magasin", "pharmacie", "vetements", "quincaillerie", "bar", "vetements"]
+	for k in range(types.size() - 1, 0, -1):
+		var j := rng.randi_range(0, k)
+		var tmp = types[k]
+		types[k] = types[j]
+		types[j] = tmp
+	var prof := 8.0
+	var mur := Color(0.86, 0.85, 0.82)
+	var n := 0
+	for cote in [-1.0, 1.0]:
+		var xm: float = ab.position.x if cote < 0 else ab.end.x
+		var xf: float = xm - cote * prof
+		var lz := ab.size.z / 3.0
+		for i in 3:
+			var z0b := ab.position.z + i * lz
+			var z1b := z0b + lz
+			var zc := (z0b + z1b) / 2.0
+			_wall(false, xf, z0b, zc - 1.6, 0.0, 3.6, mur)
+			_wall(false, xf, zc + 1.6, z1b, 0.0, 3.6, mur)
+			_wall(false, xf, zc - 1.6, zc + 1.6, 3.0, 3.6, mur)
+			if i < 2:
+				_wall(true, z1b, minf(xm, xf), maxf(xm, xf), 0.0, 3.6, mur)
+			var col_e: Color = [Color(0.8, 0.2, 0.2), Color(0.2, 0.6, 0.3), Color(0.2, 0.35, 0.75), Color(0.85, 0.6, 0.15)][n % 4]
+			_box(Vector3(xf + cote * 0.2, 3.3, zc), Vector3(0.06, 0.5, 2.8), col_e, false, "uni")
+			var bx0 := minf(xm, xf) + 0.2
+			var bx1 := maxf(xm, xf) - 0.2
+			var boutique := {"aabb": AABB(Vector3(bx0, 0.0, z0b + 0.2), Vector3(bx1 - bx0, 3.3, lz - 0.4)), "doors": [{"pos": Vector3(xf, 0, zc)}], "passages": []}
+			_furnish(boutique, types[n], 4, [])
+			n += 1
+	cur_mat = mat_avant
+	# galerie : bacs à plantes et bancs
+	for i in 3:
+		var p := Vector3(c.x, 0, ab.position.z + ab.size.z * (i + 1) / 4.0)
+		_box(p + Vector3(0, 0.4, 0), Vector3(1.6, 0.8, 1.6), Color(0.6, 0.6, 0.58), true, "beton")
+		_box(p + Vector3(0, 0.83, 0), Vector3(1.4, 0.06, 1.4), Color(0.35, 0.5, 0.25), false, "herbe")
+		_prop("banc", p + Vector3(2.3, 0, 0), PI / 2.0, true, 1.0, 45.0)
+		_prop("banc", p + Vector3(-2.3, 0, 0), -PI / 2.0, true, 1.0, 45.0)
+	for i in 5:
+		guards.append({"pos": Vector3(rng.randf_range(c.x - 6.0, c.x + 6.0), 0.1, rng.randf_range(ab.position.z + 2.0, ab.end.z - 2.0)), "kind": "civil", "radius": 8.0})
+	_poi("Centre commercial", c, Color(0.95, 0.55, 0.8))
+
+
+## Église : nef sous un toit en pente, clocher à flèche au nord, bancs et autel ; deux maisons sur le reste du pâté.
+func _eglise(bc: Vector3) -> void:
+	var c := bc + Vector3(-7.5, 0, 1.5)
+	var z := _building(c, 13.0, 25.0, 9.0, Color(0.82, 0.78, 0.7), ["s"], "eglise", "Église", false, 3, Color(0.8, 0.75, 0.6), "pente")
+	var ab: AABB = z.aabb
+	var ct := c + Vector3(0, 0, -12.5 - 2.3)
+	_box(ct + Vector3(0, 9.0, 0), Vector3(4.6, 18.0, 4.6), Color(0.85, 0.82, 0.75), true, "enduit")
+	var sommet := ct + Vector3(0, 25.0, 0)
+	var coins := [Vector3(-2.4, 18.0, -2.4), Vector3(2.4, 18.0, -2.4), Vector3(2.4, 18.0, 2.4), Vector3(-2.4, 18.0, 2.4)]
+	for k in 4:
+		var a: Vector3 = ct + coins[k]
+		var b: Vector3 = ct + coins[(k + 1) % 4]
+		_tri(a, b, sommet, Color(0.32, 0.34, 0.38), "tuiles")
+		_tri(b, a, sommet, Color(0.32, 0.34, 0.38), "tuiles")
+	_box(sommet + Vector3(0, 1.0, 0), Vector3(0.15, 2.0, 0.15), Color(0.2, 0.2, 0.2), false, "metal")
+	_box(sommet + Vector3(0, 1.4, 0), Vector3(1.0, 0.15, 0.15), Color(0.2, 0.2, 0.2), false, "metal")
+	for s in [Vector3(0, 0, -2.31), Vector3(0, 0, 2.31), Vector3(-2.31, 0, 0), Vector3(2.31, 0, 0)]:
+		_box(ct + s + Vector3(0, 15.0, 0), Vector3(1.4, 2.2, 0.06) if s.x == 0.0 else Vector3(0.06, 2.2, 1.4), Color(0.12, 0.12, 0.13), false, "uni")
+	_reserve(Rect2(ct.x - 2.4, ct.z - 2.4, 4.8, 4.8))
+	# bancs face à l'autel
+	for r in 7:
+		var zr := ab.end.z - 4.0 - r * 2.0
+		for x in [-4.0, -2.85, -1.7, 1.7, 2.85, 4.0]:
+			_sans_ombre(_prop("banc", Vector3(c.x + x, 0, zr), 0.0, true, 1.0, 35.0))
+	_box(Vector3(c.x, 0.5, ab.position.z + 3.0), Vector3(3.2, 1.0, 1.2), Color(0.92, 0.9, 0.86), true, "beton")
+	for i in 3:
+		guards.append({"pos": _random_in(z, 1.5), "kind": "civil", "radius": 6.0})
+	for q in [Vector2(1, -1), Vector2(1, 1)]:
+		var hc := bc + Vector3(q.x * 8.5, 0, q.y * 8.5)
+		var hz := _building(hc, rng.randf_range(9, 12), rng.randf_range(8, 11), 6.6, HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()], _doors_toward_roads(q.x, q.y), "maison", "", false, -1, Color(0.45, 0.4, 0.35))
+		_residents(hz, 0.4, 2)
+	_poi("Église", c, Color(0.85, 0.8, 0.6))
+
+
+## Garage auto : atelier avec une voiture, cour bétonnée avec épaves, pneus et bidons.
+func _garage(bc: Vector3) -> void:
+	_small_special(bc, "garage", "Garage auto", Color(0.62, 0.62, 0.64), Color(0.55, 0.62, 0.75), 16.0, 13.0, 5.0, 6, [Vector2(1, -1), Vector2(1, 1)])
+	_car(bc + Vector3(-8.0, 0, -8.0), true, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.3))
+	_flat(Rect2(bc.x - 17.5, bc.z + 0.5, 17.0, 17.0), 0.012, Color(0.85, 0.85, 0.83), "beton")
+	for i in 2:
+		_car(bc + Vector3(-12.0 + i * 7.0, 0, 10.0), false, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.4))
+	for id in ["pneu", "pneu", "baril_rouge", "jerrican", "palette", "baril_bleu"]:
+		_prop(id, bc + Vector3(rng.randf_range(-16.0, -2.0), 0, rng.randf_range(2.0, 4.0)), rng.randf() * TAU, true, 1.0, 100.0)
+	_reserve(Rect2(bc.x - 18.0, bc.z + 0.5, 18.0, 17.5))
+
+
+## Pharmacie : croix verte sur le toit, au-dessus de la façade nord.
+func _pharmacie(bc: Vector3) -> void:
+	_small_special(bc, "pharmacie", "Pharmacie", Color(0.84, 0.84, 0.82), Color(0.3, 0.85, 0.45), 13.0, 11.0, 4.5, 8)
+	var p := bc + Vector3(-8.0, 4.5, -8.0 - 5.5 + 0.3)
+	_box(p, Vector3(1.4, 0.45, 0.1), Color(0.1, 0.75, 0.25), false, "uni")
+	_box(p, Vector3(0.45, 1.4, 0.1), Color(0.1, 0.75, 0.25), false, "uni")
+
+
+# ---------------------------------------------------------------- lieux de campagne
+## Scierie : hangar, bureau, piles de grumes et de planches, scie.
+func _scierie(p: Vector3, u: Vector3, v: Vector3) -> void:
+	var r := _rect_ab(p, u, v, -29.0, 29.0, -29.0, 29.0)
+	_flat(r, 0.012, Color(0.95, 0.9, 0.85), "terre")
+	Game.map_rects.append({"rect": r, "color": Color(0.42, 0.33, 0.22)})
+	var z := _bat_lieu(p, u, v, -8.0, -12.0, 24.0, 14.0, 7.0, Color(0.6, 0.45, 0.3), ["avant", "gauche"], "grange", "Scierie", 9, Color(0.6, 0.42, 0.25))
+	_residents(z, 0.9, 3)
+	var zb := _bat_lieu(p, u, v, 18.0, 14.0, 8.0, 6.0, 3.6, Color(0.7, 0.62, 0.5), ["gauche"], "bureau", "", 3, Color(0.6, 0.42, 0.25), "pente")
+	_residents(zb, 0.5, 1)
+	var ang := atan2(-v.z, v.x)   # grumes couchées le long de v
+	for k in 3:
+		var c := p + u * (-20.0 + k * 9.0) + v * 12.0
+		for etage in 3:
+			for j in 4 - etage:
+				_prop("tronc_mort", c + u * ((j - (3 - etage) * 0.5) * 0.52) + Vector3(0, etage * 0.42, 0), ang, true, 1.6, 150.0)
+	for k in 4:
+		var cp := p + u * (4.0 + k * 3.2) + v * 2.0
+		_box(cp + Vector3(0, 0.45, 0), _taille_ab(u, v, 2.4, 1.2, 0.9), Color(0.78, 0.62, 0.42), true, "planches")
+	_box(p - u * 8.0 + v * 2.0 + Vector3(0, 0.45, 0), _taille_ab(u, v, 5.0, 1.2, 0.9), Color(0.45, 0.47, 0.5), true, "metal")
+	_box(p - u * 8.0 + v * 2.0 + Vector3(0, 1.1, 0), _taille_ab(u, v, 1.4, 0.04, 0.9), Color(0.75, 0.75, 0.78), false, "metal")
+	for k in 2:
+		var cc := _container(p - u * (24.0 - k * 1.6) + v * 0.5, Vector3(1.2, 1.0, 1.2), Color(0.5, 0.38, 0.22), "Caisse en bois", "quincaillerie")
+		cc.set_modele("caisse_bois", 0.0)
+	for i in 3:
+		guards.append({"pos": p + u * rng.randf_range(-20.0, 20.0) + v * rng.randf_range(-2.0, 8.0) + Vector3(0, 0.1, 0), "kind": "civil", "radius": 10.0})
+	_poi("Scierie", p, Color(0.8, 0.58, 0.32))
+
+
+## Camping : accueil, sanitaires, caravanes et tentes fouillables, tables de pique-nique, pins autour.
+func _camping(p: Vector3, u: Vector3, v: Vector3) -> void:
+	var r := _rect_ab(p, u, v, -29.0, 29.0, -29.0, 29.0)
+	_flat(r, 0.012, Color(0.9, 1.0, 0.85), "herbe")
+	Game.map_rects.append({"rect": r, "color": Color(0.3, 0.45, 0.25)})
+	var za := _bat_lieu(p, u, v, -20.0, 22.0, 7.0, 6.0, 3.6, Color(0.7, 0.55, 0.38), ["avant"], "magasin", "Accueil du camping", 3, Color(0.4, 0.6, 0.35), "pente")
+	_bat_lieu(p, u, v, 20.0, 22.0, 8.0, 5.0, 3.6, Color(0.8, 0.8, 0.78), ["gauche"], "maison", "", 2, Color(0.4, 0.6, 0.35))
+	_residents(za, 0.6, 1)
+	for pl in [Vector2(-18, 6), Vector2(-6, 6), Vector2(6, 6), Vector2(18, 6), Vector2(-18, -10), Vector2(18, -10)]:
+		_caravane(p + u * pl.x + v * pl.y, u, v)
+	for k in 6:
+		_tente(p + u * (-14.0 + (k % 3) * 14.0) + v * (-16.0 - floori(k / 3.0) * 6.0), u, v, [Color(0.2, 0.5, 0.3), Color(0.75, 0.3, 0.15), Color(0.2, 0.35, 0.7)][k % 3])
+	for k in 3:
+		_prop("table_bois", p + u * (-6.0 + k * 6.0) - v * 4.0, rng.randf() * 0.4, true, 1.0, 100.0)
+	_prop("brasero", p - v * 9.0, 0.0, true, 1.0, 120.0)
+	for i in 14:
+		var a := rng.randf_range(-27.0, 27.0)
+		if i % 2 == 0:
+			trees.append(p + u * a - v * 27.5)
+		else:
+			trees.append(p + u * (27.5 if a > 0 else -27.5) + v * rng.randf_range(-24.0, 10.0))
+	for i in 5:
+		guards.append({"pos": p + u * rng.randf_range(-24.0, 24.0) + v * rng.randf_range(-22.0, 2.0) + Vector3(0, 0.1, 0), "kind": "civil", "radius": 10.0})
+	_poi("Camping des Pins", p, Color(0.45, 0.8, 0.45))
+
+
+## Caravane (fouillable) : caisse blanche sur roues, bande colorée et vitres.
+func _caravane(c: Vector3, u: Vector3, v: Vector3) -> void:
+	var t := _taille_ab(u, v, 2.3, 6.0, 2.5)
+	_container(c + Vector3(0, 0.35, 0), t, Color(0.92, 0.9, 0.84), "Caravane", "maison", 3)
+	_box(c + Vector3(0, 1.35, 0), Vector3(t.x + 0.04, 0.18, t.z + 0.04), Color(0.25, 0.45, 0.7), false, "uni")
+	_box(c + Vector3(0, 2.05, 0), Vector3(t.x + 0.03, 0.45, t.z + 0.03) - _taille_ab(u, v, 0.0, 1.2, 0.0), Color(0.12, 0.14, 0.16), false, "vitre")
+	for sgn in [-1.0, 1.0]:
+		_box(c + u * (sgn * 1.15) + Vector3(0, 0.35, 0), _taille_ab(u, v, 0.25, 0.7, 0.7), Color(0.1, 0.1, 0.1), false, "uni")
+
+
+## Tente (fouillable) : deux pans de toile et deux pignons sur la boîte d'interaction cachée.
+func _tente(c: Vector3, u: Vector3, v: Vector3, col: Color) -> void:
+	var lu := 2.2
+	var lv := 2.6
+	var h := 1.4
+	var ct := _container(c, _taille_ab(u, v, lu, lv, h), col, "Tente", "maison", 1)
+	ct.mesh_i.visible = false
+	var f0 := c - v * lv / 2.0 + Vector3(0, h, 0)
+	var f1 := c + v * lv / 2.0 + Vector3(0, h, 0)
+	var g0 := c - u * lu / 2.0 - v * lv / 2.0
+	var g1 := c - u * lu / 2.0 + v * lv / 2.0
+	var d0 := c + u * lu / 2.0 - v * lv / 2.0
+	var d1 := c + u * lu / 2.0 + v * lv / 2.0
+	_quad(g0, g1, f1, f0, col, "uni", true)
+	_quad(d0, d1, f1, f0, col, "uni", true)
+	for e in [[g0, d0, f0], [g1, d1, f1]]:
+		_tri(e[0], e[1], e[2], col.darkened(0.2), "uni")
+		_tri(e[1], e[0], e[2], col.darkened(0.2), "uni")
+
+
+## Relais routier : restaurant, grand parking avec camions (remorques fouillables) et voitures.
+func _relais_routier(p: Vector3, u: Vector3, v: Vector3) -> void:
+	var parking := _rect_ab(p, u, v, -27.0, 27.0, -2.0, 27.0)
+	_flat(parking, 0.012, Color(0.9, 0.9, 0.9), "asphalte")
+	Game.map_rects.append({"rect": parking, "color": Color(0.15, 0.15, 0.15)})
+	var z := _bat_lieu(p, u, v, -6.0, -15.0, 22.0, 11.0, 4.2, Color(0.75, 0.5, 0.35), ["avant", "droite"], "bar", "Relais routier", 9, Color(0.95, 0.55, 0.3))
+	_residents(z, 0.9, 4)
+	for k in 3:
+		_camion(p + u * (-18.0 + k * 9.0) + v * 12.0, u, v, [Color(0.75, 0.2, 0.15), Color(0.2, 0.3, 0.6), Color(0.85, 0.85, 0.82)][k])
+	for k in 2:
+		_car(p + u * (16.0 + k * 5.0) + v * 3.0, absf(v.x) > 0.5, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.3))
+	for i in 3:
+		guards.append({"pos": p + u * rng.randf_range(-20.0, 20.0) + v * rng.randf_range(0.0, 20.0) + Vector3(0, 0.1, 0), "kind": "civil", "radius": 10.0})
+	_poi("Relais routier", p, Color(0.95, 0.6, 0.35))
+
+
+## Camion garé : cabine vers +v, remorque fouillable, roues.
+func _camion(c: Vector3, u: Vector3, v: Vector3, col: Color) -> void:
+	_container(c - v * 1.5 + Vector3(0, 0.9, 0), _taille_ab(u, v, 2.5, 10.0, 3.0), Color(0.85, 0.85, 0.83), "Remorque", "magasin", 4)
+	_box(c + v * 5.4 + Vector3(0, 1.75, 0), _taille_ab(u, v, 2.5, 2.4, 2.9), col, true, "metal")
+	_box(c + v * 6.62 + Vector3(0, 2.3, 0), _taille_ab(u, v, 2.2, 0.04, 1.0), Color(0.12, 0.14, 0.16), false, "vitre")
+	for b in [5.4, 2.0, -4.5, -6.0]:
+		for sgn in [-1.0, 1.0]:
+			_box(c + u * (sgn * 1.2) + v * b + Vector3(0, 0.5, 0), _taille_ab(u, v, 0.35, 1.0, 1.0), Color(0.08, 0.08, 0.08), false, "uni")
+
+
+## Château d'eau : réservoir sur un fût en béton, repère visible de loin.
+func _chateau_eau(c: Vector3, nom: String) -> void:
+	_cylindre(c, 1.6, 22.0, Color(0.8, 0.79, 0.76), "beton")
+	_cylindre(c + Vector3(0, 22.0, 0), 6.5, 7.0, Color(0.86, 0.85, 0.82), "beton")
+	_disque(c + Vector3(0, 22.0, 0), 6.5, Color(0.7, 0.7, 0.68), "beton")
+	_cone(c + Vector3(0, 29.0, 0), 6.8, 2.5, Color(0.55, 0.56, 0.58), "tole")
+	_box(c + Vector3(0, 11.0, 0), Vector3(2.4, 22.0, 2.4), Color.WHITE, true, "invisible")
+	_reserve(Rect2(c.x - 7.0, c.z - 7.0, 14.0, 14.0), Color(0.6, 0.62, 0.65))
+	_poi(nom, c, Color(0.6, 0.8, 0.95))
+
+
+## Silo à grain : cylindre en tôle et toit conique.
+func _silo(c: Vector3) -> void:
+	_cylindre(c, 3.0, 13.0, Color(0.78, 0.78, 0.76), "tole")
+	_cone(c + Vector3(0, 13.0, 0), 3.2, 3.0, Color(0.6, 0.6, 0.6), "tole")
+	_box(c + Vector3(0, 6.5, 0), Vector3(4.2, 13.0, 4.2), Color.WHITE, true, "invisible")
+	_reserve(Rect2(c.x - 3.2, c.z - 3.2, 6.4, 6.4), Color(0.6, 0.6, 0.6))
+
+
+func _cylindre(base: Vector3, r: float, h: float, col: Color, m: String, n := 14) -> void:
+	for i in n:
+		var p0 := base + Vector3(cos(TAU * i / n) * r, 0, sin(TAU * i / n) * r)
+		var p1 := base + Vector3(cos(TAU * (i + 1) / n) * r, 0, sin(TAU * (i + 1) / n) * r)
+		_quad(p0, p1, p1 + Vector3(0, h, 0), p0 + Vector3(0, h, 0), col, m, true)
+
+
+func _cone(base: Vector3, r: float, h: float, col: Color, m: String, n := 14) -> void:
+	var sommet := base + Vector3(0, h, 0)
+	for i in n:
+		var p0 := base + Vector3(cos(TAU * i / n) * r, 0, sin(TAU * i / n) * r)
+		var p1 := base + Vector3(cos(TAU * (i + 1) / n) * r, 0, sin(TAU * (i + 1) / n) * r)
+		_tri(p0, p1, sommet, col, m)
+		_tri(p1, p0, sommet, col, m)
+
+
+func _disque(c: Vector3, r: float, col: Color, m: String, n := 14) -> void:
+	for i in n:
+		var p0 := c + Vector3(cos(TAU * i / n) * r, 0, sin(TAU * i / n) * r)
+		var p1 := c + Vector3(cos(TAU * (i + 1) / n) * r, 0, sin(TAU * (i + 1) / n) * r)
+		_tri(p0, p1, c, col, m)
+		_tri(p1, p0, c, col, m)

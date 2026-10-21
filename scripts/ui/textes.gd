@@ -123,7 +123,14 @@ const GUIDE := """[b]LES BASES[/b]
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
 • La région fait 5 × 5 km : [b]Bellerive[/b] (ville de départ), [b]Valmont[/b] (au nord-est, avec sa zone industrielle),
   quatre villages (Saint-Aubin, Hameau des Sources, les Granges, Pont-Rouge), fermes, stations-service, motels.
-  Sur la carte : molette pour zoomer, clic maintenu pour la déplacer, [Espace] pour recentrer sur toi.
+  Sur la carte : molette pour zoomer, clic maintenu pour la déplacer, [Espace] pour recentrer sur toi
+  (les boutiques et bâtiments des villes ne sont nommés qu'en zoomant fort).
+• Les villes ont un [b]centre dense[/b] (immeubles hauts, bureaux) et des [b]quartiers pavillonnaires[/b] sur le pourtour ;
+  chacune a un [b]lotissement neuf[/b] en périphérie (des Tilleuls, du Moulin-Neuf) : maisons identiques, vite fouillées.
+• En ville : [b]centre commercial[/b] (six boutiques autour d'une galerie), [b]pharmacie[/b] (soins), [b]garage auto[/b]
+  (outils, carburant), [b]bibliothèque[/b] (fournitures de bureau), [b]bar-restaurant[/b] (nourriture, boissons), [b]église[/b].
+• À la campagne : [b]scierie[/b] (outils, planches), [b]camping des Pins[/b] (caravanes et tentes fouillables),
+  [b]relais routier[/b] (remorques de camions pleines de marchandises), [b]châteaux d'eau[/b] et silos des fermes, visibles de loin.
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
