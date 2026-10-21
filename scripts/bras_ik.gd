@@ -186,7 +186,7 @@ func _achever(sk: Skeleton3D, inv_sk: Transform3D, droite: Vector3, haut: Vector
 	var p := clampf(achevement, 0.0, 1.0)
 	var cible: Vector3 = inv_sk * cible_achev
 	# buste penché vers la tête visée (davantage au moment de l'impact)
-	var k_b := smoothstep(0.2, 0.58, p) * (1.0 - smoothstep(0.8, 1.0, p)) * poids
+	var k_b := smoothstep(0.16, 0.58, p) * (1.0 - smoothstep(0.8, 1.0, p)) * poids
 	if not _vertebres.is_empty() and k_b > 0.001:
 		var d0 := (cible - sk.get_bone_global_pose(_os.upperarm_r).origin).normalized()
 		var angle := clampf(asin(clampf(d0.dot(haut), -1.0, 1.0)), -0.9, 0.3) * (0.45 if main_g_seule else 0.7) * k_b / _vertebres.size()
@@ -210,17 +210,17 @@ func _achever(sk: Skeleton3D, inv_sk: Transform3D, droite: Vector3, haut: Vector
 		var dir_f := (cible - w_leve.origin).normalized()
 		w_frappe = Transform3D(_base_plan(dir_f, droite), cible - dir_f * longueur_arme * 0.75)
 	var w: Transform3D
-	if p < 0.4:
+	if p < 0.36:
 		w = w_leve
 	elif p < 0.58 and main_g_seule:
 		# arme à deux mains : passe par l'avant (horizontale à hauteur d'épaule), sinon l'interpolation
 		# la plus courte entre « levée en arrière » et « pointe au sol » passerait derrière le dos
 		var w_mi := Transform3D(_base_plan(avant, droite), e_d + avant * 0.4 - droite * 0.12 + haut * 0.02)
-		var q := (p - 0.4) / 0.18
+		var q := (p - 0.36) / 0.22
 		q = q * q
 		w = w_leve.interpolate_with(w_mi, q * 2.0) if q < 0.5 else w_mi.interpolate_with(w_frappe, q * 2.0 - 1.0)
 	elif p < 0.58:
-		var q := (p - 0.4) / 0.18
+		var q := (p - 0.36) / 0.22
 		w = w_leve.interpolate_with(w_frappe, q * q)
 	elif p < 0.8:
 		w = w_frappe

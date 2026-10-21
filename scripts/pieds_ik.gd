@@ -93,10 +93,10 @@ func _process_modification_with_delta(delta: float) -> void:
 		var leve := t.lerp(cibles._r, 0.35) + Vector3.UP * 0.42
 		var p := coup_pied
 		var pied: Vector3 = cibles._r
-		if p < 0.4:
-			pied = (cibles._r as Vector3).lerp(leve, smoothstep(0.0, 1.0, p / 0.4))
-		elif p < 0.55:
-			var q := (p - 0.4) / 0.15
+		if p < 0.36:
+			pied = (cibles._r as Vector3).lerp(leve, smoothstep(0.0, 1.0, p / 0.36))
+		elif p < 0.56:
+			var q := (p - 0.36) / 0.2
 			pied = leve.lerp(t, q * q)
 		elif p < 0.75:
 			pied = t

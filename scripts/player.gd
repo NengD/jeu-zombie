@@ -846,6 +846,7 @@ func _chercher_a_achever() -> void:
 
 ## Coup de grâce : coup de talon sur la tête (pieds_ik), ou balle à bout portant avec une arme à feu chargée.
 var achevement_t := 0.0
+const ACHEV_DUREE := 0.5            # durée du geste (impact aux 3/5)
 var achevement_cible: Node = null
 var achev_mode := ""                # "talon", "deux_mains", "lame" (geste du coup de grâce)
 var achev_point := Vector3.ZERO     # tête visée
@@ -867,9 +868,9 @@ func achever(z: Node) -> void:
 		Effets.gerbe_sang(get_parent(), t, Vector3.DOWN, 1.4)
 		prog.gagner("combat", 10)
 		return
-	achevement_t = 0.75
+	achevement_t = ACHEV_DUREE
 	achevement_cible = z
-	cooldown = 0.8
+	cooldown = ACHEV_DUREE + 0.05
 	melee_p = 1.0
 	# point frappé : la tête si elle est à portée, sinon la poitrine (zombie tombé la tête loin de soi)
 	achev_point = z.global_position + Vector3.UP * 0.15
@@ -889,15 +890,15 @@ func achever(z: Node) -> void:
 		achev_mode = "talon"
 		pieds_ik.cible_pied = achev_point
 		pieds_ik.coup_pied = 0.0
-		_p_anim("idle", 1.0, 0.75)
+		_p_anim("idle", 1.0, ACHEV_DUREE)
 	elif bras_ik and hand_weapon and is_instance_valid(hand_weapon):
 		achev_mode = "deux_mains" if id in FpsArms.TWO_HANDED_MELEE else "lame"
 		bras_ik.cible_achev = achev_point
 		bras_ik.longueur_arme = float(Items.info(id).get("len", 0.5))
 		bras_ik.achevement = 0.0
-		_p_anim("idle" if achev_mode == "deux_mains" else "accroupi", 1.0, 0.75)
+		_p_anim("idle" if achev_mode == "deux_mains" else "accroupi", 1.0, ACHEV_DUREE)
 	elif perso_ual:
-		_p_anim("estoc", 1.4, 0.75)
+		_p_anim("estoc", 2.1, ACHEV_DUREE)
 	Game.play_ui("vent_lourd", -6.0, 0.1)
 
 
@@ -906,19 +907,19 @@ func _maj_achevement(delta: float) -> void:
 		return
 	var avant := achevement_t
 	achevement_t = maxf(0.0, achevement_t - delta)
-	var p_achev := 1.0 - achevement_t / 0.75 if achevement_t > 0.0 else -1.0
+	var p_achev := 1.0 - achevement_t / ACHEV_DUREE if achevement_t > 0.0 else -1.0
 	if pieds_ik:
 		pieds_ik.coup_pied = p_achev if achev_mode == "talon" else -1.0
 	if bras_ik:
 		if achev_mode in ["deux_mains", "lame"]:
 			bras_ik.achevement = p_achev if p_achev >= 0.0 else 1.0   # pose finale gardée le temps du retour
 	# petit pas vers la tête pour qu'elle soit à bonne distance (talon, lame, ou bout d'une arme longue)
-	if achev_mode != "" and achevement_t > 0.4 and is_instance_valid(achevement_cible):
+	if achev_mode != "" and achevement_t > ACHEV_DUREE * 0.53 and is_instance_valid(achevement_cible):
 		var vers := Vector3(achev_point.x - global_position.x, 0.0, achev_point.z - global_position.z)
 		var reste: float = vers.length() - {"talon": 0.5, "lame": 0.55, "deux_mains": 0.9}[achev_mode]
 		if reste > 0.02:
-			move_and_collide(vers.normalized() * minf(reste, delta * 2.5))
-	if avant > 0.3 and achevement_t <= 0.3 and is_instance_valid(achevement_cible) and achevement_cible.state != achevement_cible.State.DEAD:
+			move_and_collide(vers.normalized() * minf(reste, delta * 3.6))
+	if avant > ACHEV_DUREE * 0.4 and achevement_t <= ACHEV_DUREE * 0.4 and is_instance_valid(achevement_cible) and achevement_cible.state != achevement_cible.State.DEAD:
 		var z = achevement_cible
 		var t: Vector3 = z._pos_os("Head")
 		if t == Vector3.INF:
