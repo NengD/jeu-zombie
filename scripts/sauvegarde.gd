@@ -92,7 +92,7 @@ static func sauver(main: Node) -> bool:
 		"pos": _v(p.global_position), "rot": p.rotation.y, "tete": p.head.rotation.x,
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
 		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "slot": p.slot,
-		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on,
+		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on, "maladie": p.maladie,
 	}
 	# meubles du monde (identifiés par leur numéro de génération)
 	var cont := {}
@@ -226,6 +226,7 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 				p.accessoires[a][emp] = str(acc[a][emp])
 	p.flashlight_on = bool(j.get("lampe", false))
 	p.argent = int(j.get("argent", 40))
+	p.maladie = float(j.get("maladie", 0.0))
 	p.slot = -1
 	p._select_slot(clampi(int(j.get("slot", 0)), 0, 4))
 	p._refresh_weapon_model()

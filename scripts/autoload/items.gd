@@ -12,6 +12,7 @@ const DB := {
 	"bandage": {"name": "Bandage", "type": "heal", "heal": 15.0, "weight": 0.1},
 	"trousse": {"name": "Trousse de soin", "type": "heal", "heal": 100.0, "weight": 0.6},
 	"antidouleur": {"name": "Antidouleurs", "type": "heal", "heal": 10.0, "weight": 0.05},
+	"medicament": {"name": "Médicaments anti-nausée", "type": "heal", "heal": 5.0, "weight": 0.05, "desc": "Guérit l'intoxication (viande crue)."},
 	# --- matériaux
 	"tissu": {"name": "Tissu", "type": "material", "weight": 0.1},
 	"planche": {"name": "Planche", "type": "material", "weight": 1.0},
@@ -32,6 +33,9 @@ const DB := {
 	"peau": {"name": "Peau brute", "type": "material", "weight": 0.8, "desc": "À tanner pour obtenir du cuir."},
 	"os": {"name": "Os", "type": "material", "weight": 0.2, "desc": "Pointes de flèches, outils, bouillon."},
 	"graisse": {"name": "Graisse animale", "type": "material", "weight": 0.2, "desc": "Sert au tannage et à la cuisine."},
+	"viande_cuite": {"name": "Viande cuite", "type": "food", "food": 45.0, "weight": 0.35, "desc": "Cuite au feu : nourrissante et sans danger."},
+	"bouillon": {"name": "Bouillon d'os", "type": "drink", "water": 35.0, "food": 15.0, "weight": 0.5, "desc": "Os mijotés dans l'eau : désaltère et nourrit un peu."},
+	"ragout": {"name": "Ragoût de chasse", "type": "food", "food": 85.0, "water": 15.0, "weight": 0.7, "desc": "Plat complet : rassasie longtemps."},
 	# --- munitions
 	"mun_9mm": {"name": "Balles 9×19 mm", "type": "ammo", "weight": 0.012, "modele": "cart_9mm"},
 	"mun_45": {"name": "Balles .45 ACP", "type": "ammo", "weight": 0.021, "modele": "cart_45"},
@@ -99,6 +103,8 @@ const DB := {
 	"sac_a_dos": {"name": "Sac à dos", "type": "armor", "slot": "dos", "capacity": 15.0, "armor": 0.0, "weight": 0.8},
 	"sac_militaire": {"name": "Sac militaire", "type": "armor", "slot": "dos", "capacity": 30.0, "armor": 0.0, "weight": 1.5},
 	"sac_toile": {"name": "Sac en toile", "type": "armor", "slot": "dos", "armor": 0.0, "weight": 0.4},
+	"capuche_cuir": {"name": "Capuche de cuir", "type": "armor", "slot": "tete", "armor": 0.06, "weight": 0.5},
+	"sac_chasse": {"name": "Sac de chasse en cuir", "type": "armor", "slot": "dos", "capacity": 20.0, "armor": 0.0, "weight": 1.0},
 	# --- objets à placer (base)
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
 	"feu_camp": {"name": "Feu de camp (à placer)", "type": "placeable", "weight": 3.0, "desc": "Station de cuisson. Se pose dehors comme dedans."},
@@ -108,6 +114,7 @@ const DB := {
 	"piques": {"name": "Piques en bois (piège à placer)", "type": "placeable", "weight": 5.0},
 	"barbeles": {"name": "Barbelés (piège à placer)", "type": "placeable", "weight": 4.0},
 	"projecteur": {"name": "Projecteur (à placer)", "type": "placeable", "weight": 4.0},
+	"collet": {"name": "Collet à lapin (piège à placer)", "type": "placeable", "weight": 0.2, "desc": "À poser dehors, loin de la ville : un lapin s'y prend au bout de quelques minutes si personne ne rôde autour."},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
 	"point_rouge": {"name": "Point rouge Holosun HS403R", "type": "accessoire", "desc": "Viseur point rouge compact : visée bien plus précise."},
 	"viseur_reflex": {"name": "Viseur reflex Holosun 510C", "type": "accessoire", "desc": "Viseur ouvert à large fenêtre (va aussi sur les pistolets à plaque optique)."},
@@ -141,7 +148,7 @@ const SIZES := {
 	"matraque": [1, 3], "machette": [1, 3], "batte": [1, 4], "batte_cloutee": [1, 4], "hache": [1, 4],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
-	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4],
+	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4], "sac_chasse": [3, 3], "capuche_cuir": [2, 2], "ragout": [1, 2], "bouillon": [1, 2],
 	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3],
 	"couteau_km2000": [1, 2], "arc": [1, 4], "peau": [2, 2], "viande_crue": [1, 1],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
@@ -157,13 +164,13 @@ const SIZES := {
 # Quantité maximale par case (piles). Par défaut 1.
 const STACKS := {
 	"mun_9mm": 60, "mun_556": 60, "mun_12": 24, "mun_45": 40, "mun_50ae": 28, "mun_46": 60, "mun_545": 60, "mun_762x39": 60,
-	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "viande_crue": 4, "peau": 2, "os": 6, "graisse": 4, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
+	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "viande_crue": 4, "peau": 2, "os": 6, "graisse": 4, "viande_cuite": 4, "medicament": 5, "collet": 5, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
 	"poudre": 10, "cuir": 3, "piece_auto": 3, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 }
 
 # Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
 const GRIDS := {
-	"sac_toile": [4, 3], "sac_a_dos": [6, 5], "sac_militaire": [7, 7],
+	"sac_toile": [4, 3], "sac_a_dos": [6, 5], "sac_militaire": [7, 7], "sac_chasse": [5, 5],
 	"veste_cuir": [4, 2], "veste_renforcee": [4, 2], "gilet_police": [5, 2], "gilet_militaire": [6, 3],
 }
 
@@ -201,6 +208,15 @@ const RECIPES := [
 	{"out": "veste_cuir", "qty": 1, "needs": {"cuir": 3, "tissu": 2}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 1},
 	{"out": "sac_a_dos", "qty": 1, "needs": {"tissu": 6, "ruban": 1}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 2},
 	{"out": "veste_renforcee", "qty": 1, "needs": {"veste_cuir": 1, "ferraille": 3, "ruban": 2}, "cat": "vetements", "station": "etabli", "duree": 10.0, "niv": 3},
+	# --- chasse et cuisine (feu de camp ou brasero)
+	{"out": "viande_cuite", "qty": 1, "needs": {"viande_crue": 1}, "cat": "nourriture", "station": "feu", "duree": 8.0, "niv": 0},
+	{"out": "bouillon", "qty": 1, "needs": {"os": 2, "eau": 1}, "cat": "nourriture", "station": "feu", "duree": 10.0, "niv": 1},
+	{"out": "ragout", "qty": 1, "needs": {"viande_cuite": 2, "conserve": 1, "eau": 1}, "cat": "nourriture", "station": "feu", "duree": 14.0, "niv": 2},
+	{"out": "cuir", "qty": 1, "needs": {"peau": 2, "graisse": 1}, "cat": "vetements", "station": "feu", "duree": 15.0, "niv": 1},
+	{"out": "capuche_cuir", "qty": 1, "needs": {"cuir": 2, "tissu": 1}, "cat": "vetements", "station": "couture", "duree": 8.0, "niv": 1},
+	{"out": "sac_chasse", "qty": 1, "needs": {"cuir": 4, "tissu": 2}, "cat": "vetements", "station": "couture", "duree": 14.0, "niv": 2},
+	{"out": "fleche", "qty": 5, "needs": {"planche": 1, "plume": 2, "os": 1}, "cat": "munitions", "station": "", "duree": 6.0, "niv": 1},
+	{"out": "collet", "qty": 2, "needs": {"ferraille": 1, "planche": 1}, "cat": "outils", "station": "", "duree": 4.0, "niv": 1},
 	{"out": "mun_9mm", "qty": 10, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 2},
 	{"out": "mun_12", "qty": 5, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 2},
 	{"out": "mun_45", "qty": 8, "needs": {"poudre": 1, "ferraille": 1}, "cat": "munitions", "station": "etabli", "duree": 6.0, "niv": 3},
@@ -215,8 +231,8 @@ const LOOT := {
 	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
 	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
-	"hopital": [["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
-	"pharmacie": [["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
+	"hopital": [["medicament", 6, 1, 2], ["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
+	"pharmacie": [["medicament", 8, 1, 2], ["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
 	"garage": [["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
 	"bar": [["alcool", 12, 1, 2], ["soda", 10, 1, 3], ["eau", 7, 1, 2], ["conserve", 6, 1, 2], ["barre", 5, 1, 2], ["tissu", 2, 1, 2], ["batte", 0.8, 1, 1]],
 	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau_km2000", 2, 1, 1], ["machette", 3, 1, 1],
@@ -258,7 +274,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}

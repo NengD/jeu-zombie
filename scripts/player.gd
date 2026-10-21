@@ -26,8 +26,8 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8)}
-const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp"]   # se posent n'importe où
+const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0
@@ -356,6 +356,7 @@ func _update_stats(delta: float) -> void:
 	if surbrillance_t <= 0.0:
 		surbrillance_t = 0.25
 		_maj_surbrillance()
+	_maj_maladie(delta)
 	if Game.admin and Game.admin_besoins:
 		hunger = 100.0
 		thirst = 100.0
@@ -1917,11 +1918,8 @@ func use_item(id: String) -> void:
 	var it := Items.info(id)
 	match it.get("type", ""):
 		"food", "drink":
-			hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
-			prog.gagner("survie", 5)
-			thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
 			remove_item(id)
-			Game.msg("Consommé : " + Items.nom(id))
+			_manger(id)
 		"heal":
 			_commencer_soin(id)
 		"armor":
@@ -1946,7 +1944,7 @@ func use_item(id: String) -> void:
 
 
 ## Soins : [durée (s), santé rendue (-1 = au maximum)]. Rapide mais peu efficace, ou lent mais complet.
-const SOINS := {"antidouleur": [0.5, 10.0], "bandage": [0.9, 15.0], "trousse": [3.5, -1.0]}
+const SOINS := {"antidouleur": [0.5, 10.0], "bandage": [0.9, 15.0], "trousse": [3.5, -1.0], "medicament": [1.0, 5.0]}
 var soin_t := 0.0                    # soin en cours (temps restant)
 var soin_total := 1.0
 var soin_id := ""
@@ -1958,7 +1956,7 @@ var soin_grille = null
 func _commencer_soin(id: String, entree = null, grille = null) -> bool:
 	if soin_t > 0.0:
 		return false
-	if health >= prog.sante_max() - 0.5:
+	if health >= prog.sante_max() - 0.5 and not (id == "medicament" and maladie > 0.0):
 		Game.msg("Ta santé est déjà au maximum.")
 		return false
 	var s: Array = SOINS.get(id, [0.8, float(Items.info(id).get("heal", 10.0))])
@@ -1989,6 +1987,9 @@ func _maj_soin(delta: float) -> void:
 	health = minf(prog.sante_max(), health + gain)
 	prog.gagner("survie", 8)
 	Game.msg("Soigné avec : " + Items.nom(soin_id))
+	if soin_id == "medicament" and maladie > 0.0:
+		maladie = 0.0
+		Game.msg("Les médicaments font effet : tu n'es plus malade.")
 	soin_entree = null
 	soin_grille = null
 
@@ -2000,10 +2001,7 @@ func consume_entry(e: Dictionary, g: Grille) -> bool:
 	if t == "heal":
 		return _commencer_soin(e.id, e, g)
 	if t == "food" or t == "drink":
-		hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
-		prog.gagner("survie", 5)
-		thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * (1.25 if prog.a("cuisinier") else 1.0))
-		Game.msg("Consommé : " + Items.nom(e.id))
+		_manger(e.id)
 	else:
 		return false
 	e.n -= 1
@@ -2436,3 +2434,53 @@ func _tirer_fleche(k: float) -> void:
 	Game.make_noise(global_position, float(w.noise))
 	if count("fleche") <= 0 and not (Game.admin and Game.admin_munitions):
 		Game.msg("Dernière flèche tirée.")
+
+
+# ================================================================ maladie
+## Intoxication (viande crue) : faim et soif baissent plus vite, endurance plafonnée, nausées
+## (on vomit de temps en temps), santé qui s'effrite si on est affamé ou assoiffé. Guérit avec le temps
+## ou avec des médicaments anti-nausée.
+const MALADIE_DUREE := 300.0       # secondes
+var maladie := 0.0                  # temps restant (0 = en bonne santé)
+var nausee_t := 30.0
+
+
+## Effets d'un aliment ou d'une boisson (nourriture crue : risque d'intoxication).
+func _manger(id: String) -> void:
+	var it := Items.info(id)
+	var k := 1.25 if prog.a("cuisinier") else 1.0
+	hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * k)
+	thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * k)
+	prog.gagner("survie", 5)
+	Game.msg("Consommé : " + Items.nom(id))
+	if it.get("cru", false):
+		var risque := maxf(0.2, 0.5 - 0.03 * int(prog.comp["survie"].niv))
+		if randf() < risque:
+			var deja := maladie > 0.0
+			maladie = minf(MALADIE_DUREE * 1.6, maladie + (120.0 if deja else MALADIE_DUREE))
+			nausee_t = randf_range(15.0, 30.0)
+			Game.msg("Tu as mangé de la viande crue : tu te sens malade (intoxication)." if not deja else "Ton intoxication s'aggrave.")
+			Game.play_ui("douleur", -6.0, 0.1, 0.8)
+
+
+func _maj_maladie(delta: float) -> void:
+	if maladie <= 0.0:
+		return
+	maladie = maxf(0.0, maladie - delta)
+	hunger = maxf(0.0, hunger - delta * 0.04)
+	thirst = maxf(0.0, thirst - delta * 0.06)
+	stamina = minf(stamina, prog.endurance_max() * 0.6)
+	if hunger < 25.0 or thirst < 25.0:
+		_hurt(0.08 * delta)
+	nausee_t -= delta
+	if nausee_t <= 0.0:
+		nausee_t = randf_range(40.0, 75.0)
+		hunger = maxf(0.0, hunger - 10.0)
+		thirst = maxf(0.0, thirst - 14.0)
+		_depenser_endurance(25.0)
+		secousse = maxf(secousse, 0.6)
+		Game.play_ui("souffle", -2.0, 0.1, 0.6)
+		Game.msg("Tu vomis… (intoxication)")
+		Game.make_noise(global_position, 10.0)
+	if maladie <= 0.0:
+		Game.msg("Tu te sens mieux : l'intoxication est passée.")

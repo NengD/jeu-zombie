@@ -86,6 +86,29 @@ func setup(p_kind: String) -> void:
 			_part(Vector3(0.45, 0.92, -0.25), Vector3(0.18, 0.015, 0.04), Color(0.7, 0.7, 0.72))   # ciseaux
 			_part(Vector3(-0.1, 0.9, 0.22), Vector3(0.12, 0.05, 0.12), Color(0.3, 0.3, 0.6))   # bobine
 			_shape(Vector3(0, 0.5, 0), Vector3(1.6, 1.0, 0.8))
+		"collet":
+			# piquet et boucle de fil de fer au ras du sol ; un lapin s'y prend avec le temps
+			health = 50.0
+			collision_layer = Game.LAYER_INTERACT
+			_part(Vector3(0, 0.15, 0.15), Vector3(0.03, 0.3, 0.03), wood.darkened(0.2))
+			var boucle := MeshInstance3D.new()
+			var tm := TorusMesh.new()
+			tm.inner_radius = 0.09
+			tm.outer_radius = 0.1
+			boucle.mesh = tm
+			boucle.material_override = _mat_acier()
+			boucle.position = Vector3(0, 0.1, 0)
+			boucle.rotation.x = PI / 2.0
+			add_child(boucle)
+			lapin_pris = Node3D.new()
+			lapin_pris.visible = false
+			add_child(lapin_pris)
+			var corps := _part(Vector3(0, 0.07, -0.05), Vector3(0.14, 0.12, 0.26), Color(0.52, 0.44, 0.36))
+			corps.reparent(lapin_pris, false)
+			var oreille := _part(Vector3(0.03, 0.08, -0.25), Vector3(0.04, 0.02, 0.12), Color(0.58, 0.5, 0.42))
+			oreille.reparent(lapin_pris, false)
+			collet_t = randf_range(150.0, 400.0)
+			_shape(Vector3(0, 0.15, 0), Vector3(0.5, 0.3, 0.5))
 		"barricade":
 			add_to_group("barricade")
 			for y in [0.4, 1.15, 1.9]:
@@ -206,6 +229,8 @@ func get_prompt() -> String:
 			return "[F] Feu de camp (cuisiner)"
 		"plan_couture":
 			return "[F] Plan de couture"
+		"collet":
+			return "[F] Relever le collet : un lapin s'est fait prendre" if lapin_pris.visible else "Collet à lapin (vide)"
 		"piques":
 			return "Piques en bois (%d PV)" % int(health)
 		"barbeles":
@@ -244,6 +269,8 @@ var verre: MeshInstance3D = null
 var mat_verre: StandardMaterial3D = null
 var flammes: Array = []             # feu de camp
 var lumiere_feu: OmniLight3D = null
+var lapin_pris: Node3D = null         # collet : lapin attrapé (visible)
+var collet_t := 0.0
 var projecteur_t := 0.0
 
 
@@ -256,6 +283,9 @@ func _maj_projecteur() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if lapin_pris:
+		_maj_collet(delta)
+		return
 	if lumiere_feu:
 		_animer_feu()
 		return
@@ -294,6 +324,16 @@ func _physics_process(delta: float) -> void:
 func interact(player: Node) -> void:
 	if kind in ["etabli", "feu_camp", "plan_couture"]:
 		player.open_inventory()
+	elif kind == "collet" and lapin_pris.visible:
+		lapin_pris.visible = false
+		collet_t = randf_range(200.0, 450.0)
+		player.add_item("viande_crue", 1)
+		player.add_item("peau", 1)
+		if randf() < 0.5:
+			player.add_item("os", 1)
+		player.prog.gagner("survie", 8)
+		Game.play_ui("fouille", -6.0, 0.1, 0.9)
+		Game.msg("Lapin récupéré dans le collet : viande crue, peau.")
 	elif kind == "projecteur":
 		mode = (mode + 1) % MODES.size()
 		_maj_projecteur()
@@ -318,3 +358,25 @@ func _animer_feu() -> void:
 	lumiere_feu.light_energy = 2.0 + sin(t * 13.0) * 0.3 + sin(t * 7.3) * 0.25
 	for k in flammes.size():
 		flammes[k].scale = Vector3.ONE * (0.85 + 0.2 * sin(t * (9.0 + k * 2.3) + k))
+
+
+## Collet : le temps ne passe que si personne ne rôde autour (joueur à plus de 20 m), hors des villes.
+func _maj_collet(delta: float) -> void:
+	if lapin_pris.visible:
+		return
+	var p = Game.player
+	if p and global_position.distance_squared_to(p.global_position) < 400.0:
+		return
+	if Game.in_city(global_position):
+		return
+	collet_t -= delta
+	if collet_t <= 0.0:
+		lapin_pris.visible = true
+
+
+func _mat_acier() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.5, 0.5, 0.52)
+	m.metallic = 0.8
+	m.roughness = 0.4
+	return m

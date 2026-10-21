@@ -364,6 +364,8 @@ func _process(delta: float) -> void:
 		zone_name += "  —  bâtiment sûr" if nz == 0 else "  —  %d zombie(s) à l'intérieur" % nz
 	var hh := int(Game.time_hours)
 	var mm := int((Game.time_hours - hh) * 60.0)
+	if p.maladie > 0.0:
+		zone_name += "\nMALADE (intoxication) : %d min" % ceili(p.maladie / 60.0)
 	lbl_info.text = "Jour %d — %02d:%02d%s\nArgent : %d €\n%s" % [
 		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", p.argent, zone_name]
 	# réticule dynamique : écart = vraie dispersion du tir projetée à l'écran (+ recul en cours)
