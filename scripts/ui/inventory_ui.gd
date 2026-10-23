@@ -144,6 +144,7 @@ var craft_btn_max: Button
 var stop_btn: Button
 var craft_btn: Button
 var demonter_btn: Button
+var fav_btn: Button
 var bench_label: Label
 var tab_cont: Button
 var tab_craft: Button
@@ -265,7 +266,11 @@ func _ready() -> void:
 	craft_btn5 = _button(bb, "×5", func(): _craft(5))
 	craft_btn_max = _button(bb, "Maximum", func(): _craft(-1))
 	stop_btn = _button(bb, "Arrêter", func(): Game.player.arreter_fabrication("Fabrication arrêtée."))
-	demonter_btn = _button(craft_box, "Démonter", func(): _demonter_choisi())
+	var bb2 := HBoxContainer.new()
+	bb2.add_theme_constant_override("separation", 6)
+	craft_box.add_child(bb2)
+	fav_btn = _button(bb2, "Épingler en favori", func(): _basculer_favori())
+	demonter_btn = _button(bb2, "Démonter", func(): _demonter_choisi())
 
 	# --- infobulle, menu contextuel, objet tenu
 	tooltip = PanelContainer.new()
@@ -1010,6 +1015,25 @@ func _refresh_recipes() -> void:
 	rec_tree.clear()
 	rec_items.clear()
 	var racine := rec_tree.create_item()
+	# recettes épinglées en haut, avec ce qu'il manque
+	var favs: Array = Game.player.recettes_fav if Game.player else []
+	if not favs.is_empty():
+		var cf := rec_tree.create_item(racine)
+		cf.set_text(0, "FAVORIS")
+		cf.set_selectable(0, false)
+		cf.set_custom_color(0, Color(1.0, 0.85, 0.35))
+		for i in Items.RECIPES.size():
+			var r: Dictionary = Items.RECIPES[i]
+			if not Items.cle_recette(r) in favs:
+				continue
+			var it := rec_tree.create_item(cf)
+			it.set_icon(0, _icone_carree(r.out))
+			it.set_icon_max_width(0, 26)
+			it.set_icon_modulate(0, icon_modulate(r.out))
+			it.set_metadata(0, i)
+			rec_items.append([it, i, true])
+			if i == garde and rec_tree.get_selected() == null:
+				it.select(0)
 	for c in Items.CATEGORIES_FAB:
 		var cat: TreeItem = null
 		for i in Items.RECIPES.size():
@@ -1027,8 +1051,8 @@ func _refresh_recipes() -> void:
 			it.set_icon_max_width(0, 26)
 			it.set_icon_modulate(0, icon_modulate(r.out))
 			it.set_metadata(0, i)
-			rec_items.append([it, i])
-			if i == garde:
+			rec_items.append([it, i, false])
+			if i == garde and rec_tree.get_selected() == null:
 				it.select(0)
 	_refresh_recipe_marks()
 	_update_recipe()
@@ -1047,7 +1071,9 @@ func _refresh_recipe_marks() -> void:
 	for st in ["etabli", "feu", "couture"]:
 		if p.near_station(st):
 			proches.append(Items.STATIONS[st])
-	bench_label.text = "Stations à proximité : %s\nNiveau de fabrication : %d" %[", ".join(proches) if not proches.is_empty() else "aucune", p.niveau_fabrication()]
+	var nc: int = p.caisses_proches().size()
+	bench_label.text = "Stations à proximité : %s\nNiveau de fabrication : %d%s" %[", ".join(proches) if not proches.is_empty() else "aucune", p.niveau_fabrication(),
+			("   ·   %d caisse%s de la base utilisée%s" % [nc, "s" if nc > 1 else "", "s" if nc > 1 else ""]) if nc > 0 else ""]
 	bench_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5) if not proches.is_empty() else Color(1.0, 0.75, 0.5))
 	# vert : fabricable ; blanc cassé : il manque des ingrédients ; gris : station ou niveau manquant
 	for ri in rec_items:
@@ -1058,7 +1084,38 @@ func _refresh_recipe_marks() -> void:
 		elif not p.a_ingredients(r):
 			col = Color(0.85, 0.8, 0.72)
 		ri[0].set_custom_color(0, col)
+		if ri[2]:
+			var manque := _manque(r)
+			ri[0].set_text(0, "%s%s%s" % [Items.nom(r.out), (" ×%d" % r.qty) if r.qty > 1 else "", ("  — manque : " + manque) if manque != "" else ""])
 	_update_recipe()
+
+
+## Ce qui manque pour fabriquer la recette une fois (ingrédients, station, niveau), "" si rien.
+func _manque(r: Dictionary) -> String:
+	var p = Game.player
+	var l: PackedStringArray = []
+	for id in r.needs:
+		var k: int = int(r.needs[id]) - p.compte_fab(id)
+		if k > 0:
+			l.append("%d× %s" % [k, Items.nom(id)])
+	if not p.near_station(r.station):
+		l.append(Items.STATIONS[r.station])
+	if p.niveau_fabrication() < int(r.niv):
+		l.append("niveau %d" % r.niv)
+	return ", ".join(l)
+
+
+func _basculer_favori() -> void:
+	var i := _recette_choisie()
+	if i < 0:
+		return
+	var cle := Items.cle_recette(Items.RECIPES[i])
+	var favs: Array = Game.player.recettes_fav
+	if cle in favs:
+		favs.erase(cle)
+	else:
+		favs.append(cle)
+	_refresh_recipes()
 
 
 func _update_recipe() -> void:
@@ -1066,7 +1123,7 @@ func _update_recipe() -> void:
 	var i := _recette_choisie()
 	if i < 0 or p == null:
 		rec_desc.text = "Sélectionne une recette."
-		for b in [craft_btn, craft_btn5, craft_btn_max, demonter_btn]:
+		for b in [craft_btn, craft_btn5, craft_btn_max, demonter_btn, fav_btn]:
 			b.disabled = true
 		return
 	var r: Dictionary = Items.RECIPES[i]
@@ -1074,13 +1131,19 @@ func _update_recipe() -> void:
 	var rouge := "[color=#ff6a5a]"
 	var t := "[b]%s%s[/b]\n" % [Items.nom(r.out), (" ×%d" % r.qty) if r.qty > 1 else ""]
 	for id in r.needs:
-		var ok: bool = p.count(id) >= int(r.needs[id])
-		t += "%s%s %d× %s (tu as %d)[/color]\n" % [vert if ok else rouge, "✔" if ok else "✘", r.needs[id], Items.nom(id), p.count(id)]
+		var ok: bool = p.compte_fab(id) >= int(r.needs[id])
+		var nc: int = p.compte_caisses(id)
+		t += "%s%s %d× %s (tu as %d%s)[/color]\n" % [vert if ok else rouge, "✔" if ok else "✘", r.needs[id], Items.nom(id), p.count(id), (" + %d dans les caisses" % nc) if nc > 0 else ""]
 	if r.station != "":
 		t += "%sStation : %s[/color]\n" % [vert if p.near_station(r.station) else rouge, Items.STATIONS[r.station]]
 	if int(r.niv) > 0:
 		t += "%sFabrication niveau %d requis[/color]\n" % [vert if p.niveau_fabrication() >= int(r.niv) else rouge, r.niv]
+	var manque := _manque(r)
+	if manque != "":
+		t += "%sIl manque : %s[/color]\n" % [rouge, manque]
 	t += "[color=#bbbbaa]Durée : %.1f s par objet[/color]" % p.duree_fabrication(r)
+	fav_btn.text = "Retirer des favoris" if Items.cle_recette(r) in p.recettes_fav else "Épingler en favori"
+	fav_btn.disabled = false
 	var rd := Items.recette_demontage(r.out)
 	if not rd.is_empty():
 		t += "\n[color=#bbbbaa]Démontage%s : %s%s[/color]" % [(" (lot de %d)" % rd.qty) if rd.qty > 1 else "", Items.texte_demontage(rd), (" — " + Items.STATIONS[rd.station]) if rd.station != "" else ""]

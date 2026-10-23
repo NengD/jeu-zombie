@@ -26,8 +26,8 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5)}
-const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet"]   # se posent n'importe où
+const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0
@@ -48,6 +48,7 @@ var mags: Dictionary = {}
 var equipped := {"tete": {}, "torse": {}, "dos": {}}
 var hotbar: Array = ["", "", "", "", ""]
 var hotbar_verrou: Array = [false, false, false, false, false]   # cases verrouillées : l'objet garde sa place
+var recettes_fav: Array = []     # recettes épinglées (Items.cle_recette)
 var slot := 0
 
 # --- caméra / mouvement
@@ -2347,9 +2348,55 @@ func niveau_fabrication() -> int:
 	return int(prog.comp["fabrication"].niv)
 
 
+## Caisses de stockage posées par le joueur à moins de 12 m (et 6 m de hauteur) : la fabrication y puise
+## les ingrédients qui manquent dans le sac. Liste gardée 0,5 s.
+const RAYON_CAISSES := 12.0
+var _caisses: Array = []
+var _caisses_t := -1.0
+
+
+func caisses_proches() -> Array:
+	var t := Time.get_ticks_msec() / 1000.0
+	if _caisses_t >= 0.0 and t - _caisses_t < 0.5:
+		return _caisses
+	_caisses_t = t
+	_caisses = []
+	for c in get_tree().get_nodes_in_group("conteneurs"):
+		if not c.is_storage or c.is_in_group("tas_sol") or c.grille == null:
+			continue
+		var d: Vector3 = c.global_position - global_position
+		if Vector2(d.x, d.z).length() < RAYON_CAISSES and absf(d.y) < 6.0:
+			_caisses.append(c.grille)
+	return _caisses
+
+
+## Quantité disponible pour fabriquer : inventaire + caisses proches.
+func compte_fab(id: String) -> int:
+	var n := count(id)
+	for g in caisses_proches():
+		n += g.compter(id)
+	return n
+
+
+func compte_caisses(id: String) -> int:
+	return compte_fab(id) - count(id)
+
+
+## Retire n objets pour une fabrication : d'abord du sac, puis des caisses proches.
+func _retirer_fab(id: String, n: int) -> void:
+	var k := mini(n, count(id))
+	if k > 0:
+		remove_item(id, k)
+	n -= k
+	for g in caisses_proches():
+		if n <= 0:
+			break
+		n -= g.enlever(id, n)
+
+
 func a_ingredients(r: Dictionary, n := 1) -> bool:
 	for id in r.needs:
-		if count(id) < int(r.needs[id]) * n:
+		if compte_fab(id) < int(r.needs[id]) * n:
 			return false
 	return true
 
@@ -2362,7 +2409,7 @@ func can_craft(r: Dictionary) -> bool:
 func max_craft(r: Dictionary) -> int:
 	var n := 999
 	for id in r.needs:
-		n = mini(n, count(id) / maxi(1, int(r.needs[id])))
+		n = mini(n, compte_fab(id) / maxi(1, int(r.needs[id])))
 	return n
 
 
@@ -2481,7 +2528,7 @@ func craft(r: Dictionary) -> bool:
 		return false
 	var total := 0
 	for id in r.needs:
-		remove_item(id, int(r.needs[id]))
+		_retirer_fab(id, int(r.needs[id]))
 		total += int(r.needs[id])
 	var qty := int(r.qty)
 	var munition: bool = Items.info(r.out).get("type", "") == "ammo"

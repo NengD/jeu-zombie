@@ -77,6 +77,8 @@ func entree(event: InputEvent) -> bool:
 		idx = (idx - 1 + Construction.ORDRE.size()) % Construction.ORDRE.size()
 	elif event.is_action_pressed("recharger"):
 		tour = (tour + 1) % 4
+	elif event.is_action_pressed("ameliorer") and event is InputEventWithModifiers and event.shift_pressed:
+		_toute_la_base()
 	elif event.is_action_pressed("ameliorer"):
 		_ameliorer()
 	elif event.is_action_pressed("demonter"):
@@ -382,6 +384,9 @@ func _texte(t: String) -> String:
 		elif visee.tier < Construction.tier_max(visee.type):
 			l2 += "  — [G] renforcer en %s : %s" % [Construction.TIERS[visee.tier + 1].nom, Construction.texte_cout(Construction.cout_amelioration(visee.type, visee.tier + 1))]
 		l2 += "  — [X] démonter"
+		var tb := _plan_base(visee.get_parent())
+		if not tb.pieces.is_empty():
+			l2 += "\n[Maj+G] %s toute la base (%d) : %s" % ["réparer" if tb.mode == "reparer" else "renforcer d'un niveau", tb.pieces.size(), Construction.texte_cout(tb.cout)]
 	elif visee_objet and is_instance_valid(visee_objet):
 		l2 = "\nVisé : %s %d/%d PV" % [visee_objet.nom_piege(), int(visee_objet.health), int(visee_objet.health_max)]
 		if visee_objet.health < visee_objet.health_max - 0.5:
@@ -459,6 +464,75 @@ func _ameliorer() -> void:
 	Game.play_ui("construire", -2.0, 0.1, 0.9)
 	player.prog.gagner("fabrication", 6)
 	Game.msg("Renforcé : " + visee.nom_complet())
+
+
+## Toute la base visée d'un coup : s'il y a des dégâts, tout réparer (pièces, pièges et barricades
+## à moins de 25 m) ; sinon renforcer chaque pièce d'un niveau. Coût total payé en une fois.
+var _plan_cache := {}
+var _plan_t := -1.0
+
+
+func _plan_base(base: Node) -> Dictionary:
+	var t := Time.get_ticks_msec() / 1000.0
+	if _plan_t >= 0.0 and t - _plan_t < 0.5 and _plan_cache.get("base") == base:
+		return _plan_cache
+	_plan_t = t
+	var abimees: Array = []
+	var a_renforcer: Array = []
+	var objets: Array = []
+	if base and is_instance_valid(base):
+		for p in base.get_children():
+			if not p is Construction:
+				continue
+			if p.pv < p.pv_max() - 0.5:
+				abimees.append(p)
+			elif p.tier < Construction.tier_max(p.type):
+				a_renforcer.append(p)
+		for o in get_tree().get_nodes_in_group("placeables"):
+			if o.kind in o.COUT_REPARATION and o.health < o.health_max - 0.5 \
+					and o.global_position.distance_to((base as Node3D).global_position) < 25.0:
+				objets.append(o)
+	var plan := {"base": base, "mode": "reparer", "pieces": abimees + objets, "cout": {}}
+	if plan.pieces.is_empty():
+		plan.mode = "renforcer"
+		plan.pieces = a_renforcer
+	for p in plan.pieces:
+		var c: Dictionary
+		if p is Construction:
+			c = _cout_reparation(p) if plan.mode == "reparer" else Construction.cout_amelioration(p.type, p.tier + 1)
+		else:
+			c = p.COUT_REPARATION[p.kind]
+		for m in c:
+			plan.cout[m] = int(plan.cout.get(m, 0)) + int(c[m])
+	_plan_cache = plan
+	return plan
+
+
+func _toute_la_base() -> void:
+	if visee == null or not is_instance_valid(visee):
+		Game.msg("Vise une pièce de ta base.")
+		return
+	_plan_t = -1.0
+	var plan := _plan_base(visee.get_parent())
+	if plan.pieces.is_empty():
+		Game.msg("Toute la base est déjà au plus solide.")
+		return
+	if not _payer(plan.cout):
+		return
+	for p in plan.pieces:
+		if not is_instance_valid(p):
+			continue
+		if p is Construction:
+			if plan.mode == "renforcer":
+				p.tier += 1
+				p._reconstruire()
+			p.pv = p.pv_max()
+		else:
+			p.health = p.health_max
+	_plan_t = -1.0
+	Game.play_ui("construire", -2.0, 0.1, 0.9)
+	player.prog.gagner("fabrication", (3 if plan.mode == "reparer" else 6) * plan.pieces.size())
+	Game.msg("%s : %d élément(s)." % ["Base réparée" if plan.mode == "reparer" else "Base renforcée", plan.pieces.size()])
 
 
 ## Piège ou barricade : réparation complète pour un peu de matériaux.

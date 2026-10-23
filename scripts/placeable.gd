@@ -11,6 +11,7 @@ var health_max := 250.0
 
 func setup(p_kind: String) -> void:
 	kind = p_kind
+	add_to_group("placeables")
 	collision_layer = Game.LAYER_WORLD | Game.LAYER_INTERACT
 	collision_mask = 0
 	var wood := Color(0.5, 0.36, 0.2)
@@ -63,6 +64,35 @@ func setup(p_kind: String) -> void:
 			lumiere_feu.position = Vector3(0, 0.6, 0)
 			add_child(lumiere_feu)
 			_shape(Vector3(0, 0.2, 0), Vector3(1.1, 0.4, 1.1))
+		"torche":
+			# bâton planté, tête de tissu enflammée, lumière vacillante (pas une station de cuisson)
+			health = 40.0
+			collision_layer = Game.LAYER_INTERACT
+			_part(Vector3(0, 0.6, 0), Vector3(0.06, 1.2, 0.06), wood.darkened(0.3))
+			_part(Vector3(0, 1.22, 0), Vector3(0.12, 0.16, 0.12), Color(0.2, 0.15, 0.1))
+			var mt := StandardMaterial3D.new()
+			mt.albedo_texture = Effets._texture("flamme")
+			mt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			mt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mt.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			mt.albedo_color = Color(1.0, 0.62, 0.25)
+			for k in 2:
+				var ft := MeshInstance3D.new()
+				var qt := QuadMesh.new()
+				qt.size = Vector2(0.22, 0.34)
+				ft.mesh = qt
+				ft.material_override = mt
+				ft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				ft.position = Vector3(0, 1.4 + k * 0.05, 0)
+				add_child(ft)
+				flammes.append(ft)
+			lumiere_feu = OmniLight3D.new()
+			lumiere_feu.light_color = Color(1.0, 0.62, 0.3)
+			lumiere_feu.omni_range = 7.0
+			lumiere_feu.position = Vector3(0, 1.45, 0)
+			add_child(lumiere_feu)
+			_shape(Vector3(0, 0.6, 0), Vector3(0.2, 1.2, 0.2))
 		"plan_couture":
 			# table, rouleau de tissu, peau tendue sur un cadre, ciseaux
 			add_to_group("plan_couture")
@@ -237,6 +267,8 @@ func get_prompt() -> String:
 			return "Barbelés (%d PV)" % int(health)
 		"projecteur":
 			return "[F] Projecteur : %s" % ("automatique (s'allume la nuit)" if mode == 0 else MODES[mode])
+		"torche":
+			return "Torche"
 	return "Barricade (%d PV)" % int(health)
 
 
