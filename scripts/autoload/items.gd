@@ -112,6 +112,15 @@ const DB := {
 	"sac_toile": {"name": "Sac en toile", "type": "armor", "slot": "dos", "armor": 0.0, "weight": 0.4},
 	"capuche_cuir": {"name": "Capuche de cuir", "type": "armor", "slot": "tete", "armor": 0.06, "weight": 0.5},
 	"sac_chasse": {"name": "Sac de chasse en cuir", "type": "armor", "slot": "dos", "capacity": 20.0, "armor": 0.0, "weight": 1.0},
+	# --- équipement porté visible (modèles 3D : outils/godot/normaliser_equipement.gd)
+	"casque_chantier": {"name": "Casque de chantier", "type": "armor", "slot": "tete", "armor": 0.08, "weight": 0.5, "desc": "Coque en plastique rigide."},
+	"casquette": {"name": "Casquette", "type": "armor", "slot": "tete", "armor": 0.01, "weight": 0.1},
+	"casquette_police": {"name": "Casquette de police", "type": "armor", "slot": "tete", "armor": 0.03, "weight": 0.15},
+	"bonnet": {"name": "Bonnet", "type": "armor", "slot": "tete", "armor": 0.02, "weight": 0.1},
+	"masque_gaz": {"name": "Masque à gaz", "type": "armor", "slot": "visage", "armor": 0.05, "weight": 0.8, "desc": "Protège le visage des morsures et des éclaboussures."},
+	"lunettes": {"name": "Lunettes de protection", "type": "armor", "slot": "visage", "armor": 0.02, "weight": 0.1, "desc": "Protègent les yeux des éclats."},
+	"sac_randonnee": {"name": "Sac de randonnée", "type": "armor", "slot": "dos", "capacity": 25.0, "armor": 0.0, "weight": 1.3, "desc": "Grand sac avec un tapis de sol roulé."},
+	"sac_sport": {"name": "Sac de sport", "type": "armor", "slot": "dos", "capacity": 10.0, "armor": 0.0, "weight": 0.6, "desc": "Porté en bandoulière dans le dos."},
 	# --- objets à placer (base)
 	"etabli": {"name": "Établi (à placer)", "type": "placeable", "weight": 6.0},
 	"feu_camp": {"name": "Feu de camp (à placer)", "type": "placeable", "weight": 3.0, "desc": "Station de cuisson. Se pose dehors comme dedans."},
@@ -158,7 +167,8 @@ const SIZES := {
 	"buche": [1, 2], "pneu": [2, 2], "batterie": [2, 1],
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
-	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4], "sac_chasse": [3, 3], "capuche_cuir": [2, 2], "ragout": [1, 2], "bouillon": [1, 2],
+	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4], "sac_chasse": [3, 3], "capuche_cuir": [2, 2],
+	"casque_chantier": [2, 2], "casquette": [2, 1], "casquette_police": [2, 1], "bonnet": [1, 1], "masque_gaz": [2, 2], "lunettes": [2, 1], "sac_randonnee": [3, 4], "sac_sport": [3, 2], "ragout": [1, 2], "bouillon": [1, 2],
 	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3], "torche": [1, 3], "lit": [2, 3],
 	"couteau_km2000": [1, 2], "arc": [1, 4], "peau": [2, 2], "viande_crue": [1, 1],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
@@ -180,7 +190,7 @@ const STACKS := {
 
 # Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
 const GRIDS := {
-	"sac_toile": [4, 3], "sac_a_dos": [6, 5], "sac_militaire": [7, 7], "sac_chasse": [5, 5],
+	"sac_toile": [4, 3], "sac_a_dos": [6, 5], "sac_militaire": [7, 7], "sac_chasse": [5, 5], "sac_randonnee": [6, 6], "sac_sport": [5, 3],
 	"veste_cuir": [4, 2], "veste_renforcee": [4, 2], "gilet_police": [5, 2], "gilet_militaire": [6, 3],
 }
 
@@ -239,6 +249,9 @@ const RECIPES := [
 	{"out": "bouillon", "qty": 1, "needs": {"os": 2, "eau": 1}, "cat": "nourriture", "station": "feu", "duree": 10.0, "niv": 1},
 	{"out": "ragout", "qty": 1, "needs": {"viande_cuite": 2, "conserve": 1, "eau": 1}, "cat": "nourriture", "station": "feu", "duree": 14.0, "niv": 2},
 	{"out": "cuir", "qty": 1, "needs": {"peau": 2, "graisse": 1}, "cat": "vetements", "station": "feu", "duree": 15.0, "niv": 1},
+	{"out": "bonnet", "qty": 1, "needs": {"tissu": 2}, "cat": "vetements", "station": "couture", "duree": 6.0, "niv": 0},
+	{"out": "sac_sport", "qty": 1, "needs": {"tissu": 4, "ruban": 1}, "cat": "vetements", "station": "couture", "duree": 10.0, "niv": 0},
+	{"out": "sac_randonnee", "qty": 1, "needs": {"sac_a_dos": 1, "cuir": 2, "tissu": 3}, "cat": "vetements", "station": "couture", "duree": 16.0, "niv": 2},
 	{"out": "capuche_cuir", "qty": 1, "needs": {"cuir": 2, "tissu": 1}, "cat": "vetements", "station": "couture", "duree": 8.0, "niv": 1},
 	{"out": "sac_chasse", "qty": 1, "needs": {"cuir": 4, "tissu": 2}, "cat": "vetements", "station": "couture", "duree": 14.0, "niv": 2},
 	{"out": "fleche", "qty": 5, "needs": {"planche": 1, "plume": 2, "os": 1}, "cat": "munitions", "station": "", "duree": 6.0, "niv": 1},
@@ -253,20 +266,20 @@ const RECIPES := [
 
 # Tables de loot : [id, poids, min, max]
 const LOOT := {
-	"maison": [["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
-	"magasin": [["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
+	"maison": [["casquette", 1.5, 1, 1], ["bonnet", 1.5, 1, 1], ["sac_sport", 1, 1, 1], ["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
+	"magasin": [["casquette", 2, 1, 1], ["bonnet", 2, 1, 1], ["lunettes", 1, 1, 1], ["sac_sport", 1.5, 1, 1], ["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
 	"bureau": [["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
-	"quincaillerie": [["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["pioche", 1.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
-	"hopital": [["medicament", 6, 1, 2], ["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
+	"quincaillerie": [["casque_chantier", 3, 1, 1], ["lunettes", 3, 1, 1], ["masque_gaz", 1, 1, 1], ["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["pioche", 1.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
+	"hopital": [["masque_gaz", 1, 1, 1], ["medicament", 6, 1, 2], ["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
 	"pharmacie": [["medicament", 8, 1, 2], ["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
-	"garage": [["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
+	"garage": [["lunettes", 2, 1, 1], ["casque_chantier", 1, 1, 1], ["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
 	"bar": [["alcool", 12, 1, 2], ["soda", 10, 1, 3], ["eau", 7, 1, 2], ["conserve", 6, 1, 2], ["barre", 5, 1, 2], ["tissu", 2, 1, 2], ["batte", 0.8, 1, 1]],
 	"armurerie": [["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau_km2000", 2, 1, 1], ["machette", 3, 1, 1],
 		["glock19", 2, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["desert_eagle", 0.6, 1, 1], ["toz34", 1.2, 1, 1], ["benelli_m4", 0.8, 1, 1], ["marlin", 1, 1, 1], ["mosin", 0.8, 1, 1], ["lr300", 0.5, 1, 1],
 		["point_rouge", 1.5, 1, 1], ["viseur_reflex", 1.5, 1, 1], ["viseur_aimpoint", 1, 1, 1], ["lunette", 0.8, 1, 1], ["lunette_hawke", 0.5, 1, 1], ["silencieux_9mm", 0.8, 1, 1], ["frein_9mm", 1, 1, 1], ["chargeur_etendu", 1.5, 1, 1], ["poignee", 1, 1, 1], ["laser", 0.6, 1, 1]],
-	"police": [["mun_9mm", 12, 6, 18], ["mun_45", 4, 4, 10], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["matraque", 5, 1, 1], ["glock19", 3, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["mp5k", 1, 1, 1], ["benelli_m4", 1.2, 1, 1], ["m4a1", 0.6, 1, 1],
+	"police": [["casquette_police", 4, 1, 1], ["masque_gaz", 1.5, 1, 1], ["mun_9mm", 12, 6, 18], ["mun_45", 4, 4, 10], ["mun_12", 8, 3, 8], ["mun_556", 4, 5, 15], ["matraque", 5, 1, 1], ["glock19", 3, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["mp5k", 1, 1, 1], ["benelli_m4", 1.2, 1, 1], ["m4a1", 0.6, 1, 1],
 		["gilet_police", 3, 1, 1], ["casque_police", 3, 1, 1], ["bandage", 5, 1, 2], ["barre", 4, 1, 2], ["laser", 1.5, 1, 1], ["point_rouge", 1.2, 1, 1], ["chargeur_etendu", 1.2, 1, 1], ["silencieux_9mm", 0.5, 1, 1], ["rgd5", 0.5, 1, 1]],
-	"militaire": [["mun_556", 10, 10, 30], ["mun_545", 7, 10, 30], ["mun_762", 6, 8, 20], ["mun_9mm", 5, 10, 20], ["mun_46", 2, 10, 30], ["ration", 10, 1, 2], ["eau", 6, 1, 2], ["trousse", 4, 1, 1], ["gilet_militaire", 2, 1, 1], ["casque_militaire", 3, 1, 1], ["sac_militaire", 2, 1, 1], ["poudre", 4, 1, 3], ["machette", 2, 1, 1], ["couteau_km2000", 2, 1, 1],
+	"militaire": [["masque_gaz", 3, 1, 1], ["lunettes", 1.5, 1, 1], ["mun_556", 10, 10, 30], ["mun_545", 7, 10, 30], ["mun_762", 6, 8, 20], ["mun_9mm", 5, 10, 20], ["mun_46", 2, 10, 30], ["ration", 10, 1, 2], ["eau", 6, 1, 2], ["trousse", 4, 1, 1], ["gilet_militaire", 2, 1, 1], ["casque_militaire", 3, 1, 1], ["sac_militaire", 2, 1, 1], ["poudre", 4, 1, 3], ["machette", 2, 1, 1], ["couteau_km2000", 2, 1, 1],
 		["m4a1", 1.2, 1, 1], ["ak74", 1, 1, 1], ["m5_scw", 0.8, 1, 1], ["mp7", 0.6, 1, 1], ["rgd5", 3, 1, 2],
 		["viseur_holo", 1.5, 1, 1], ["viseur_xps2", 1.2, 1, 1], ["viseur_uh1", 1, 1, 1], ["viseur_pk", 1, 1, 1], ["lunette", 1, 1, 1], ["poignee", 1.5, 1, 1], ["poignee_rk1", 1, 1, 1], ["chargeur_etendu", 2, 1, 1], ["frein_556", 1.2, 1, 1], ["silencieux", 0.8, 1, 1], ["laser", 1.2, 1, 1]],
 	"armurerie_mil": [["mun_556", 12, 20, 45], ["mun_545", 8, 20, 45], ["mun_762", 8, 15, 35], ["mun_762x39", 4, 15, 30], ["mun_338", 2, 5, 10], ["mun_127", 1, 3, 6], ["gilet_militaire", 5, 1, 1], ["casque_militaire", 5, 1, 1], ["poudre", 5, 2, 4], ["rgd5", 4, 1, 3],
@@ -274,22 +287,22 @@ const LOOT := {
 		["lunette_uar", 1.5, 1, 1], ["lunette_hawke", 1, 1, 1], ["lunette_sb", 0.6, 1, 1], ["viseur_holo", 1.5, 1, 1], ["silencieux_socom", 0.8, 1, 1], ["silencieux_762", 1, 1, 1], ["silencieux_slx", 0.6, 1, 1], ["frein_762", 1.2, 1, 1], ["silencieux_mp7", 0.6, 1, 1]],
 	"station": [["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["batte", 1, 1, 1], ["ciment", 1.5, 1, 1]],
 	"ferme": [["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
-	"camp_bandit": [["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
+	"camp_bandit": [["bonnet", 2, 1, 1], ["masque_gaz", 0.5, 1, 1], ["sac_sport", 1, 1, 1], ["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
 		["bandage", 6, 1, 3], ["trousse", 2, 1, 1], ["antidouleur", 4, 1, 2], ["conserve", 6, 1, 3], ["eau", 5, 1, 2], ["alcool", 4, 1, 2],
 		["ferraille", 5, 1, 3], ["poudre", 4, 1, 3], ["glock19", 1.5, 1, 1], ["mr920", 1, 1, 1], ["draco", 0.6, 1, 1], ["rgd5", 1.2, 1, 2],
 		["point_rouge", 0.8, 1, 1], ["silencieux_9mm", 0.6, 1, 1], ["machette", 1.5, 1, 1], ["sac_a_dos", 1, 1, 1], ["gilet_police", 0.6, 1, 1]],
-	"camping": [["conserve", 10, 1, 2], ["eau", 10, 1, 2], ["barre", 8, 1, 3], ["soda", 6, 1, 2], ["tissu", 8, 1, 3], ["bandage", 5, 1, 2], ["alcool", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["hache", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["fleche", 4, 3, 8], ["sac_a_dos", 1.5, 1, 1], ["ruban", 3, 1, 1], ["mun_12", 0.8, 2, 4]],
-	"chasseur": [["mun_12", 10, 3, 8], ["mun_4570", 6, 3, 8], ["mun_762r", 5, 4, 10], ["fleche", 8, 3, 8], ["plume", 4, 2, 6], ["conserve", 6, 1, 2], ["eau", 5, 1, 2], ["cuir", 6, 1, 3], ["bandage", 4, 1, 2], ["hache", 1.5, 1, 1], ["couteau_km2000", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["toz34", 0.8, 1, 1], ["marlin", 0.8, 1, 1], ["mosin", 0.6, 1, 1], ["lunette", 0.6, 1, 1]],
+	"camping": [["sac_randonnee", 2, 1, 1], ["bonnet", 3, 1, 1], ["casquette", 2, 1, 1], ["conserve", 10, 1, 2], ["eau", 10, 1, 2], ["barre", 8, 1, 3], ["soda", 6, 1, 2], ["tissu", 8, 1, 3], ["bandage", 5, 1, 2], ["alcool", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["hache", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["fleche", 4, 3, 8], ["sac_a_dos", 1.5, 1, 1], ["ruban", 3, 1, 1], ["mun_12", 0.8, 2, 4]],
+	"chasseur": [["bonnet", 2, 1, 1], ["casquette", 2, 1, 1], ["mun_12", 10, 3, 8], ["mun_4570", 6, 3, 8], ["mun_762r", 5, 4, 10], ["fleche", 8, 3, 8], ["plume", 4, 2, 6], ["conserve", 6, 1, 2], ["eau", 5, 1, 2], ["cuir", 6, 1, 3], ["bandage", 4, 1, 2], ["hache", 1.5, 1, 1], ["couteau_km2000", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["toz34", 0.8, 1, 1], ["marlin", 0.8, 1, 1], ["mosin", 0.6, 1, 1], ["lunette", 0.6, 1, 1]],
 	"cachette": [["mun_9mm", 8, 10, 25], ["mun_556", 5, 10, 25], ["mun_12", 6, 4, 10], ["trousse", 6, 1, 2], ["medicament", 5, 1, 2], ["bandage", 8, 2, 4], ["conserve", 8, 2, 4], ["eau", 8, 2, 3], ["ration", 5, 1, 3], ["glock19", 2, 1, 1], ["m45a1", 1.2, 1, 1], ["toz34", 1.2, 1, 1], ["ak74", 0.6, 1, 1], ["m4a1", 0.5, 1, 1], ["sac_a_dos", 2, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["silencieux_9mm", 0.8, 1, 1]],
 	"grange": [["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
 	"infeste": [["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["mun_545", 3, 6, 15], ["mun_45", 3, 4, 10], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3],
 		["glock19", 1.2, 1, 1], ["desert_eagle", 0.5, 1, 1], ["mp5k", 0.6, 1, 1], ["toz34", 0.6, 1, 1], ["ak74", 0.4, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["chargeur_etendu", 1, 1, 1]],
 	"boss": [["mun_762", 8, 30, 60], ["mun_338", 4, 10, 20], ["mun_127", 3, 5, 10], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["rgd5", 5, 2, 4],
 		["mg5", 3, 1, 1], ["c14", 3, 1, 1], ["gepard", 2, 1, 1], ["l96", 2, 1, 1], ["lunette_sb", 4, 1, 1], ["silencieux_762", 3, 1, 1]],
-	"zombie_civil": [["barre", 4, 1, 1], ["tissu", 6, 1, 2], ["bandage", 2, 1, 1], ["antidouleur", 1, 1, 1], ["mun_9mm", 1, 2, 5], ["alcool", 0.6, 1, 1]],
-	"zombie_police": [["mun_9mm", 10, 4, 12], ["mun_45", 3, 3, 8], ["mun_12", 3, 2, 6], ["matraque", 3, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
+	"zombie_civil": [["casquette", 1, 1, 1], ["bonnet", 0.8, 1, 1], ["barre", 4, 1, 1], ["tissu", 6, 1, 2], ["bandage", 2, 1, 1], ["antidouleur", 1, 1, 1], ["mun_9mm", 1, 2, 5], ["alcool", 0.6, 1, 1]],
+	"zombie_police": [["casquette_police", 2, 1, 1], ["mun_9mm", 10, 4, 12], ["mun_45", 3, 3, 8], ["mun_12", 3, 2, 6], ["matraque", 3, 1, 1], ["bandage", 4, 1, 1], ["casque_police", 1, 1, 1]],
 	"zombie_boss": [["mun_762", 10, 20, 40], ["trousse", 6, 1, 2], ["gilet_militaire", 3, 1, 1], ["ration", 6, 1, 3], ["rgd5", 4, 1, 3], ["mg5", 2, 1, 1]],
-	"zombie_militaire": [["mun_556", 8, 6, 20], ["mun_545", 5, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1], ["rgd5", 1.2, 1, 1]],
+	"zombie_militaire": [["masque_gaz", 1, 1, 1], ["mun_556", 8, 6, 20], ["mun_545", 5, 6, 20], ["ration", 5, 1, 1], ["trousse", 1.5, 1, 1], ["casque_militaire", 1, 1, 1], ["rgd5", 1.2, 1, 1]],
 }
 
 
@@ -303,7 +316,7 @@ const PRIX := {
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
 	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6, "lit": 40,
-	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
+	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "sac_randonnee": 110, "sac_sport": 40, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
 ## Recul par famille d'arme (la valeur « recoil » de chaque arme reste la base) :

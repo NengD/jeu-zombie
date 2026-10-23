@@ -13,10 +13,11 @@ const METIERS := {
 		"rgd5", "point_rouge", "silencieux_9mm", "chargeur_etendu", "laser"]},
 	"quincaillier": {"titre": "Quincaillier", "toile": Color(0.2, 0.35, 0.6), "stock": [
 		"planche", "clous", "ferraille", "ruban", "tissu", "ciment", "marteau",
-		"piques", "barbeles", "projecteur", "barricade", "etabli", "caisse_stockage", "sac_toile", "sac_a_dos"]},
+		"piques", "barbeles", "projecteur", "barricade", "etabli", "caisse_stockage", "sac_toile", "sac_a_dos",
+		"sac_sport", "sac_randonnee", "casque_chantier", "lunettes", "bonnet", "casquette"]},
 	"medecin": {"titre": "Médecin", "toile": Color(0.85, 0.85, 0.82), "stock": [
 		"bandage", "antidouleur", "trousse", "alcool", "eau", "soda", "barre", "conserve", "ration",
-		"veste_cuir", "casque_moto"]},
+		"veste_cuir", "casque_moto", "masque_gaz"]},
 }
 
 var metier := "armurier"

@@ -181,7 +181,7 @@ func _ready() -> void:
 	eg.add_theme_constant_override("h_separation", 8)
 	eg.add_theme_constant_override("v_separation", 8)
 	c1.add_child(eg)
-	for s in [["tete", "Tête"], ["torse", "Torse"], ["dos", "Sac à dos"]]:
+	for s in [["tete", "Tête"], ["visage", "Visage"], ["torse", "Torse"], ["dos", "Sac à dos"]]:
 		var sv := SlotView.new()
 		sv.setup(self, "equip", s[0], s[1], Vector2(124, 124))
 		eg.add_child(sv)

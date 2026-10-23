@@ -6,6 +6,7 @@ extends CharacterBody3D
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Placeable = preload("res://scripts/placeable.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
+const EquipVisuel = preload("res://scripts/equipement_visuel.gd")
 const FpsArms = preload("res://scripts/fps_arms.gd")
 const Effets = preload("res://scripts/effets.gd")
 const Grenade = preload("res://scripts/grenade.gd")
@@ -45,7 +46,8 @@ var impacts_recus: Array = []         # [position de l'attaquant, temps restant]
 # --- inventaire
 var poches: Grille = Grille.creer("Sur toi", 8, 5)   # inventaire de base ; sacs et gilets ajoutent de la place
 var mags: Dictionary = {}
-var equipped := {"tete": {}, "torse": {}, "dos": {}}
+var equipped := {"tete": {}, "visage": {}, "torse": {}, "dos": {}}
+var _sig_equip := "-"                # équipement affiché sur le personnage (equipement_visuel.gd)
 var hotbar: Array = ["", "", "", "", ""]
 var hotbar_verrou: Array = [false, false, false, false, false]   # cases verrouillées : l'objet garde sa place
 var recettes_fav: Array = []     # recettes épinglées (Items.cle_recette)
@@ -348,6 +350,7 @@ func _physics_process(delta: float) -> void:
 	_update_interact()
 	_maj_fabrication(delta)
 	_ramassage_auto(delta)
+	_maj_equipement_visible()
 	if placing != "":
 		_update_placement()
 	hurt_flash = maxf(0.0, hurt_flash - delta * 1.5)
@@ -2867,3 +2870,18 @@ func _maj_maladie(delta: float) -> void:
 		Game.make_noise(global_position, 10.0)
 	if maladie <= 0.0:
 		Game.msg("Tu te sens mieux : l'intoxication est passée.")
+
+
+## Équipement porté visible sur le personnage (casques, masques, sacs, gilets, vestes) : refait quand il change.
+func _maj_equipement_visible() -> void:
+	if not perso_ual:
+		return
+	var sig := ""
+	for s in equipped:
+		sig += str(equipped[s].get("id", "")) + "/"
+	if sig == _sig_equip:
+		return
+	_sig_equip = sig
+	for c in modele.get_children():
+		if c != hand and c.has_meta("modele"):
+			EquipVisuel.appliquer(c, equipped)

@@ -68,6 +68,7 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 		ps = load(MOD % id)
 		_scenes[id] = ps
 	var n: Node3D = ps.instantiate()
+	n.set_meta("modele", id)   # équipement visible : réglages par modèle (equipement_visuel.gd)
 	var zombie: bool = a.zombie
 	var teinte := Color(r.randf_range(0.8, 1.15), r.randf_range(0.8, 1.15), r.randf_range(0.8, 1.15)) if a.get("type", "") != "survivant" else Color.WHITE
 	var peau: Color = PEAU_ZOMBIE[r.randi() % PEAU_ZOMBIE.size()] if zombie else a.peau
@@ -105,6 +106,7 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 			m3.material_overlay = sang_mat
 			m3.set_instance_shader_parameter("sang", a.sang if zombie else 0.0)
 			m3.set_instance_shader_parameter("graine", a.graine)
+	_equiper_pnj(n, id, a.get("type", ""), r)
 	return n
 
 
@@ -310,3 +312,36 @@ static func _teinter_cheveux(mi: MeshInstance3D, c: Color, zombie: bool) -> void
 static func _rgb(c: Color) -> Vector3:
 	return Vector3(c.r, c.g, c.b)
 
+
+
+## Équipement visible des PNJ (zombies policiers et militaires, quelques civils, bandits) : tiré au hasard
+## selon le type et le modèle (même tirage pour une même graine). Purement visuel.
+static func _equiper_pnj(n: Node3D, id: String, type: String, r: RandomNumberGenerator) -> void:
+	var eq := {}
+	var x := r.randf()
+	match type:
+		"police":
+			if id == "h_suit" and x < 0.6:
+				eq.tete = "casquette_police"
+		"militaire":
+			if id == "f_soldier" and x < 0.8:
+				eq.tete = "casque_militaire"
+			if r.randf() < 0.3:
+				eq.dos = "sac_militaire"
+		"bandit":
+			if x < 0.45:
+				eq.tete = ["bonnet", "casquette", "casquette", "bonnet", "casque_moto"][r.randi() % 5]
+			elif x < 0.55:
+				eq.visage = "masque_gaz"
+			if r.randf() < 0.3:
+				eq.dos = ["sac_a_dos", "sac_sport", "sac_toile"][r.randi() % 3]
+		"civil", "coureur":
+			if x < 0.08:
+				eq.tete = "casquette" if r.randf() < 0.6 else "bonnet"
+			elif x < 0.11:
+				eq.tete = "casque_chantier" if id.ends_with("worker") else "casquette"
+	if eq.is_empty():
+		return
+	for s in eq:
+		eq[s] = {"id": eq[s]}
+	load("res://scripts/equipement_visuel.gd").appliquer(n, eq)

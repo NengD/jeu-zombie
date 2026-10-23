@@ -66,3 +66,17 @@ Décor (tous CC0 — domaine public) :
    (outils/godot/installer_textures.gd ; anciennes textures générées dans outils/textures_generees/).
 — Feuillage, aiguilles et arbres :
    générés pour le jeu (outils/textures/generer_textures.py, outils/godot/generer_arbres.gd).
+— Équipement porté sur les personnages (via Poly Pizza https://poly.pizza, glb dans outils/sources_equipement ;
+   conversion : outils/godot/normaliser_equipement.gd) :
+   · Sacs à dos « Backpack » (brun et militaire) et sacoche « Bag » : Quaternius, licence CC0.
+   · Sac de randonnée « Hiking Backpack » : Voxel_dev (https://poly.pizza/m/pVuHdEBRUs), licence CC0.
+   · Sac de sport « Duffel Bag » : accidentallyc (https://poly.pizza/m/rysPhwuIP4), licence CC0.
+   · Lunettes de protection « Ski Goggles » : iPoly3D (https://poly.pizza/m/4YCjSY3U6H), licence CC0.
+   · Casque intégral « Helmet » (casque de moto, casque anti-émeute) : CreativeTechLab (https://poly.pizza/m/uSCGe4LD2v), licence CC BY 3.0.
+   · Casque de chantier « Hard hat » : Poly by Google (https://poly.pizza/m/9AMKar2NlkX), licence CC BY 3.0.
+   · Masque à gaz « gas mask » : Marisha (https://poly.pizza/m/7dNxPcg8HyL), licence CC BY 3.0.
+   · Sac de chasse « Backpack », bonnet « Beanie », casquette « Cap » : J-Toastie (https://poly.pizza/m/N2wKlicUau,
+     https://poly.pizza/m/WEGNXQAOfy, https://poly.pizza/m/aWxhfEnYwl), licence CC BY 3.0.
+   · Casquette de police « Security Hat » : Casey Tumbers (https://poly.pizza/m/46Bl5Ook_xw), licence CC BY 3.0.
+   · Casque militaire « Combat Helmet » : hc (https://opengameart.org/content/combat-helmet), licence CC BY 3.0.
+   · Gilets pare-balles et tactiques : bustes des personnages « SWAT » et « Soldier » de Quaternius (CC0), recolorés.

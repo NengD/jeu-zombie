@@ -49,6 +49,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
+• L'équipement porté se voit sur ton personnage : casque, bonnet ou casquette (Tête), masque à gaz ou lunettes (Visage), gilet ou veste (Torse), sac (Dos). Bandits et zombies en portent aussi.
 • [b]Trier par type / par poids[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
   (les piles incomplètes se regroupent aussi à chaque ouverture).
 • Conteneur ouvert : [b]Tout prendre[/b], ou [b]Déposer les matériaux[/b] pour vider d'un coup tes ressources de fabrication.
@@ -91,6 +92,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 • Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0.
 • Train, tentes et tours de garde : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer et bus scolaire : Poly by Google ; camion militaire : Alex Safayan (CC BY 3.0, via Poly Pizza).
+• Équipement porté : sacs (Quaternius, Voxel_dev, accidentallyc), lunettes (iPoly3D) — CC0 ; casque intégral (CreativeTechLab), casque de chantier (Poly by Google), masque à gaz (Marisha), sac de chasse, bonnet et casquette (J-Toastie), casquette de police (Casey Tumbers) — CC BY 3.0, via Poly Pizza ; casque militaire (hc, OpenGameArt, CC BY 3.0).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
