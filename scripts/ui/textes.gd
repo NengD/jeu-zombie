@@ -49,6 +49,17 @@ const GUIDE := """[b]LES BASES[/b]
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
+• [b]Trier par type / par poids[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
+  (les piles incomplètes se regroupent aussi à chaque ouverture).
+• Conteneur ouvert : [b]Tout prendre[/b], ou [b]Déposer les matériaux[/b] pour vider d'un coup tes ressources de fabrication.
+• [b]Charge[/b] : le poids porté s'affiche sous les jauges (et dans l'inventaire). Au-delà du seuil (22 kg + la moitié de
+  la capacité du sac), tu ralentis ; à 1,5 fois le seuil, plus de sprint.
+• Au survol : poids, prix de revente chez un marchand, et [b]comparaison[/b] avec l'arme en main (dégâts, cadence,
+  dispersion, recul, chargeur…) ou la pièce d'équipement portée (protection, rangement).
+• Munitions et flèches sont [b]ramassées automatiquement[/b] en passant dessus (flèches plantées, tas au sol des bandits) ;
+  l'option se coupe dans les Paramètres. Ce que tu jettes toi-même n'est pas repris.
+• Barre rapide : clic droit sur une case > [b]Verrouiller[/b] : l'objet garde sa place même quand tu n'en as plus
+  (il y revient quand tu le reprends) et les nouvelles armes ne s'y rangent pas.
 
 [b]ARMES À FEU[/b]
 • 25 armes réelles : pistolets (Glock 19, MR920, M45A1, Desert Eagle), pistolets-mitrailleurs (MP5K, MP7), fusils à pompe (Benelli M4, TOZ-34), fusils d'assaut (M4A1, M5, URG-I, LR-300, MCX, AK-74, AK-74M, Draco), fusils 7.62 (UAR-10, Spear), fusils de précision (C14, L96, Gepárd, Mosin), Marlin à levier et mitrailleuse MG5.
@@ -102,6 +113,11 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Démonter[/b] (clic droit sur l'objet > Démonter, ou bouton sous la recette) : rend environ la moitié des ingrédients
   de sa recette la moins chère (une demi-unité = une chance sur deux), à la même station, par lot de fabrication
   (ex. 5 flèches). Pas la nourriture ni les matériaux (planche, ferraille, cuir, ciment) ; un sac doit être vide.
+• Les ingrédients sont aussi pris dans les [b]caisses de stockage de ta base[/b] à moins de 12 m (« tu as 2 + 5 dans les caisses ») :
+  pas besoin de tout porter.
+• [b]Favoris[/b] : « Épingler en favori » sous une recette la met en haut de la liste, avec ce qu'il manque.
+• Recettes [b]de fortune[/b], à la main : bandage, flèches taillées (1 planche → 2 flèches), [b]torche[/b] à planter
+  (planche + tissu + alcool, ou bûche + tissu + graisse) qui éclaire la nuit.
 
 [b]ARC ET CHASSE[/b]
 • Arc (fermes, camping, ou établi : 2 planches + 1 cuir + 2 tissus). Maintiens le clic gauche pour bander, relâche pour tirer :
@@ -147,6 +163,10 @@ const GUIDE := """[b]LES BASES[/b]
   murs à fenêtre, demi-murs, planchers (posés sur les murs : ils font le plafond et l'étage) et escaliers.
 • Les pièces s'aimantent sur une grille de 3 m. Fantôme vert = possible ; rouge = la raison s'affiche.
 • [G] sur une pièce : la réparer, ou la renforcer bois → tôle (ferraille) → parpaing (sacs de ciment).
+• [b]Maj + G[/b] : réparer toute la base d'un coup (pièces, pièges et barricades), ou si rien n'est abîmé, la renforcer
+  entièrement d'un niveau. Le coût total s'affiche en visant une pièce.
+• [b]Lit de camp[/b] (établi : 4 planches, 4 clous, 4 tissus), à poser dans la base : [F] la nuit pour dormir jusqu'à 7 h.
+  Refusé si un zombie ou un bandit est à moins de 30 m ; faim et soif baissent pendant le sommeil (deux fois moins vite).
 • [X] démonte une pièce et rend la moitié du bois. Les zombies tapent dans les murs qui leur barrent la route.
 • L'établi et la caisse de stockage se posent aussi sur les planchers de ta base.
 • [b]Pièges[/b] (à placer dehors, depuis l'inventaire) : piques en bois (3 planches + 2 clous) qui blessent les zombies
@@ -167,6 +187,14 @@ const GUIDE := """[b]LES BASES[/b]
   et armurier près de Bellerive, médecin et armurier près de Valmont. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
   un vrai refuge. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
+• [b]Vendre tout le bric-à-brac[/b] (avec confirmation) : armes et vêtements en double, munitions qu'aucune de tes armes
+  ne tire, matériaux qui ne servent à rien. Les cases verrouillées de la barre rapide sont épargnées.
+
+[b]S'ORIENTER[/b]
+• [b]Boussole[/b] en haut de l'écran : directions, tes marqueurs, le campement de marchands le plus proche et les lieux
+  à moins de 300 m, avec la distance.
+• Carte (M) : [b]clic droit[/b] pour poser un marqueur nommé (Entrée pour valider), clic droit dessus pour le retirer.
+  Les lieux dont presque tout a été fouillé sont [b]grisés[/b]. En bas : distance et direction des marchands les plus proches.
 
 [b]POINTS STRATÉGIQUES[/b] (touche M pour la carte)
 • [b]Lieu de départ[/b] : à chaque nouvelle partie, tu choisis où commencer — hameau ou village (facile : peu de zombies),
