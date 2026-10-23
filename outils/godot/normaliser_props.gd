@@ -68,6 +68,14 @@ const CFG := {
 	"caisse_munitions": ["ammo_box", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 512],
 	"jerrican": ["metal_jerrycan", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 512],
 	"lanterne": ["Lantern_01", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 256],
+	# --- véhicules des lieux (Poly Pizza : Quaternius CC0, Vojtěch Balák / Zsky / Poly by Google CC BY ; glb dans outils/sources_props)
+	"train_loco": ["train_loco", "", "", 4.3, Vector3.ZERO, 8000, "", Color.WHITE, 0],
+	"train_wagon": ["train_wagon", "", "", 4.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"train_conteneur": ["train_conteneur", "", "", 4.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"train_charbon": ["train_charbon", "", "", 3.2, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"avion_leger": ["avion_leger", "", "", 4.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"helico": ["helico", "", "", 4.4, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"bulldozer": ["bulldozer", "", "", 3.3, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]
@@ -100,6 +108,8 @@ func _initialize() -> void:
 
 func _convertir(id: String, c: Array) -> void:
 	var chemin: String = SRC + c[0] + ".glb"
+	if not ResourceLoader.exists(chemin):
+		chemin = "res://outils/sources_props/%s.glb" % c[0]
 	if not ResourceLoader.exists(chemin):
 		chemin = "res://outils/sources_props/%s/%s_1k.gltf" % [c[0], c[0]]
 	var src: Node3D = load(chemin).instantiate()

@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 6 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 7 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -3235,6 +3235,16 @@ func _wagon(c: Vector3, le_long_x: bool, couche: bool, table: String, label: Str
 	var col: Color = [Color(0.45, 0.22, 0.15), Color(0.3, 0.35, 0.4), Color(0.35, 0.38, 0.28), Color(0.5, 0.45, 0.35)][rng.randi() % 4]
 	var u := Vector3(1, 0, 0) if le_long_x else Vector3(0, 0, 1)
 	var v := Vector3(-u.z, 0, u.x)
+	var modele := "train_conteneur" if table in ["militaire", "armurerie_mil"] else ("train_charbon" if table in ["quincaillerie", "ferme"] else "train_wagon")
+	if Decor.existe(modele):
+		var t := Decor.taille(modele)
+		if couche:
+			_vehicule_couche(modele, c, 0.0 if le_long_x else PI / 2.0)
+		else:
+			_prop(modele, c, 0.0 if le_long_x else PI / 2.0, true, 1.0, 260.0)
+		var cm := _container(c - v * ((t.y if couche else t.z) / 2.0 + 0.8), Vector3(1.3, 0.9, 0.9), col.darkened(0.2), label, table, 3)
+		cm.set_texture("metal_peint")
+		return
 	var lat := 3.4 if couche else 2.9
 	var ht := 2.9 if couche else 3.4
 	var y0 := 0.0 if couche else 0.9
@@ -3247,6 +3257,19 @@ func _wagon(c: Vector3, le_long_x: bool, couche: bool, table: String, label: Str
 			_box(c + u * sa + Vector3(0, 0.45, 0), _taille_ab(u, v, 2.4, 2.2, 0.9), Color(0.12, 0.12, 0.12), true, "metal")
 	var cont := _container(c - v * (lat / 2.0 + 0.8), Vector3(1.3, 0.9, 0.9), col.darkened(0.2), label, table, 3)
 	cont.set_texture("metal_peint")
+
+
+## Véhicule (modèle dont la longueur est sur x) couché sur le flanc, avec sa collision.
+func _vehicule_couche(id: String, c: Vector3, ang: float) -> void:
+	var t := Decor.taille(id)
+	var n := _prop(id, c, ang, false, 1.0, 260.0)
+	if n == null:
+		return
+	n.transform.basis = Basis(Vector3.UP, ang) * Basis(Vector3(1, 0, 0), PI / 2.0)
+	var haut := Basis(Vector3.UP, ang) * Vector3(0, 0, 1)   # le toit pointe par là une fois couché
+	n.position = c + Vector3(0, t.z / 2.0 - 0.15, 0) - haut * t.y / 2.0
+	var u := Basis(Vector3.UP, ang) * Vector3(1, 0, 0)
+	_box(c + Vector3(0, t.z / 2.0, 0), _taille_ab(u, haut, t.x, t.y, t.z), Color.WHITE, true, "invisible")
 
 
 func _gare_valmont() -> void:
@@ -3273,6 +3296,7 @@ func _gare_valmont() -> void:
 	_rails(gx - 85.0, gx + 85.0, RAIL_Z - 7.0, [])
 	for wx in [-50.0, -35.0, 30.0]:
 		_wagon(Vector3(gx + wx, 0, RAIL_Z - 7.0), true, false, ["magasin", "quincaillerie", "station"][rng.randi() % 3], "Wagon de marchandises")
+	_prop("train_loco", Vector3(gx + 58.0, 0, RAIL_Z - 7.0), 0.0, true, 1.0, 260.0)
 	for i in 6:
 		guards.append({"pos": Vector3(gx + rng.randf_range(-30, 30), 0.1, RAIL_Z + rng.randf_range(3, 8)), "kind": "civil", "radius": 20.0})
 	_poi("Gare de Valmont", Vector3(gx, 0, RAIL_Z + 13.0), Color(0.85, 0.75, 0.55))
@@ -3305,9 +3329,12 @@ func _halte(c: Vector3, nom: String, z_village: float) -> void:
 ## Train déraillé : locomotive et wagons en accordéon, cargaison militaire, horde (zone infestée, butin rare).
 func _train_deraille(c: Vector3) -> void:
 	var bleu := Color(0.22, 0.3, 0.5)
-	_box(c + Vector3(-27.0, 1.7, 5.5), Vector3(17.0, 3.4, 4.0), bleu, true, "metal")
-	_box(c + Vector3(-33.0, 1.7, 8.0), Vector3(4.0, 3.0, 1.2), bleu.darkened(0.3), true, "metal")
-	_box(c + Vector3(-27.0, 1.7, 3.3), Vector3(17.0, 2.0, 0.4), Color(0.12, 0.12, 0.12), false, "metal")
+	if Decor.existe("train_loco"):
+		_vehicule_couche("train_loco", c + Vector3(-27.0, 0, 6.0), 0.0)
+	else:
+		_box(c + Vector3(-27.0, 1.7, 5.5), Vector3(17.0, 3.4, 4.0), bleu, true, "metal")
+		_box(c + Vector3(-33.0, 1.7, 8.0), Vector3(4.0, 3.0, 1.2), bleu.darkened(0.3), true, "metal")
+		_box(c + Vector3(-27.0, 1.7, 3.3), Vector3(17.0, 2.0, 0.4), Color(0.12, 0.12, 0.12), false, "metal")
 	var tables := ["militaire", "infeste", "militaire", "armurerie_mil", "infeste", "magasin"]
 	var decal := [-7.0, 6.0, -9.0, 3.0, 9.0, -5.0]
 	for i in 6:
@@ -3550,7 +3577,7 @@ var lacs_speciaux: Array = []   # lacs de ces lieux, ajoutés au relief après l
 func _lieux_uniques() -> void:
 	# [position voulue, emprise (relative à la position), construction, largeur de la route d'accès]
 	var lieux := [
-		[Vector3(1380, 0, -380), Rect2(-240, -75, 480, 115), _aerodrome, 7.0],
+		[Vector3(1690, 0, -380), Rect2(-240, -75, 480, 115), _aerodrome, 7.0],
 		[Vector3(-1130, 0, 650), Rect2(-65, -55, 130, 110), _camp_refugies, 6.0],
 		[Vector3(-1430, 0, 1420), Rect2(-16, -16, 32, 32), _crash_helico, 0.0],
 		[Vector3(1330, 0, -1000), Rect2(-45, -35, 90, 70), _casse_auto, 6.0],
@@ -3692,8 +3719,23 @@ func _aerodrome(p: Vector3) -> void:
 	# petit avion sur le tarmac : la carlingue se fouille (soute)
 	var a := p + Vector3(20.0, 0, -25.0)
 	var blanc := Color(0.9, 0.9, 0.88)
-	var soute := _container(a + Vector3(0, 0.5, 0), Vector3(8.0, 1.6, 1.6), blanc, "Soute de l'avion", "magasin", 4)
-	soute.set_texture("metal_peint")
+	if Decor.existe("avion_leger"):
+		_prop("avion_leger", a, PI / 2.0, false, 1.0, 300.0)
+		var so := _container(a + Vector3(0, 0.4, 0), Vector3(6.5, 1.6, 1.4), blanc, "Soute de l'avion", "magasin", 4)
+		so.mesh_i.visible = false
+	else:
+		_avion_boites(a, blanc, true)
+	# cuves de carburant, manche à air, voitures
+	_aerodrome_suite(p)
+
+
+## Petit avion en boîtes (sans modèle 3D) ; « soute » : la carlingue se fouille.
+func _avion_boites(a: Vector3, blanc: Color, soute: bool) -> void:
+	if soute:
+		var s := _container(a + Vector3(0, 0.5, 0), Vector3(8.0, 1.6, 1.6), blanc, "Soute de l'avion", "magasin", 4)
+		s.set_texture("metal_peint")
+	else:
+		_box(a + Vector3(0, 1.3, 0), Vector3(8.0, 1.6, 1.6), blanc.darkened(0.15), true, "metal")
 	_box(a + Vector3(-0.8, 1.5, 0), Vector3(1.8, 0.18, 11.0), blanc, true, "metal")
 	_box(a + Vector3(3.8, 1.3, 0), Vector3(1.2, 0.12, 3.6), blanc, false, "metal")
 	_box(a + Vector3(4.0, 2.2, 0), Vector3(1.0, 1.6, 0.12), Color(0.75, 0.15, 0.1), false, "metal")
@@ -3701,6 +3743,9 @@ func _aerodrome(p: Vector3) -> void:
 	_box(a + Vector3(-4.15, 1.3, 0), Vector3(0.1, 2.2, 0.2), Color(0.15, 0.15, 0.15), false, "metal")
 	for sz in [-0.9, 0.9]:
 		_box(a + Vector3(-1.0, 0.25, sz), Vector3(0.5, 0.5, 0.2), Color(0.1, 0.1, 0.1), false, "uni")
+
+
+func _aerodrome_suite(p: Vector3) -> void:
 	# cuves de carburant, manche à air, voitures
 	for k in 2:
 		var cu := p + Vector3(100.0 + k * 7.0, 0, -50.0)
@@ -3714,7 +3759,7 @@ func _aerodrome(p: Vector3) -> void:
 	for i in 3:
 		_car(p + Vector3(40.0 + i * 8.0, 0, -32.0), false, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.3))
 	_guards(p + Vector3(0, 0, -20.0), 16, Vector2(130.0, 25.0), ["civil", "civil", "civil", "militaire"], 40.0)
-	Game.map_rects.append({"rect": piste, "color": Color(0.3, 0.3, 0.32)})
+	Game.map_rects.append({"rect": Rect2(p.x - 230.0, p.z + 10.0, 460.0, 22.0), "color": Color(0.3, 0.3, 0.32)})
 	_poi("Aérodrome", p + Vector3(0, 0, -20.0), Color(0.75, 0.8, 0.9))
 
 
@@ -3788,14 +3833,21 @@ func _crash_helico(p: Vector3) -> void:
 	var olive := Color(0.3, 0.34, 0.24)
 	var carl := _container(p, Vector3(3.0, 2.4, 9.0), olive, "Épave de l'hélicoptère", "militaire", 4)
 	carl.set_texture("metal_peint")
-	_box(p + Vector3(0, 1.5, -5.2), Vector3(2.6, 1.8, 1.6), Color(0.2, 0.25, 0.3), true, "vitre")
-	_box(p + Vector3(0.6, 1.6, 8.6), Vector3(0.8, 0.8, 8.2), olive, true, "metal")
-	_box(p + Vector3(0.6, 2.6, 12.4), Vector3(0.15, 2.0, 1.2), olive, false, "metal")
-	_box(p + Vector3(0, 2.6, 0), Vector3(0.5, 0.4, 0.5), Color(0.15, 0.15, 0.15), false, "metal")
+	var helico := _prop("helico", p + Vector3(0, -0.3, 0), rng.randf_range(-0.3, 0.3), false, 1.0, 300.0) if Decor.existe("helico") else null
+	if helico:
+		carl.mesh_i.visible = false   # la carlingue du modèle sert de boîte à fouiller
+		helico.rotation.z = 0.42
+		helico.position.y -= 0.5
+	else:
+		_box(p + Vector3(0, 1.5, -5.2), Vector3(2.6, 1.8, 1.6), Color(0.2, 0.25, 0.3), true, "vitre")
+		_box(p + Vector3(0.6, 1.6, 8.6), Vector3(0.8, 0.8, 8.2), olive, true, "metal")
+		_box(p + Vector3(0.6, 2.6, 12.4), Vector3(0.15, 2.0, 1.2), olive, false, "metal")
+		_box(p + Vector3(0, 2.6, 0), Vector3(0.5, 0.4, 0.5), Color(0.15, 0.15, 0.15), false, "metal")
 	for k in 4:
 		var q := p + Vector3(rng.randf_range(-9.0, 9.0), 0.08, rng.randf_range(-9.0, 9.0))
 		_box(q, Vector3(7.0, 0.08, 0.45) if k % 2 == 0 else Vector3(0.45, 0.08, 7.0), Color(0.12, 0.12, 0.12), false, "metal")
-	_flat(Rect2(p.x - 7.0, p.z - 9.0, 14.0, 22.0), 0.015, Color(0.25, 0.22, 0.2), "terre")
+	for k in 4:   # herbe brûlée autour de l'épave
+		_flat(Rect2(p.x + rng.randf_range(-7.0, 3.0), p.z + rng.randf_range(-8.0, 4.0), rng.randf_range(4.0, 7.0), rng.randf_range(4.0, 8.0)), 0.015 + k * 0.002, Color(0.3, 0.27, 0.24), "terre")
 	var armes := _container(p + Vector3(3.2, 0, -1.0), Vector3(1.2, 0.5, 0.6), Color(0.3, 0.33, 0.25), "Caisse d'armes", "armurerie_mil", 2)
 	armes.set_texture("metal_peint")
 	for i in 3:
@@ -4009,11 +4061,14 @@ func _decharge(p: Vector3) -> void:
 	# bulldozer abandonné
 	var bd := p + Vector3(30.0, 0, 26.0)
 	var jaune := Color(0.85, 0.65, 0.12)
-	_box(bd + Vector3(0, 1.3, 0), Vector3(4.0, 1.6, 2.6), jaune, true, "metal")
-	_box(bd + Vector3(0.6, 2.8, 0), Vector3(1.8, 1.5, 2.0), Color(0.25, 0.3, 0.35), false, "vitre")
-	_box(bd + Vector3(-2.6, 0.8, 0), Vector3(0.3, 1.4, 3.2), jaune.darkened(0.3), true, "metal")
-	for sd in [-1.0, 1.0]:
-		_box(bd + Vector3(0, 0.45, sd * 1.4), Vector3(4.2, 0.9, 0.6), Color(0.12, 0.12, 0.12), false, "metal")
+	if Decor.existe("bulldozer"):
+		_prop("bulldozer", bd, rng.randf() * TAU, true, 1.0, 220.0)
+	else:
+		_box(bd + Vector3(0, 1.3, 0), Vector3(4.0, 1.6, 2.6), jaune, true, "metal")
+		_box(bd + Vector3(0.6, 2.8, 0), Vector3(1.8, 1.5, 2.0), Color(0.25, 0.3, 0.35), false, "vitre")
+		_box(bd + Vector3(-2.6, 0.8, 0), Vector3(0.3, 1.4, 3.2), jaune.darkened(0.3), true, "metal")
+		for sd in [-1.0, 1.0]:
+			_box(bd + Vector3(0, 0.45, sd * 1.4), Vector3(4.2, 0.9, 0.6), Color(0.12, 0.12, 0.12), false, "metal")
 	var h := _building(p + Vector3(-38.0, 0, 32.0), 12.0, 8.0, 4.5, Color(0.55, 0.55, 0.52), ["e"], "garage", "Hangar de tri", false, 5, Color(0.45, 0.42, 0.38))
 	_residents(h, 0.8, 2)
 	for i in 4:

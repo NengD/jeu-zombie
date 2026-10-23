@@ -79,6 +79,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 • Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0.
+• Train : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
