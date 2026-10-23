@@ -48,6 +48,12 @@ const VESTES := {
 	"veste_renforcee": [Color(0.30, 0.28, 0.26), Color(0.20, 0.16, 0.12)],
 }
 
+# armes rangées : dos (sans sac : à la surface du dos, relatif à spine_03), cuisse droite, hanche gauche (relatifs à pelvis)
+const DOS_Z := -0.11
+const ARMES_DOS := [[Vector3(0.0, -0.02, 0.0), 32.0], [Vector3(0.0, -0.06, 0.0), -38.0]]   # [position, inclinaison (degrés, + = canon vers l'épaule gauche)]
+const ARME_CUISSE := Vector3(-0.2, -0.12, 0.0)
+const ARME_HANCHE := Vector3(0.19, -0.06, 0.0)
+
 static var _maillages := {}
 static var _filtres := {}   # maillages du personnage privés de surfaces (cheveux, sac intégré)
 static var _bustes := {}
@@ -64,9 +70,11 @@ static func appliquer(modele: Node3D, equip: Dictionary) -> void:
 	var id_modele: String = modele.get_meta("modele", "h_adventurer")
 	var sexe := "f_" if id_modele.begins_with("f_") else "h_"
 	for c in sk.get_children():
-		if c.has_meta("equip"):
+		if c.has_meta("equip") and not c.has_meta("arme_rangee"):
 			sk.remove_child(c)
 			c.queue_free()
+	sk.set_meta("dos_z", DOS_Z)
+	sk.set_meta("sacoche", false)
 	var ids := []
 	for s in equip:
 		var e = equip[s]
@@ -115,6 +123,10 @@ static func _accrocher(sk: Skeleton3D, p: Dictionary, sexe: String) -> void:
 	var ech: float = p.get("ech", 1.0) * aj[1]
 	var r: Vector3 = p.get("rot", Vector3.ZERO)
 	var voulu := Transform3D(Basis.from_euler(r * PI / 180.0).scaled(Vector3.ONE * ech), repos.origin + p.pos * aj[1] + aj[0])
+	if os == "spine_03":   # dos du sac : les armes rangées passent par-dessus
+		sk.set_meta("dos_z", p.pos.z * aj[1] + aj[0].z - mesh.get_aabb().size.z * 0.5 * ech)
+	elif os == "pelvis":
+		sk.set_meta("sacoche", true)
 	var ba := BoneAttachment3D.new()
 	ba.bone_name = os
 	ba.set_meta("equip", true)
@@ -236,3 +248,84 @@ static func _sans_sac(origine: Mesh, sac: Dictionary) -> Mesh:
 		am.surface_set_material(s, m)
 	_filtres[cle] = am
 	return am
+
+
+## Armes rangées visibles : armes = [[id, nœud du modèle], …] (armes de la barre rapide qu'on ne tient pas).
+## Fusils, arc et armes longues dans le dos (deux au plus, en croix, par-dessus le sac), pistolet à la cuisse droite,
+## couteau / matraque à la hanche gauche (devant la sacoche si elle est portée).
+static func armes_rangees(modele: Node3D, armes: Array) -> void:
+	var sk: Skeleton3D = null
+	for s in modele.find_children("*", "Skeleton3D", true, false):
+		sk = s
+		break
+	if sk == null:
+		return
+	for c in sk.get_children():
+		if c.has_meta("arme_rangee"):
+			sk.remove_child(c)
+			c.queue_free()
+	var sexe := "f_" if String(modele.get_meta("modele", "")).begins_with("f_") else "h_"
+	var items: Node = (Engine.get_main_loop() as SceneTree).root.get_node("Items")   # autoload (aussi depuis les outils)
+	var n_dos := 0
+	var cuisse := false
+	var hanche := false
+	for a in armes:
+		var id: String = a[0]
+		var n: Node3D = a[1]
+		var it: Dictionary = items.info(id)
+		var t: String = it.get("type", "")
+		var os := ""
+		var b := Basis.IDENTITY
+		var pos := Vector3.ZERO
+		if t == "gun" and it.get("famille", "") == "pistolet":
+			if cuisse:
+				continue
+			cuisse = true
+			os = "pelvis"
+			pos = ARME_CUISSE
+			b = Basis(Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0))   # canon vers le bas, flanc vers l'extérieur
+		elif t == "melee" and float(it.get("len", 0.0)) < 0.58:
+			if hanche:
+				continue
+			hanche = true
+			os = "pelvis"
+			pos = ARME_HANCHE + (Vector3(0.0, 0.0, 0.09) if sk.get_meta("sacoche", false) else Vector3.ZERO)
+			b = Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))    # lame vers le bas
+		elif t in ["gun", "melee", "arc"]:
+			if n_dos >= ARMES_DOS.size():
+				continue
+			var cfg: Array = ARMES_DOS[n_dos]
+			n_dos += 1
+			os = "spine_03"
+			var ang := deg_to_rad(cfg[1] * (0.45 if t == "arc" else 1.0))   # arc (long) presque droit
+			var d := Vector3(sin(ang), cos(ang), 0.0)          # vers le haut, penché vers une épaule
+			var x := Vector3(0, 0, -1)                         # flanc de l'arme contre le dos
+			if t == "arc":   # repère de l'arc : X doigts, Y avant, Z haut (branches)
+				b = Basis(x, d.cross(x), d)
+			else:            # canon (ou tête de l'arme) vers -Z
+				b = Basis(x, (-d).cross(x), -d)
+			pos = cfg[0] + Vector3(0, 0, float(sk.get_meta("dos_z", DOS_Z)) - 0.035 - 0.03 * (n_dos - 1))
+		else:
+			continue
+		var ib := sk.find_bone(os)
+		if ib < 0:
+			continue
+		var aj: Array = AJUST.get(sexe, {}).get(os, [Vector3.ZERO, 1.0])
+		var repos := sk.get_bone_global_rest(ib)
+		var ba := BoneAttachment3D.new()
+		ba.bone_name = os
+		ba.set_meta("equip", true)
+		ba.set_meta("arme_rangee", true)
+		sk.add_child(ba)
+		ba.add_child(n)
+		# centre de l'arme (boîte englobante de ses maillages) sur le point voulu
+		var boite := AABB()
+		var premier := true
+		for mi in n.find_children("*", "MeshInstance3D", true, false):
+			var ab: AABB = (n.global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb()
+			boite = ab if premier else boite.merge(ab)
+			premier = false
+		if t == "arc":
+			boite = AABB()   # arc : centré sur sa poignée (origine), la corde allonge sa boîte
+		var cible: Vector3 = repos.origin + pos * aj[1] + aj[0]
+		n.transform = repos.affine_inverse() * Transform3D(b, cible - b * boite.get_center())

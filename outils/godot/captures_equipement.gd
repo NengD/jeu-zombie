@@ -5,6 +5,8 @@ extends SceneTree
 
 const Equip = preload("res://scripts/equipement_visuel.gd")
 const Perso = preload("res://scripts/perso.gd")
+const ModeleUtil = preload("res://scripts/modele_util.gd")
+const ARC = preload("res://scripts/arc.gd")
 
 const TENUES := [
 	["h_adventurer", ["casque_moto", "veste_cuir", "sac_a_dos"]],
@@ -18,6 +20,9 @@ const TENUES := [
 	["h_worker", ["casquette_police", "gilet_police", "sac_a_dos"]],
 	["f_adventurer", []],
 	["f_soldier", []],
+	["h_adventurer", ["casque_militaire", "gilet_militaire", "sac_militaire"], ["m4a1", "benelli_m4", "glock19", "couteau_km2000"]],
+	["h_adventurer", ["bonnet", "veste_cuir", "sac_toile"], ["arc", "hache", "m45a1", "matraque"]],
+	["f_adventurer", [], ["ak74", "glock19", "machette"]],
 ]
 const POSES_DEFAUT := ["idle:0.3", "marche:0.25", "visee:0.3", "course:0.2"]
 
@@ -67,6 +72,11 @@ func _go():
 			for id in TENUES[l][1]:
 				eq[id] = {"id": id}
 			Equip.appliquer(p, eq)
+			if TENUES[l].size() > 2:
+				var armes := []
+				for id in TENUES[l][2]:
+					armes.append([id, ARC.new() if id == "arc" else ModeleUtil.arme(id)])
+				Equip.armes_rangees(p, armes)
 	var cam := Camera3D.new()
 	monde.add_child(cam)
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

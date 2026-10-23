@@ -2872,16 +2872,32 @@ func _maj_maladie(delta: float) -> void:
 		Game.msg("Tu te sens mieux : l'intoxication est passée.")
 
 
-## Équipement porté visible sur le personnage (casques, masques, sacs, gilets, vestes) : refait quand il change.
+## Équipement porté visible sur le personnage (casques, masques, sacs, gilets, vestes) et armes rangées
+## (armes de la barre rapide qu'on ne tient pas) : refait quand ils changent.
 func _maj_equipement_visible() -> void:
 	if not perso_ual:
 		return
+	var tenue := current_weapon()
 	var sig := ""
 	for s in equipped:
 		sig += str(equipped[s].get("id", "")) + "/"
+	var rangees := []
+	for id in hotbar:
+		if id != "" and id != tenue and not id in rangees and Items.is_weapon(id) and count(id) > 0:
+			rangees.append(id)
+	sig += ",".join(rangees) + str(accessoires.hash())
 	if sig == _sig_equip:
 		return
 	_sig_equip = sig
+	var armes := []
+	for id in rangees:
+		var n: Node3D = preload("res://scripts/arc.gd").new() if id == "arc" else ModeleUtil.arme(id)
+		if n == null:
+			continue
+		if id != "arc":
+			Accessoires.habiller(n, id, accessoires.get(id, {}), false)
+		armes.append([id, n])
 	for c in modele.get_children():
 		if c != hand and c.has_meta("modele"):
 			EquipVisuel.appliquer(c, equipped)
+			EquipVisuel.armes_rangees(c, armes)

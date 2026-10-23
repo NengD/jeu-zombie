@@ -49,7 +49,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
-• L'équipement porté se voit sur ton personnage : casque, bonnet ou casquette (Tête), masque à gaz ou lunettes (Visage), gilet ou veste (Torse), sac (Dos). Bandits et zombies en portent aussi.
+• L'équipement porté se voit sur ton personnage : casque, bonnet ou casquette (Tête), masque à gaz ou lunettes (Visage), gilet ou veste (Torse), sac (Dos). Les armes de ta barre rapide que tu ne tiens pas sont rangées sur toi : fusil, arc ou arme longue dans le dos, pistolet à la cuisse, couteau à la hanche. Bandits et zombies portent aussi de l'équipement.
 • [b]Trier par type / par poids[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
   (les piles incomplètes se regroupent aussi à chaque ouverture).
 • Conteneur ouvert : [b]Tout prendre[/b], ou [b]Déposer les matériaux[/b] pour vider d'un coup tes ressources de fabrication.
