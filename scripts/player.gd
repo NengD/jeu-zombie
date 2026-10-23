@@ -193,7 +193,7 @@ func _build_rig() -> void:
 	bras_camera.add_excluded_object(get_rid())
 	lean_pivot.add_child(bras_camera)
 	camera = Camera3D.new()
-	camera.fov = FOV
+	camera.fov = Game.fov
 	camera.near = 0.05
 	camera.far = 700.0
 	bras_camera.add_child(camera)
@@ -264,7 +264,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM if aiming else 1.0)
+		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM * Game.sens_visee if aiming else 1.0)
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.45, 1.45)
 		if event.relative.y > 0.0:   # le joueur compense le recul lui-même : rien à rendre
@@ -670,7 +670,7 @@ func _update_camera(delta: float) -> void:
 	var fov_vise := FOV_AIM * float(arme_stats(cw).get("fov_visee", 1.0)) if is_gun else FOV_AIM
 	if avec_arc:
 		fov_vise = lerpf(FOV_AIM + 8.0, FOV_AIM - 4.0, arc_tension)   # le regard se resserre en bandant
-	camera.fov = lerpf(FOV, lerpf(FOV, fov_vise, 0.6), k_ads)
+	camera.fov = lerpf(Game.fov, lerpf(Game.fov, fov_vise, 0.6), k_ads)
 	# --- caméra 3e personne : se rapproche de l'épaule en visant (aussi avec une arme de mêlée en parade)
 	var k_cam := maxf(k_ads, smoothstep(0.0, 1.0, bloque_k) * 0.4)
 	bras_camera.spring_length = lerpf(CAM_DIST, CAM_DIST_VISEE, k_cam) * (0.85 if crouching else 1.0) + maxf(arme_rec.y, 0.0) * 1.5

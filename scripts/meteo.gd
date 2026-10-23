@@ -94,6 +94,7 @@ func _creer_son() -> void:
 	son = AudioStreamPlayer.new()
 	son.stream = st
 	son.volume_db = -60.0
+	son.bus = "Ambiance"
 	add_child(son)
 
 

@@ -190,6 +190,12 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Vendre tout le bric-à-brac[/b] (avec confirmation) : armes et vêtements en double, munitions qu'aucune de tes armes
   ne tire, matériaux qui ne servent à rien. Les cases verrouillées de la barre rapide sont épargnées.
 
+[b]PARAMÈTRES[/b] (menu principal, ou Échap > Paramètres en pleine partie)
+• Sensibilité de la souris et sensibilité en visée, champ de vision, taille du texte et de l'interface,
+  ramassage automatique, volumes (général, effets, voix des zombies, ambiance), qualité graphique.
+• Touches : clic sur une touche puis appuie sur la nouvelle (clavier ou souris) ; « Touches par défaut » pour tout remettre.
+• Tout s'applique tout de suite et est enregistré en revenant (Retour ou Échap).
+
 [b]S'ORIENTER[/b]
 • [b]Boussole[/b] en haut de l'écran : directions, tes marqueurs, le campement de marchands le plus proche et les lieux
   à moins de 300 m, avec la distance.
@@ -271,4 +277,5 @@ static func touches_texte() -> String:
 	var lines: PackedStringArray = []
 	for t in TOUCHES:
 		lines.append("%s : %s" % [t[1], t[0]])
+	lines.append("(Touches par défaut : elles se changent dans Paramètres, au menu principal ou dans le menu pause.)")
 	return "\n".join(lines)

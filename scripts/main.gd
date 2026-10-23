@@ -648,6 +648,7 @@ func _ambience() -> void:
 		var a := AudioStreamPlayer.new()
 		a.stream = s
 		a.volume_db = -60.0
+		a.bus = "Ambiance"
 		a.autoplay = true
 		add_child(a)
 		ambiances[nom] = a

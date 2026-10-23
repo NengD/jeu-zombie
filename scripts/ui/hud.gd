@@ -254,7 +254,7 @@ func _ready() -> void:
 	root.add_child(msg_box)
 	help_panel = _panel(_help_text(), Vector2(620, 0))
 	help_panel.visible = false
-	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Qualité graphique : " + Game.NOMS_QUALITE[Game.qualite], _qualite_suivante], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
+	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Paramètres", _ouvrir_parametres], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
 	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
 	# niveau et XP (au-dessus de la barre rapide)
 	lbl_niveau = _label("", 15)
@@ -600,7 +600,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_help()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause"):
-		if paused:
+		if parametres and parametres.visible:
+			pass   # l'écran Paramètres gère lui-même Échap
+		elif paused:
 			_resume()
 		elif not Game.ui_open and Game.player and Game.player.alive:
 			paused = true
@@ -713,6 +715,22 @@ func _maj_alerte(vs: Vector2, p: Node) -> void:
 
 
 ## Menu pause : passe au niveau de qualité graphique suivant (Bas → Moyen → Élevé → Ultra).
+## Paramètres depuis le menu pause (même écran que le menu principal, appliqués tout de suite).
+var parametres: PanelContainer = null
+
+
+func _ouvrir_parametres() -> void:
+	if parametres == null:
+		parametres = preload("res://scripts/ui/parametres_ui.gd").new()
+		parametres.ferme.connect(func(): pause_panel.visible = paused)
+		root.add_child(parametres)
+	pause_panel.visible = false
+	parametres.visible = true
+	parametres.reset_size()
+	var vs := root.get_viewport_rect().size
+	parametres.position = ((vs - parametres.size) / 2.0).max(Vector2.ZERO)
+
+
 func _qualite_suivante() -> void:
 	Game.qualite = (Game.qualite + 1) % Game.NOMS_QUALITE.size()
 	Game.save_settings()

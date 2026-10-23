@@ -81,6 +81,19 @@ var volume := 0.8
 var pluie := 0.0                 # intensité de la pluie (0..1), gérée par meteo.gd
 var qualite := 3                # qualité graphique : 0 Bas, 1 Moyen, 2 Élevé, 3 Ultra
 var ramassage_auto := true      # munitions et flèches ramassées en passant dessus
+var sens_visee := 1.0           # multiplicateur de sensibilité en visée
+var fov := 70.0                 # champ de vision (degrés, vertical)
+var vol_effets := 1.0           # volumes par catégorie (bus audio Effets / Voix / Ambiance)
+var vol_voix := 1.0
+var vol_ambiance := 1.0
+var taille_texte := 1.0         # échelle de toute l'interface
+const BUS := ["Effets", "Voix", "Ambiance"]
+# touches modifiables (Paramètres) : [action, libellé]
+const TOUCHES_MODIFIABLES := [["avancer", "Avancer"], ["reculer", "Reculer"], ["gauche", "Aller à gauche"], ["droite", "Aller à droite"],
+	["sprint", "Sprinter"], ["sauter", "Sauter"], ["accroupir", "S'accroupir"], ["pencher_gauche", "Se pencher à gauche"], ["pencher_droite", "Se pencher à droite"],
+	["tirer", "Frapper / tirer"], ["viser", "Viser / parer"], ["recharger", "Recharger"], ["interagir", "Fouiller / utiliser"], ["soigner", "Se soigner"],
+	["inventaire", "Inventaire"], ["carte", "Carte"], ["lampe", "Lampe"], ["inspecter", "Inspecter l'arme"], ["construire", "Mode construction"],
+	["ameliorer", "Renforcer / réparer"], ["demonter", "Démonter une pièce"], ["competences", "Personnage"]]
 const NOMS_QUALITE := ["Bas", "Moyen", "Élevé", "Ultra"]
 signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
@@ -250,6 +263,18 @@ func load_settings() -> void:
 		volume = float(cf.get_value("jeu", "volume", 0.8))
 		qualite = clampi(int(cf.get_value("jeu", "qualite", 3)), 0, 3)
 		ramassage_auto = bool(cf.get_value("jeu", "ramassage_auto", true))
+		sens_visee = float(cf.get_value("jeu", "sens_visee", 1.0))
+		fov = clampf(float(cf.get_value("jeu", "fov", 70.0)), 55.0, 100.0)
+		vol_effets = float(cf.get_value("jeu", "vol_effets", 1.0))
+		vol_voix = float(cf.get_value("jeu", "vol_voix", 1.0))
+		vol_ambiance = float(cf.get_value("jeu", "vol_ambiance", 1.0))
+		taille_texte = clampf(float(cf.get_value("jeu", "taille_texte", 1.0)), 0.75, 1.5)
+		for a in TOUCHES_MODIFIABLES:
+			var ev = _evenement_depuis(cf.get_value("touches", a[0], null))
+			if ev:
+				InputMap.action_erase_events(a[0])
+				InputMap.action_add_event(a[0], ev)
+				_touches_changees[a[0]] = true
 	apply_settings()
 
 
@@ -259,14 +284,102 @@ func save_settings() -> void:
 	cf.set_value("jeu", "volume", volume)
 	cf.set_value("jeu", "qualite", qualite)
 	cf.set_value("jeu", "ramassage_auto", ramassage_auto)
+	cf.set_value("jeu", "sens_visee", sens_visee)
+	cf.set_value("jeu", "fov", fov)
+	cf.set_value("jeu", "vol_effets", vol_effets)
+	cf.set_value("jeu", "vol_voix", vol_voix)
+	cf.set_value("jeu", "vol_ambiance", vol_ambiance)
+	cf.set_value("jeu", "taille_texte", taille_texte)
+	for a in TOUCHES_MODIFIABLES:
+		if _touches_changees.has(a[0]):
+			cf.set_value("touches", a[0], _evenement_vers(InputMap.action_get_events(a[0])[0]))
 	cf.save(SETTINGS_PATH)
 	apply_settings()
 
 
+# ---------------------------------------------------------------- touches modifiables
+var _touches_changees := {}
+
+
+## Remplace les touches d'une action par un seul événement (touche du clavier ou bouton de la souris).
+func changer_touche(action: String, ev: InputEvent) -> void:
+	InputMap.action_erase_events(action)
+	InputMap.action_add_event(action, ev)
+	_touches_changees[action] = true
+
+
+## Remet toutes les touches par défaut.
+func touches_par_defaut() -> void:
+	for a in InputMap.get_actions():
+		if not String(a).begins_with("ui_"):
+			InputMap.action_erase_events(a)
+	_setup_inputs()
+	_touches_changees.clear()
+	var cf := ConfigFile.new()
+	if cf.load(SETTINGS_PATH) == OK and cf.has_section("touches"):
+		cf.erase_section("touches")
+		cf.save(SETTINGS_PATH)
+
+
+## Texte d'une action : ses touches, avec la lettre réelle du clavier (Z sur AZERTY pour « avancer »).
+func texte_touche(action: String) -> String:
+	var l: PackedStringArray = []
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey:
+			var k := ev as InputEventKey
+			if k.physical_keycode != KEY_NONE:
+				l.append(OS.get_keycode_string(DisplayServer.keyboard_get_keycode_from_physical(k.physical_keycode)))
+			else:
+				l.append(OS.get_keycode_string(k.keycode))
+		elif ev is InputEventMouseButton:
+			l.append({MOUSE_BUTTON_LEFT: "Clic gauche", MOUSE_BUTTON_RIGHT: "Clic droit", MOUSE_BUTTON_MIDDLE: "Clic molette",
+					MOUSE_BUTTON_WHEEL_UP: "Molette haut", MOUSE_BUTTON_WHEEL_DOWN: "Molette bas"}.get((ev as InputEventMouseButton).button_index,
+					"Bouton %d" % (ev as InputEventMouseButton).button_index))
+	return " ou ".join(l)
+
+
+func _evenement_vers(ev: InputEvent) -> Dictionary:
+	if ev is InputEventMouseButton:
+		return {"m": (ev as InputEventMouseButton).button_index}
+	var k := ev as InputEventKey
+	return {"p": k.physical_keycode} if k.physical_keycode != KEY_NONE else {"k": k.keycode}
+
+
+func _evenement_depuis(d) -> InputEvent:
+	if not d is Dictionary:
+		return null
+	if d.has("m"):
+		var mb := InputEventMouseButton.new()
+		mb.button_index = int(d.m)
+		return mb
+	var ev := InputEventKey.new()
+	if d.has("p"):
+		ev.physical_keycode = int(d.p)
+	elif d.has("k"):
+		ev.keycode = int(d.k)
+	else:
+		return null
+	return ev
+
+
 func apply_settings() -> void:
-	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
+	appliquer_son_et_texte()
 	_appliquer_rendu()
 	graphismes_changes.emit()
+
+
+## Volumes (général et par bus) et taille de l'interface : légers, appliqués à chaque mouvement de curseur.
+func appliquer_son_et_texte() -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.0001)))
+	for i in BUS.size():
+		var idx := AudioServer.get_bus_index(BUS[i])
+		if idx < 0:
+			AudioServer.add_bus()
+			idx = AudioServer.bus_count - 1
+			AudioServer.set_bus_name(idx, BUS[i])
+			AudioServer.set_bus_send(idx, "Master")
+		AudioServer.set_bus_volume_db(idx, linear_to_db(maxf([vol_effets, vol_voix, vol_ambiance][i], 0.0001)))
+	get_tree().root.content_scale_factor = taille_texte
 
 
 ## Anticrénelage et qualité des ombres selon le niveau choisi (l'éclairage est réglé par day_night.gd).
@@ -470,6 +583,7 @@ func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_d
 		return
 	var a := AudioStreamPlayer3D.new()
 	a.stream = s
+	a.bus = "Voix" if sound.begins_with("zv_") else "Effets"
 	a.volume_db = vol_db
 	a.pitch_scale = pitch * randf_range(1.0 - pitch_var, 1.0 + pitch_var)
 	a.max_distance = max_dist
@@ -491,6 +605,7 @@ func play_tir(sound: String, pos: Vector3, vol_db := 0.0) -> void:
 	a.stream = s
 	a.volume_db = vol_db
 	a.pitch_scale = randf_range(0.93, 1.07)
+	a.bus = "Effets"
 	a.unit_size = 30.0
 	a.max_distance = 300.0
 	a.max_db = 4.0
@@ -510,6 +625,7 @@ func play_ui(sound: String, vol_db := 0.0, pitch_var := 0.06, pitch := 1.0) -> v
 		return
 	var a := AudioStreamPlayer.new()
 	a.stream = s
+	a.bus = "Effets"
 	a.volume_db = vol_db
 	a.pitch_scale = pitch * randf_range(1.0 - pitch_var, 1.0 + pitch_var)
 	scene.add_child(a)

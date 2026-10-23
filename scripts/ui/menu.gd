@@ -3,13 +3,12 @@ extends Control
 
 const Textes = preload("res://scripts/ui/textes.gd")
 const LieuxDepart = preload("res://scripts/lieux_depart.gd")
+const ParametresUI = preload("res://scripts/ui/parametres_ui.gd")
 
 var main_box: VBoxContainer
 var settings_panel: PanelContainer
 var guide_panel: PanelContainer
 var depart_panel: PanelContainer
-var sens_label: Label
-var vol_label: Label
 
 
 func _ready() -> void:
@@ -137,70 +136,11 @@ func _panel_base(title: String) -> Array:
 
 
 func _build_settings() -> PanelContainer:
-	var r := _panel_base("PARAMÈTRES")
-	var vb: VBoxContainer = r[1]
-	# réglages
-	sens_label = _small_label(vb, "")
-	var s1 := HSlider.new()
-	s1.min_value = 0.2
-	s1.max_value = 3.0
-	s1.step = 0.05
-	s1.value = Game.mouse_sens
-	s1.custom_minimum_size = Vector2(500, 24)
-	s1.value_changed.connect(func(v): Game.mouse_sens = v; _update_setting_labels())
-	vb.add_child(s1)
-	vol_label = _small_label(vb, "")
-	var s2 := HSlider.new()
-	s2.min_value = 0.0
-	s2.max_value = 1.0
-	s2.step = 0.05
-	s2.value = Game.volume
-	s2.custom_minimum_size = Vector2(500, 24)
-	s2.value_changed.connect(func(v): Game.volume = v; Game.apply_settings(); _update_setting_labels())
-	vb.add_child(s2)
-	_small_label(vb, "Qualité graphique (Élevé et Ultra : brume volumétrique, reflets, ombres douces) :")
-	var qg := OptionButton.new()
-	for nom in Game.NOMS_QUALITE:
-		qg.add_item(nom)
-	qg.selected = Game.qualite
-	qg.custom_minimum_size = Vector2(240, 30)
-	qg.item_selected.connect(func(i): Game.qualite = i; Game.save_settings())
-	vb.add_child(qg)
-	_update_setting_labels()
-	# touches
-	var kt := Label.new()
-	kt.text = "TOUCHES"
-	kt.add_theme_font_size_override("font_size", 24)
-	kt.add_theme_color_override("font_color", Color(0.9, 0.8, 0.45))
-	vb.add_child(kt)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(scroll)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 40)
-	grid.add_theme_constant_override("v_separation", 6)
-	scroll.add_child(grid)
-	for t in Textes.TOUCHES:
-		var k := Label.new()
-		k.text = t[1]
-		k.custom_minimum_size = Vector2(220, 0)
-		k.add_theme_font_size_override("font_size", 19)
-		k.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
-		grid.add_child(k)
-		var a := Label.new()
-		a.text = t[0]
-		a.add_theme_font_size_override("font_size", 19)
-		grid.add_child(a)
-	_back_button(vb, func():
-		Game.save_settings()
-		_show(null))
-	return r[0]
-
-
-func _update_setting_labels() -> void:
-	sens_label.text = "Sensibilité de la souris : %.2f" % Game.mouse_sens
-	vol_label.text = "Volume général : %d %%" % int(Game.volume * 100)
+	var pc = ParametresUI.new()
+	pc.visible = false
+	pc.ferme.connect(func(): _show(null))
+	add_child(pc)
+	return pc
 
 
 func _build_guide() -> PanelContainer:
