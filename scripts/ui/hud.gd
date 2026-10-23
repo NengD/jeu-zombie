@@ -48,6 +48,7 @@ class Boussole extends Control:
 			var d2 := Vector2(poi.pos.x - pos.x, poi.pos.z - pos.z).length()
 			if d2 < 300.0 and d2 > 15.0 and not Game.in_city(poi.pos):
 				reperes.append([Vector2(poi.pos.x, poi.pos.z), poi.name, Color(0.85, 0.85, 0.85, 0.85)])
+		var occupes: Array = []   # étiquettes déjà écrites (Rect2) : on décale les suivantes d'une ligne
 		for r in reperes:
 			var v: Vector2 = r[0] - Vector2(pos.x, pos.z)
 			var dist := v.length()
@@ -63,8 +64,18 @@ class Boussole extends Control:
 			if not hors:
 				var t := "%s %s" % [r[1], ("%d m" % int(dist)) if dist < 1000.0 else ("%.1f km" % (dist / 1000.0))]
 				var w := font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-				draw_string_outline(font, Vector2(x - w / 2.0, 58), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
-				draw_string(font, Vector2(x - w / 2.0, 58), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+				var y := 58.0
+				for essai in 4:
+					var libre := true
+					for o in occupes:
+						if (o as Rect2).intersects(Rect2(x - w / 2.0 - 4.0, y - 12.0, w + 8.0, 14.0)):
+							libre = false
+					if libre:
+						break
+					y += 15.0
+				occupes.append(Rect2(x - w / 2.0 - 4.0, y - 12.0, w + 8.0, 14.0))
+				draw_string_outline(font, Vector2(x - w / 2.0, y), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
+				draw_string(font, Vector2(x - w / 2.0, y), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
 
 
 class Crosshair extends Control:
