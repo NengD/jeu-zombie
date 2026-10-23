@@ -61,7 +61,7 @@ class Cadre extends Control:
 				continue
 			var nom: String = poi.name
 			var grand := nom in ["Bellerive", "Valmont"]
-			var moyen := grand or nom.begins_with("Village") or nom.begins_with("Hameau") or nom == "Base militaire"
+			var moyen := grand or nom.begins_with("Village") or nom.begins_with("Hameau") or nom.begins_with("Forêt") or nom.begins_with("Bois ") or nom == "Base militaire"
 			# lieux dans une ville (boutiques, église…) : petit point, nommés seulement de près
 			var en_ville: bool = not moyen and Game.in_city(poi.pos)
 			draw_circle(pp, 9.0 if grand else (4.5 if en_ville else 6.0), poi.color)

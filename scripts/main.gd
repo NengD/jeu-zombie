@@ -217,6 +217,8 @@ func _creer_camps() -> void:
 			continue
 		if pres_camp_marchand(c, 140.0):
 			continue
+		if world._overlaps(Rect2(c.x - 16.0, c.z - 16.0, 32.0, 32.0)):
+			continue   # pas sur une route, un champ ou un lieu
 		var trop_pres := false
 		for p in places:
 			if Vector2(c.x - p.x, c.z - p.z).length() < 170.0:

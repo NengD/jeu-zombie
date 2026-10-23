@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 3  # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 4 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -1371,6 +1371,8 @@ func _regions() -> void:
 	_ligne_electrique(Vector2(xa + 8.0, hz - 20.0), Vector2(xa + 8.0, VILLE_B.z + hvb + 20.0))
 	# zone industrielle à l'est de Valmont
 	_zone_industrielle(Vector3(VILLE_B.x + hvb + 75.0, 0, VILLE_B.z), VILLE_B.x + hvb + 5.0)
+	# --- routes secondaires, voie ferrée, forêts, fermes et maisons le long des routes
+	_plan_campagne()
 	# --- villages reliés par leur route
 	_village_relie(Vector3(-1500, 0, -1400), "Village des Granges", hz)
 	_village_relie(Vector3(1300, 0, 1550), "Village de Pont-Rouge", hz)
@@ -1666,6 +1668,12 @@ func _trees() -> void:
 			candidates.append(cc + Vector3(rng.randfn(0, 22), 0, rng.randfn(0, 22)))
 	for i in 3800:
 		candidates.append(Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m)))
+	# forêts nommées : bien plus denses
+	for f in forets:
+		var r: float = f.r
+		for i in int(r * r * 0.012):
+			var a := rng.randf() * TAU
+			candidates.append(f.c + Vector3(cos(a), 0, sin(a)) * r * sqrt(rng.randf()))
 	var park_count := trees.size()
 	var final: Array = []
 	for idx in candidates.size():
@@ -2016,10 +2024,11 @@ func _relief() -> void:
 	if not relief.lacs.is_empty():
 		_cabane_peche(relief.lacs[0])
 	# --- calcul du relief
-	var occupe: Array = reserved.duplicate()
+	var occupe: Array = reserved.filter(func(r): return not non_plats.has(r))
 	occupe.append_array(plats)
 	relief.generer(rng.randi(), m, occupe)
 	Game.relief = relief
+	_poser_routes_drapees()
 	# --- sol
 	var tm := ShaderMaterial.new()
 	tm.shader = TerrainShader
@@ -2077,6 +2086,9 @@ func _relief() -> void:
 	_ligne_electrique(Vector2(hx - 9.0, -half - 20.0), Vector2(hx - 9.0, -m + 15.0))
 	_ligne_electrique(Vector2(half + 20.0, hz - 9.0), Vector2(m - 15.0, hz - 9.0))
 	_ligne_electrique(Vector2(-half - 20.0, hz + 9.0), Vector2(-m + 15.0, hz + 9.0))
+	_lignes_ht()
+	_eoliennes()
+	_details_routes()
 	# --- rochers sur les pentes
 	var n_roc := 0
 	for i in 9000:
@@ -2969,3 +2981,564 @@ func _disque(c: Vector3, r: float, col: Color, m: String, n := 14) -> void:
 		var p1 := c + Vector3(cos(TAU * (i + 1) / n) * r, 0, sin(TAU * (i + 1) / n) * r)
 		_tri(p0, p1, c, col, m)
 		_tri(p1, p0, c, col, m)
+
+
+# ================================================================ campagne quadrillée
+## Routes secondaires posées sur le relief (les collines restent), voie ferrée, forêts nommées,
+## fermes et maisons isolées le long des nouvelles routes ; lignes à haute tension et éoliennes (après le relief).
+const Eolienne = preload("res://scripts/eolienne.gd")
+const RS_X := [-2000.0, -1000.0, 780.0, 1950.0]   # routes secondaires nord-sud
+const RS_Z := [-2000.0, -800.0, 1100.0, 2050.0]   # routes secondaires est-ouest
+const RAIL_Z := -1530.0                            # voie ferrée est-ouest (au nord de Valmont et des Granges)
+const FORETS := [
+	[Vector3(-650, 0, -1900), 230.0, "Forêt du Nord"],
+	[Vector3(560, 0, -1820), 220.0, "Bois de la Vieille-Croix"],
+	[Vector3(-1500, 0, 1300), 260.0, "Forêt des Combes"],
+	[Vector3(-600, 0, 1750), 200.0, "Bois Noir"],
+	[Vector3(1900, 0, 550), 200.0, "Bois de l'Est"],
+	[Vector3(600, 0, 1820), 180.0, "Bois des Chênes"],
+	[Vector3(-1750, 0, 350), 220.0, "Forêt de la Rivière"],
+]
+var non_plats := {}      # Rect2 réservés qui n'aplatissent pas le relief (routes posées dessus)
+var drapees: Array = []  # routes à poser sur le relief : [a, b, largeur, couleur, hauteur au-dessus du sol]
+var forets: Array = []   # {c, r, nom}
+
+
+func _plan_campagne() -> void:
+	var hx := -half + 4 * BLOCK
+	var hz := -half + 3 * BLOCK
+	_voie_ferree(hx)
+	for x in RS_X:
+		_route_drapee(Vector2(x, RS_Z[0]), Vector2(x, RS_Z[-1]), 7.0, C_ASPHALT, 0.07)
+	for z in RS_Z:
+		_route_drapee(Vector2(RS_X[0], z), Vector2(RS_X[-1], z), 7.0, C_ASPHALT, 0.09)
+	# fermes le long des routes nord-sud (chemin de terre jusqu'à la route)
+	for f in [[Vector3(-1920, 0, -1200), -2000.0, "Ferme des Saules"], [Vector3(-920, 0, 1300), -1000.0, "Ferme de la Combe"],
+			[Vector3(870, 0, -1100), 780.0, "Ferme du Haut-Bois"], [Vector3(2040, 0, 800), 1950.0, "Ferme des Rochers"],
+			[Vector3(-1080, 0, -1900), -1000.0, "Ferme du Calvaire"]]:
+		var c: Vector3 = f[0]
+		if not _overlaps(Rect2(c.x - 14, c.z - 12, 50, 24)):
+			_farm(c, f[1], 1.0e6, f[2])
+	# forêts nommées : clairière avec cabane de chasseur, clairière avec mirador, sentiers vers la route
+	for f in FORETS:
+		var c: Vector3 = f[0]
+		var r: float = f[1]
+		forets.append({"c": c, "r": r, "nom": f[2]})
+		_poi(f[2], c, Color(0.35, 0.65, 0.35))
+		Game.map_rects.append({"rect": Rect2(c.x - r * 0.75, c.z - r * 0.75, r * 1.5, r * 1.5), "color": Color(0.08, 0.28, 0.1, 0.3)})
+		for k in 2:
+			for essai in 14:
+				var a := rng.randf() * TAU
+				var p := c + Vector3(cos(a), 0, sin(a)) * r * rng.randf_range(0.2, 0.6)
+				if _overlaps(Rect2(p.x - 16, p.z - 16, 32, 32)):
+					continue
+				if k == 0:
+					_cabane_chasseur(p)
+				else:
+					_mirador(p)
+				_sentier(p, hx, hz)
+				break
+	# maisons isolées le long des routes secondaires
+	for i in 36:
+		var le_long_z := rng.randf() < 0.5
+		var ligne: float = (RS_X if le_long_z else RS_Z)[rng.randi() % 4]
+		var along := rng.randf_range(-1980.0, 1930.0)
+		var off := 17.0 * (1.0 if rng.randf() < 0.5 else -1.0)
+		var c := Vector3(ligne + off, 0, along) if le_long_z else Vector3(along, 0, ligne + off)
+		var doors: Array = [("w" if off > 0 else "e")] if le_long_z else [("n" if off > 0 else "s")]
+		var proche := false
+		for x in RS_X + [hx]:
+			for z in RS_Z + [hz]:
+				if Vector2(c.x - x, c.z - z).length() < 30.0:
+					proche = true
+		if proche or Game.in_city(c) or _overlaps(Rect2(c.x - 9, c.z - 9, 18, 18)):
+			continue
+		var zm := _building(c, rng.randf_range(9, 12), rng.randf_range(8, 10), 6.6, HOUSE_COLORS[rng.randi() % HOUSE_COLORS.size()], doors, "maison", "", false, -1, Color(0.45, 0.4, 0.35), "pente")
+		_residents(zm, 0.5, 2)
+
+
+## Route droite (axe x ou z) posée sur le relief une fois celui-ci calculé (elle ne l'aplatit pas).
+func _route_drapee(a: Vector2, b: Vector2, w: float, col: Color, dy := 0.07) -> void:
+	var r := Rect2(minf(a.x, b.x) - w / 2.0, minf(a.y, b.y) - w / 2.0, absf(b.x - a.x) + w, absf(b.y - a.y) + w)
+	_reserve(r, Color(0.16, 0.16, 0.16) if col == C_ASPHALT else Color(0.35, 0.28, 0.18))
+	non_plats[r] = true
+	routes.append({"r": r, "x": absf(b.x - a.x) > absf(b.y - a.y)})
+	Game.sols.append({"r": r, "s": "beton" if col == C_ASPHALT else "terre"})
+	drapees.append([a, b, w, col, dy])
+
+
+func _poser_routes_drapees() -> void:
+	for d in drapees:
+		var a: Vector2 = d[0]
+		var b: Vector2 = d[1]
+		var asphalte: bool = d[3] == C_ASPHALT
+		var dy: float = d[4]
+		var m := "asphalte" if asphalte else "terre"
+		var col := Color(0.95, 0.95, 0.95) if asphalte else Color(0.95, 0.92, 0.88)
+		var long := a.distance_to(b)
+		var dir := (b - a) / long
+		var lat := Vector2(-dir.y, dir.x) * float(d[2]) / 2.0
+		var n := maxi(1, ceili(long / 5.0))
+		var pg := Vector3.ZERO
+		var pd := Vector3.ZERO
+		for i in n + 1:
+			var p := a + dir * (long * i / n)
+			var g := p + lat
+			var q := p - lat
+			var ng := Vector3(g.x, maxf(relief.hauteur(g.x, g.y), 0.0) + dy, g.y)
+			var nd := Vector3(q.x, maxf(relief.hauteur(q.x, q.y), 0.0) + dy, q.y)
+			if i > 0:
+				_quad_sol(pg, ng, nd, pd, col, m)
+			pg = ng
+			pd = nd
+
+
+## Quadrilatère de sol (face vers le haut), UV alignées sur le monde comme les boîtes.
+func _quad_sol(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, col: Color, m: String) -> void:
+	var st := _st((p0 + p2) * 0.5, m)
+	var n := (p1 - p0).cross(p3 - p0).normalized()
+	var ordre := [p0, p2, p1, p0, p3, p2]
+	if n.y < 0.0:
+		n = -n
+		ordre = [p0, p1, p2, p0, p2, p3]
+	for p in ordre:
+		st.set_normal(n)
+		st.set_tangent(Plane(1, 0, 0, 1))
+		st.set_color(col)
+		st.set_uv(Vector2(p.x, p.z))
+		st.add_vertex(p)
+
+
+## Sentier de terre d'une clairière jusqu'à la route la plus proche qu'il peut atteindre sans traverser un lieu.
+func _sentier(p: Vector3, hx: float, hz: float) -> void:
+	var cibles: Array = []
+	for x in RS_X + [hx]:
+		cibles.append(Vector2(x, p.z))
+	for z in RS_Z + [hz]:
+		cibles.append(Vector2(p.x, z))
+	var a := Vector2(p.x, p.z)
+	cibles.sort_custom(func(u, v): return a.distance_to(u) < a.distance_to(v))
+	for cible in cibles.slice(0, 3):
+		var long: float = a.distance_to(cible)
+		if long > 600.0 or long < 20.0:
+			continue
+		var dir: Vector2 = (cible - a) / long
+		var deb := a + dir * 14.0
+		var fin: Vector2 = cible - dir * 7.0
+		var test := Rect2(minf(deb.x, fin.x) - 1.5, minf(deb.y, fin.y) - 1.5, absf(fin.x - deb.x) + 3.0, absf(fin.y - deb.y) + 3.0)
+		if _overlaps(test):
+			continue
+		_route_drapee(deb, cible, 2.6, C_DIRT, 0.05)
+		return
+
+
+## Cabane de chasseur dans une clairière : coffre, tas de bois, foyer.
+func _cabane_chasseur(p: Vector3) -> void:
+	_reserve(Rect2(p.x - 14, p.z - 14, 28, 28))
+	var z := _building(p, 7.0, 6.0, 3.6, Color(0.5, 0.38, 0.26), ["s"], "maison", "Cabane de chasseur", false, 3, Color(0.45, 0.35, 0.25), "pente")
+	_residents(z, 0.5, 1)
+	var cof := _container(p + Vector3(2.4, 0, 3.8), Vector3(1.0, 0.6, 0.6), Color(0.4, 0.3, 0.2), "Coffre du chasseur", "chasseur", 3)
+	cof.set_texture("planches")
+	_box(p + Vector3(4.6, 0.5, 0), Vector3(1.0, 1.0, 3.0), Color(0.55, 0.4, 0.28), true, "planches")
+	for i in 7:
+		var a := TAU * i / 7.0
+		_box(p + Vector3(-2.0 + cos(a) * 0.8, 0.12, 7.0 + sin(a) * 0.8), Vector3(0.35, 0.24, 0.35), Color(0.6, 0.6, 0.58), false, "roche")
+	_poi("Cabane de chasseur", p, Color(0.7, 0.55, 0.35))
+
+
+## Mirador de chasse : plateforme à 4,2 m (échelle côté +z), caisse du chasseur.
+func _mirador(p: Vector3) -> void:
+	_reserve(Rect2(p.x - 12, p.z - 12, 24, 24))
+	var bois := Color(0.55, 0.42, 0.3)
+	var hp := 4.2
+	for o in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		_box(p + Vector3(o.x * 1.25, (hp + 2.2) / 2.0, o.y * 1.25), Vector3(0.18, hp + 2.2, 0.18), bois, true, "planches")
+	_box(p + Vector3(0, hp, 0), Vector3(2.8, 0.15, 2.8), bois, true, "planches")
+	_box(p + Vector3(0, hp + 0.55, -1.35), Vector3(2.8, 1.0, 0.08), bois, true, "planches")
+	for sx in [-1.0, 1.0]:
+		_box(p + Vector3(sx * 1.35, hp + 0.55, 0), Vector3(0.08, 1.0, 2.8), bois, true, "planches")
+		_box(p + Vector3(sx * 0.95, hp + 0.55, 1.35), Vector3(0.9, 1.0, 0.08), bois, true, "planches")
+	_box(p + Vector3(0, hp + 2.25, 0), Vector3(3.2, 0.1, 3.2), Color(0.4, 0.42, 0.38), false, "tole")
+	var ze := p.z + 1.6
+	for sx in [-0.25, 0.25]:
+		_box(Vector3(p.x + sx, (hp + 1.0) / 2.0, ze), Vector3(0.06, hp + 1.0, 0.06), bois, false, "planches")
+	var yb := 0.3
+	while yb < hp:
+		_box(Vector3(p.x, yb, ze), Vector3(0.5, 0.05, 0.05), bois, false, "planches")
+		yb += 0.3
+	Game.echelles.append({"pos": Vector3(p.x, 0, ze), "n": Vector3(0, 0, 1), "haut": hp})
+	var c := _container(p + Vector3(-0.7, hp + 0.08, -0.7), Vector3(0.7, 0.4, 0.5), Color(0.35, 0.3, 0.22), "Caisse du chasseur", "chasseur", 2)
+	c.set_texture("planches")
+	_poi("Mirador de chasse", p, Color(0.7, 0.55, 0.35))
+
+
+# ---------------------------------------------------------------- voie ferrée
+func _voie_ferree(hx: float) -> void:
+	var m := Game.map_half - 70.0
+	_reserve(Rect2(-m, RAIL_Z - 5.0, 2.0 * m, 10.0), Color(0.3, 0.24, 0.22))
+	Game.sols.append({"r": Rect2(-m, RAIL_Z - 2.3, 2.0 * m, 4.6), "s": "terre"})
+	var passages: Array = [hx]
+	passages.append_array(RS_X)
+	_rails(-m, m, RAIL_Z, passages)
+	for px in passages:
+		_passage_niveau(px)
+	for sx in [-1.0, 1.0]:   # heurtoirs aux deux bouts
+		_box(Vector3(sx * (m - 1.0), 0.6, RAIL_Z), Vector3(0.8, 1.2, 3.0), Color(0.7, 0.15, 0.1), true, "metal")
+	_gare_valmont()
+	_halte(Vector3(-1500.0, 0, RAIL_Z + 9.0), "Halte des Granges", -1470.0)
+	_train_deraille(Vector3(-680.0, 0, RAIL_Z))
+	# wagons abandonnés le long de la voie
+	var n := 0
+	for essai in 40:
+		if n >= 6:
+			break
+		var wx := rng.randf_range(-m + 40.0, m - 40.0)
+		var ok := absf(wx - VILLE_B.x) > 130.0 and absf(wx + 1500.0) > 60.0 and absf(wx + 680.0) > 120.0
+		for px in passages:
+			if absf(wx - px) < 30.0:
+				ok = false
+		if ok:
+			var t: String = ["magasin", "quincaillerie", "ferme", "station", "garage"][rng.randi() % 5]
+			_wagon(Vector3(wx, 0, RAIL_Z), true, false, t, "Wagon de marchandises")
+			n += 1
+
+
+## Ballast, rails et traverses entre x0 et x1 (pas de traverses sur les routes traversées).
+func _rails(x0: float, x1: float, z: float, passages: Array) -> void:
+	var x := x0
+	while x < x1:
+		var lg := minf(40.0, x1 - x)
+		_flat(Rect2(x, z - 2.3, lg, 4.6), 0.03, Color(0.75, 0.72, 0.7), "roche")
+		for sz in [-0.72, 0.72]:
+			_box(Vector3(x + lg / 2.0, 0.2, z + sz), Vector3(lg, 0.13, 0.09), Color(0.45, 0.4, 0.36), false, "metal")
+		x += lg
+	x = x0 + 1.0
+	while x < x1:
+		var libre := true
+		for px in passages:
+			if absf(x - px) < 7.0:
+				libre = false
+		if libre:
+			_box(Vector3(x, 0.08, z), Vector3(0.26, 0.12, 2.5), Color(0.38, 0.29, 0.2), false, "planches")
+		x += 2.0
+
+
+## Passage à niveau : poteaux rouge et blanc, barrières levées, panneaux.
+func _passage_niveau(px: float) -> void:
+	for sd in [-1.0, 1.0]:
+		var p := Vector3(px + sd * 7.0, 0, RAIL_Z + sd * 5.0)
+		_box(p + Vector3(0, 0.6, 0), Vector3(0.35, 1.2, 0.35), Color(0.85, 0.85, 0.85), true, "metal")
+		_box(p + Vector3(0, 3.0, 0), Vector3(0.12, 3.6, 0.12), Color(0.85, 0.15, 0.1), false, "uni")
+		_box(p + Vector3(0, 2.0, sd * 0.4), Vector3(1.0, 1.0, 0.05), Color(0.9, 0.9, 0.88), false, "metal")
+		_box(p + Vector3(0, 2.0, sd * 0.43), Vector3(0.8, 0.8, 0.02), Color(0.8, 0.1, 0.08), false, "uni")
+
+
+## Wagon de marchandises (debout ou couché sur le flanc) avec ce qu'il transportait à fouiller devant la porte.
+func _wagon(c: Vector3, le_long_x: bool, couche: bool, table: String, label: String) -> void:
+	var col: Color = [Color(0.45, 0.22, 0.15), Color(0.3, 0.35, 0.4), Color(0.35, 0.38, 0.28), Color(0.5, 0.45, 0.35)][rng.randi() % 4]
+	var u := Vector3(1, 0, 0) if le_long_x else Vector3(0, 0, 1)
+	var v := Vector3(-u.z, 0, u.x)
+	var lat := 3.4 if couche else 2.9
+	var ht := 2.9 if couche else 3.4
+	var y0 := 0.0 if couche else 0.9
+	_box(c + Vector3(0, y0 + ht / 2.0, 0), _taille_ab(u, v, 13.0, lat, ht), col, true, "tole")
+	_box(c + Vector3(0, y0 + ht / 2.0, 0), _taille_ab(u, v, 2.4, lat + 0.06, ht * 0.8), col.darkened(0.35), false, "metal")
+	for sa in [-4.6, 4.6]:
+		if couche:
+			_box(c + u * sa + v * (lat / 2.0 + 0.4) + Vector3(0, 1.45, 0), _taille_ab(u, v, 2.4, 0.8, 2.2), Color(0.12, 0.12, 0.12), false, "metal")
+		else:
+			_box(c + u * sa + Vector3(0, 0.45, 0), _taille_ab(u, v, 2.4, 2.2, 0.9), Color(0.12, 0.12, 0.12), true, "metal")
+	var cont := _container(c - v * (lat / 2.0 + 0.8), Vector3(1.3, 0.9, 0.9), col.darkened(0.2), label, table, 3)
+	cont.set_texture("metal_peint")
+
+
+func _gare_valmont() -> void:
+	var gx := VILLE_B.x
+	var xa := VILLE_B.x - NB_B * BLOCK / 2.0 + 2 * BLOCK
+	_flat(Rect2(gx - 35.0, RAIL_Z + 2.4, 70.0, 6.0), 0.035, Color(0.9, 0.9, 0.88), "beton")
+	_box(Vector3(gx, 0.05, RAIL_Z + 2.8), Vector3(70.0, 0.02, 0.25), Color(0.95, 0.85, 0.2), false, "uni")
+	var z := _building(Vector3(gx, 0, RAIL_Z + 13.0), 26.0, 9.0, 4.6, Color(0.75, 0.68, 0.55), ["n", "s"], "bureau", "Gare de Valmont", true, 8, Color(0.55, 0.5, 0.45))
+	_residents(z, 0.9, 4)
+	# auvent du quai
+	for i in 8:
+		_box(Vector3(gx - 28.0 + i * 8.0, 1.7, RAIL_Z + 7.6), Vector3(0.2, 3.4, 0.2), Color(0.3, 0.32, 0.35), true, "metal")
+	_box(Vector3(gx, 3.45, RAIL_Z + 6.0), Vector3(62.0, 0.15, 5.0), Color(0.45, 0.47, 0.5), false, "tole")
+	for i in 4:
+		_prop("banc", Vector3(gx - 20.0 + i * 13.0, 0.03, RAIL_Z + 6.8), 0.0, false, 1.0, 120.0)
+	# parking et route vers la ville
+	_flat(Rect2(gx - 14.0, RAIL_Z + 18.5, 34.0, 14.0), 0.02, Color(0.9, 0.9, 0.9), "asphalte")
+	_road(Vector2(xa, RAIL_Z + 20.0), Vector2(xa, RAIL_Z + 58.0), 7.0, C_ASPHALT, false)
+	for i in 2:
+		_car(Vector3(gx - 8.0 + i * 9.0, 0, RAIL_Z + 25.0), false, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(0.3))
+	_reserve(Rect2(gx - 36.0, RAIL_Z + 2.4, 72.0, 31.0), Color(0.5, 0.45, 0.4))
+	# voie de garage au nord avec des wagons
+	_reserve(Rect2(gx - 90.0, RAIL_Z - 11.0, 180.0, 8.0))
+	_rails(gx - 85.0, gx + 85.0, RAIL_Z - 7.0, [])
+	for wx in [-50.0, -35.0, 30.0]:
+		_wagon(Vector3(gx + wx, 0, RAIL_Z - 7.0), true, false, ["magasin", "quincaillerie", "station"][rng.randi() % 3], "Wagon de marchandises")
+	for i in 6:
+		guards.append({"pos": Vector3(gx + rng.randf_range(-30, 30), 0.1, RAIL_Z + rng.randf_range(3, 8)), "kind": "civil", "radius": 20.0})
+	_poi("Gare de Valmont", Vector3(gx, 0, RAIL_Z + 13.0), Color(0.85, 0.75, 0.55))
+
+
+## Halte de village : quai, abri, panneau, chemin jusqu'au village.
+func _halte(c: Vector3, nom: String, z_village: float) -> void:
+	_flat(Rect2(c.x - 15.0, RAIL_Z + 2.4, 30.0, 4.0), 0.035, Color(0.9, 0.9, 0.88), "beton")
+	_box(c + Vector3(0, 1.3, 1.2), Vector3(4.0, 2.4, 0.08), Color(0.6, 0.48, 0.34), true, "planches")
+	for sx in [-1.0, 1.0]:
+		_box(c + Vector3(sx * 2.0, 1.3, 0.4), Vector3(0.08, 2.4, 1.6), Color(0.6, 0.48, 0.34), true, "planches")
+	_box(c + Vector3(0, 2.55, 0.3), Vector3(4.4, 0.12, 2.2), Color(0.4, 0.3, 0.25), true, "tuiles")
+	_prop("banc", c + Vector3(0, 0, 0.7), 0.0, false, 1.0, 120.0)
+	var dist := _container(c + Vector3(3.2, 0, 0.6), Vector3(0.8, 1.6, 0.6), Color(0.7, 0.2, 0.15), "Distributeur", "station", 2)
+	dist.set_texture("metal_peint")
+	var l := Label3D.new()
+	l.text = nom
+	l.font_size = 48
+	l.pixel_size = 0.008
+	l.outline_size = 10
+	l.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	l.position = c + Vector3(0, 3.3, 0.3)
+	l.visibility_range_end = 60.0
+	add_child(l)
+	_road(Vector2(c.x, c.z + 2.5), Vector2(c.x, z_village), 3.0, C_DIRT, false)
+	_reserve(Rect2(c.x - 16.0, RAIL_Z + 2.4, 32.0, 9.0), Color(0.5, 0.45, 0.4))
+	_poi(nom, c, Color(0.85, 0.75, 0.55))
+
+
+## Train déraillé : locomotive et wagons en accordéon, cargaison militaire, horde (zone infestée, butin rare).
+func _train_deraille(c: Vector3) -> void:
+	var bleu := Color(0.22, 0.3, 0.5)
+	_box(c + Vector3(-27.0, 1.7, 5.5), Vector3(17.0, 3.4, 4.0), bleu, true, "metal")
+	_box(c + Vector3(-33.0, 1.7, 8.0), Vector3(4.0, 3.0, 1.2), bleu.darkened(0.3), true, "metal")
+	_box(c + Vector3(-27.0, 1.7, 3.3), Vector3(17.0, 2.0, 0.4), Color(0.12, 0.12, 0.12), false, "metal")
+	var tables := ["militaire", "infeste", "militaire", "armurerie_mil", "infeste", "magasin"]
+	var decal := [-7.0, 6.0, -9.0, 3.0, 9.0, -5.0]
+	for i in 6:
+		var t: String = tables[i]
+		var p := c + Vector3(-9.0 + i * 15.0, 0, decal[i])
+		var lbl := "Wagon blindé" if t == "armurerie_mil" else ("Wagon militaire" if t == "militaire" else "Wagon de marchandises")
+		_wagon(p, i % 3 != 1, i % 2 == 0, t, lbl)
+	for i in 12:
+		var p := c + Vector3(rng.randf_range(-35.0, 75.0), 0, rng.randf_range(-14.0, 14.0))
+		if absf(p.z - c.z) < 2.0:
+			continue
+		_prop(["caisse_mil", "caisse_bois", "baril_bleu", "palette", "caisse_munitions"][rng.randi() % 5], p, rng.randf() * TAU, true, 1.0, 150.0)
+	_reserve(Rect2(c.x - 40.0, c.z - 17.0, 120.0, 34.0))
+	for i in 28:
+		var p := c + Vector3(rng.randf_range(-40.0, 75.0), 0.1, rng.randf_range(-16.0, 16.0))
+		guards.append({"pos": p, "kind": ["militaire", "militaire", "civil", "civil", "police"][rng.randi() % 5], "radius": 35.0})
+	_poi("Train déraillé (zone infestée)", c + Vector3(15.0, 0, 0), Color(1.0, 0.25, 0.2))
+	Game.map_rects.append({"rect": Rect2(c.x - 45.0, c.z - 30.0, 130.0, 60.0), "color": Color(0.8, 0.1, 0.1, 0.25)})
+
+
+# ---------------------------------------------------------------- après le relief
+## Lignes à haute tension (pylônes posés sur le relief, câbles qui pendent).
+func _lignes_ht() -> void:
+	var m := Game.map_half - 120.0
+	_ligne_ht(Vector2(-1350.0, -m), Vector2(-1350.0, m))
+	_ligne_ht(Vector2(-m, 1750.0), Vector2(m, 1750.0))
+
+
+func _ligne_ht(a: Vector2, b: Vector2) -> void:
+	var long := a.distance_to(b)
+	var dir := (b - a) / long
+	var lat := Vector3(-dir.y, 0, dir.x)
+	var av := Vector3(dir.x, 0, dir.y)
+	var prec: Array = []
+	var t := 0.0
+	while t <= long:
+		var p := a + dir * t
+		t += 170.0
+		var y: float = relief.hauteur(p.x, p.y)
+		if relief.dans_eau(p.x, p.y) or _overlaps(Rect2(p.x - 4, p.y - 4, 8, 8)):
+			prec = []
+			continue
+		var base := Vector3(p.x, y, p.y)
+		_pylone(base, lat, av)
+		var attaches: Array = []
+		for e in [[20.0, 5.5], [25.5, 4.0]]:
+			for sd in [-1.0, 1.0]:
+				attaches.append(base + lat * sd * float(e[1]) + Vector3(0, float(e[0]) - 1.3, 0))
+		if not prec.is_empty():
+			for k in attaches.size():
+				_cable(prec[k], attaches[k], 3.0)
+		prec = attaches
+		_reserve(Rect2(p.x - 4, p.y - 4, 8, 8))
+
+
+func _pylone(base: Vector3, lat: Vector3, av: Vector3) -> void:
+	var metal := Color(0.62, 0.63, 0.65)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			_box(base + Vector3(sx * 2.2, 5.0, sz * 2.2), Vector3(0.3, 10.0, 0.3), metal, true, "metal")
+			_box(base + Vector3(sx * 1.0, 19.0, sz * 1.0), Vector3(0.22, 18.0, 0.22), metal, false, "metal")
+	for hy in [3.0, 6.5, 10.0]:
+		for sd in [-1.0, 1.0]:
+			_box(base + Vector3(0, hy, sd * 2.2), Vector3(4.6, 0.15, 0.15), metal, false, "metal")
+			_box(base + Vector3(sd * 2.2, hy, 0), Vector3(0.15, 0.15, 4.6), metal, false, "metal")
+	for hy in [14.0, 18.0, 22.0, 27.0]:
+		for sd in [-1.0, 1.0]:
+			_box(base + Vector3(0, hy, sd * 1.0), Vector3(2.2, 0.12, 0.12), metal, false, "metal")
+			_box(base + Vector3(sd * 1.0, hy, 0), Vector3(0.12, 0.12, 2.2), metal, false, "metal")
+	for e in [[20.0, 12.0, 5.5], [25.5, 9.0, 4.0]]:
+		_box(base + Vector3(0, float(e[0]), 0), _taille_ab(lat, av, float(e[1]), 0.5, 0.4), metal, false, "metal")
+		for sd in [-1.0, 1.0]:
+			_box(base + lat * sd * float(e[2]) + Vector3(0, float(e[0]) - 0.65, 0), Vector3(0.22, 1.3, 0.22), Color(0.25, 0.27, 0.3), false, "uni")
+	_box(base + Vector3(0, 29.5, 0), Vector3(0.2, 3.0, 0.2), metal, false, "metal")
+
+
+## Câble entre deux points, qui pend de « fleche » au milieu (deux bandes croisées : visible sous tous les angles).
+func _cable(a: Vector3, b: Vector3, fleche: float) -> void:
+	var noir := Color(0.1, 0.1, 0.1)
+	var cote := (b - a).cross(Vector3.UP).normalized() * 0.035
+	var prev := a
+	for i in range(1, 5):
+		var t := i / 4.0
+		var p := a.lerp(b, t) - Vector3(0, fleche * 4.0 * t * (1.0 - t), 0)
+		_quad(prev, p, p + Vector3(0, 0.07, 0), prev + Vector3(0, 0.07, 0), noir, "uni", true)
+		_quad(prev - cote, p - cote, p + cote, prev + cote, noir, "uni", true)
+		prev = p
+
+
+## Éoliennes sur les sommets des collines (repères visibles de loin), pales qui tournent.
+func _eoliennes() -> void:
+	var cands: Array = []
+	var m := Game.map_half - 150.0
+	var x := -m
+	while x < m:
+		var z := -m
+		while z < m:
+			var y: float = relief.hauteur(x, z)
+			if y > 13.0 and relief.pente(x, z) < 0.15 and not Game.in_city(Vector3(x, 0, z)) and not _overlaps(Rect2(x - 8, z - 8, 16, 16)):
+				cands.append(Vector3(x, y, z))
+			z += 30.0
+		x += 30.0
+	cands.sort_custom(func(a, b): return a.y > b.y)
+	# trois parcs de 3 à 4 éoliennes autour des plus hauts sommets
+	var poses: Array = []
+	var parcs: Array = []   # [centre, nombre]
+	for c in cands:
+		var ok := true
+		for p in poses:
+			if Vector2(p.x - c.x, p.z - c.z).length() < 140.0:
+				ok = false
+		if not ok:
+			continue
+		var parc: Array = []
+		for pa in parcs:
+			if Vector2(pa[0].x - c.x, pa[0].z - c.z).length() < 480.0:
+				parc = pa
+		if parc.is_empty():
+			if parcs.size() >= 3:
+				continue
+			parc = [c, 0]
+			parcs.append(parc)
+			_poi("Parc éolien", c, Color(0.85, 0.9, 0.95))
+		elif parc[1] >= 4:
+			continue
+		parc[1] += 1
+		poses.append(c)
+		_eolienne(c)
+
+
+func _eolienne(c: Vector3) -> void:
+	var blanc := Color(0.92, 0.92, 0.9)
+	var hm := 48.0
+	_cylindre(c - Vector3(0, 0.5, 0), 1.5, hm + 0.5, blanc, "metal", 12)
+	_box(c + Vector3(0, hm / 2.0, 0), Vector3(2.6, hm, 2.6), Color.WHITE, true, "invisible")
+	_box(c + Vector3(0, hm + 1.2, 0.8), Vector3(2.4, 2.6, 6.0), blanc, false, "metal")
+	_box(c + Vector3(0, 0.2, 0), Vector3(6.0, 0.8, 6.0), Color(0.8, 0.8, 0.78), true, "beton")
+	var rotor := Eolienne.new()
+	rotor.position = c + Vector3(0, hm + 1.2, -2.4)
+	rotor.vitesse = rng.randf_range(0.35, 0.7)
+	rotor.rotation.z = rng.randf() * TAU
+	add_child(rotor)
+	_reserve(Rect2(c.x - 5, c.z - 5, 10, 10))
+
+
+## Panneaux aux carrefours, abribus, barrages routiers abandonnés.
+func _details_routes() -> void:
+	var hx := -half + 4 * BLOCK
+	var hz := -half + 3 * BLOCK
+	var croix: Array = []
+	for x in RS_X:
+		for z in RS_Z:
+			croix.append(Vector3(x, 0, z))
+		croix.append(Vector3(x, 0, hz))
+	for z in RS_Z:
+		croix.append(Vector3(hx, 0, z))
+	var villes: Array = []
+	for p in Game.pois:
+		var nm: String = p.name
+		if nm in ["Bellerive", "Valmont"] or nm.begins_with("Village") or nm.begins_with("Hameau"):
+			villes.append(p)
+	for i in croix.size():
+		var c: Vector3 = croix[i]
+		_panneau(c + Vector3(7.5, 0, 7.5), villes)
+		if i % 2 == 0:
+			_abribus(c + Vector3(-9.5, 0, 7.6))
+	for b in [Vector3(-1000, 0, -1300), Vector3(400, 0, -800), Vector3(780, 0, 600), Vector3(-1500, 0, 1100), Vector3(1950, 0, -400)]:
+		_barrage(b, b.z in RS_Z)
+
+
+func _panneau(p: Vector3, villes: Array) -> void:
+	if _overlaps(Rect2(p.x - 1, p.z - 1, 2, 2)):
+		return
+	p.y = relief.hauteur(p.x, p.z)
+	_box(p + Vector3(0, 1.5, 0), Vector3(0.12, 3.0, 0.12), Color(0.5, 0.5, 0.5), true, "metal")
+	var tri := villes.duplicate()
+	tri.sort_custom(func(a, b): return Vector2(a.pos.x - p.x, a.pos.z - p.z).length() < Vector2(b.pos.x - p.x, b.pos.z - p.z).length())
+	var lignes: Array = []
+	for v in tri.slice(0, 3):
+		var d := Vector2(v.pos.x - p.x, v.pos.z - p.z)
+		var nom: String = str(v.name).trim_prefix("Village de ").trim_prefix("Village des ").trim_prefix("Hameau des ")
+		var dist := ("%d m" % (roundi(d.length() / 50.0) * 50)) if d.length() < 1000.0 else ("%.1f km" % (d.length() / 1000.0)).replace(".", ",")
+		lignes.append("%s  (%s)  %s" % [nom, ["E", "SE", "S", "SO", "O", "NO", "N", "NE"][posmod(roundi(atan2(d.y, d.x) / (PI / 4.0)), 8)], dist])
+	var l := Label3D.new()
+	l.text = "\n".join(lignes)
+	l.font_size = 36
+	l.pixel_size = 0.006
+	l.outline_size = 10
+	l.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	l.position = p + Vector3(0, 3.5, 0)
+	l.visibility_range_end = 45.0
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(l)
+	_reserve(Rect2(p.x - 1, p.z - 1, 2, 2))
+
+
+func _abribus(p: Vector3) -> void:
+	if _overlaps(Rect2(p.x - 2.2, p.z - 1.2, 4.4, 2.4)):
+		return
+	p.y = relief.hauteur(p.x, p.z)
+	var verre := Color(0.7, 0.8, 0.85)
+	_box(p + Vector3(0, 0.05, 0), Vector3(4.2, 0.3, 2.0), Color(0.8, 0.8, 0.78), true, "beton")
+	_box(p + Vector3(0, 1.4, 0.85), Vector3(3.8, 2.4, 0.06), verre, true, "vitre")
+	for sx in [-1.0, 1.0]:
+		_box(p + Vector3(sx * 1.9, 1.4, 0.3), Vector3(0.06, 2.4, 1.2), verre, true, "vitre")
+	_box(p + Vector3(0, 2.65, 0.1), Vector3(4.2, 0.12, 2.0), Color(0.3, 0.32, 0.35), true, "metal")
+	_prop("banc", p + Vector3(0, 0.2, 0.4), 0.0, false, 1.0, 120.0)
+	_reserve(Rect2(p.x - 2.2, p.z - 1.2, 4.4, 2.4))
+
+
+## Barrage routier abandonné : blocs de béton en travers, voiture de police, sacs de sable, caisse, policiers zombies.
+func _barrage(c: Vector3, le_long_x: bool) -> void:
+	var u := Vector3(1, 0, 0) if le_long_x else Vector3(0, 0, 1)
+	var v := Vector3(-u.z, 0, u.x)
+	var ang := PI / 2.0 if le_long_x else 0.0
+	var sol := func(p: Vector3) -> Vector3: return Vector3(p.x, maxf(relief.hauteur(p.x, p.z), 0.0), p.z)
+	for k in [-2.6, -0.9, 0.9]:
+		_prop("barriere_beton", sol.call(c + v * k), PI / 2.0 - ang, true, 1.0, 160.0)
+	_prop("voiture_police", sol.call(c + u * 7.0 + v * 1.4), ang + rng.randf_range(-0.5, 0.5), true, 1.0, 220.0)
+	for i in 5:
+		_prop("cone", sol.call(c - u * rng.randf_range(3.0, 8.0) + v * rng.randf_range(-3.0, 3.0)), rng.randf() * TAU, false, 1.0, 120.0)
+	for sd in [-1.0, 1.0]:
+		var ps: Vector3 = sol.call(c - u * 2.0 + v * sd * 5.2)
+		if not _overlaps(Rect2(ps.x - 1.6, ps.z - 1.6, 3.2, 3.2)):
+			_box(ps + Vector3(0, 0.55, 0), _taille_ab(u, v, 3.0, 1.0, 1.1), Color(1.1, 1.0, 0.8), true, "terre")
+	var cont := _container(sol.call(c + u * 3.5 - v * 2.0), Vector3(1.0, 0.7, 0.6), Color(0.25, 0.28, 0.35), "Caisse de la police", "police", 3)
+	cont.set_texture("metal_peint")
+	for i in 7:
+		var p: Vector3 = sol.call(c + u * rng.randf_range(-18.0, 18.0) + v * rng.randf_range(-5.0, 5.0))
+		guards.append({"pos": p + Vector3(0, 0.1, 0), "kind": ["police", "police", "civil", "militaire"][rng.randi() % 4], "radius": 18.0})
+	_poi("Barrage routier", c, Color(0.95, 0.5, 0.2))
