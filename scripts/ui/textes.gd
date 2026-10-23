@@ -192,6 +192,11 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Forêts[/b] nommées sur la carte, plus denses (gibier) : cabanes de chasseur (munitions de chasse, arcs, flèches) et
   miradors (échelle, caisse en haut), reliés à la route par un sentier. Fermes et maisons isolées le long des routes ;
   lignes à haute tension et parcs éoliens sur les collines, repères visibles de loin.
+• [b]Lieux uniques[/b] (carte M) : [b]aérodrome[/b] (hangars, tour de contrôle avec échelle, soute du petit avion),
+  [b]camp de réfugiés[/b] militaire (zone infestée : tentes, infirmerie, caisses humanitaires et militaires aux check-points),
+  [b]crash d'hélicoptère[/b] en forêt (butin militaire rare), [b]casse auto[/b] (épaves à démonter, pièces détachées),
+  [b]prison[/b] (nombreux zombies, armurerie des surveillants), [b]barrage et centrale[/b] sur un lac, [b]manoir en ruine[/b]
+  et cimetière (caveau de famille), [b]colonie de vacances[/b] au bord d'un lac, [b]décharge[/b] (ferraille).
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
