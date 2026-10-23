@@ -197,6 +197,11 @@ const GUIDE := """[b]LES BASES[/b]
   [b]crash d'hélicoptère[/b] en forêt (butin militaire rare), [b]casse auto[/b] (épaves à démonter, pièces détachées),
   [b]prison[/b] (nombreux zombies, armurerie des surveillants), [b]barrage et centrale[/b] sur un lac, [b]manoir en ruine[/b]
   et cimetière (caveau de famille), [b]colonie de vacances[/b] au bord d'un lac, [b]décharge[/b] (ferraille).
+• [b]Nature[/b] : vergers, vignobles (domaine viticole : alcool), [b]champs de maïs[/b] hauts où l'on se cache comme dans un buisson,
+  [b]marais[/b] près de la rivière (roseaux pour se cacher, zombies noyés), [b]carrière de pierre[/b] (gros rochers : pierre et minerai
+  à la pioche) et la [b]grotte des Contrebandiers[/b] (cache d'armes). Épaves dans les fossés (à démonter), feux de camp abandonnés
+  (sac et tente à fouiller). Les [b]cachettes de survivants[/b] ne sont pas sur la carte : cherche les bâches sous les arbres en forêt (très bon butin).
+  Les [b]nids de zombies[/b] sont des zones infestées marquées en rouge sur la carte.
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
