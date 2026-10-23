@@ -270,7 +270,9 @@ func load_settings() -> void:
 		vol_ambiance = float(cf.get_value("jeu", "vol_ambiance", 1.0))
 		taille_texte = clampf(float(cf.get_value("jeu", "taille_texte", 1.0)), 0.75, 1.5)
 		for a in TOUCHES_MODIFIABLES:
-			var ev = _evenement_depuis(cf.get_value("touches", a[0], null))
+			if not cf.has_section_key("touches", a[0]):
+				continue   # touche jamais modifiée : on garde celle par défaut
+			var ev = _evenement_depuis(cf.get_value("touches", a[0]))
 			if ev:
 				InputMap.action_erase_events(a[0])
 				InputMap.action_add_event(a[0], ev)
