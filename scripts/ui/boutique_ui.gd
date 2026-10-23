@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Boutique d'un marchand : acheter son stock (à gauche), revendre ses objets à 40 % (à droite).
 
+const Construction = preload("res://scripts/construction.gd")
 const LOTS := {"clous": 10, "planche": 5}   # vendus par lots ; les munitions par 20
 
 var fond: ColorRect
@@ -97,6 +98,15 @@ func _maj() -> void:
 	ids.sort_custom(func(a, b): return Items.nom(a) < Items.nom(b))
 	if ids.is_empty():
 		_label(vente, "Rien à vendre.", 16, Color(0.7, 0.7, 0.68))
+	var bric := bric_a_brac(objets)
+	if not bric.is_empty():
+		var total := 0
+		var nb_obj := 0
+		for b in bric:
+			total += Items.prix_vente(b[0]) * int(b[1])
+			nb_obj += int(b[1])
+		var bb := _bouton(vente, "Vendre tout le bric-à-brac (%d objet%s, %d €)…" % [nb_obj, "s" if nb_obj > 1 else "", total], _confirmer_bric.bind(bric, total))
+		bb.tooltip_text = "Armes et vêtements en double, munitions sans arme pour les tirer, matériaux qui ne servent à rien."
 	for id in ids:
 		var pv: int = Items.prix_vente(id)
 		if pv <= 0:
@@ -147,6 +157,68 @@ func _acheter(id: String, n: int, prix: int) -> void:
 	Game.play_ui("fouille", -6.0, 0.1, 1.4)
 	Game.msg("Acheté : %s%s (-%d €)" % ["%d× " % n if n > 1 else "", Items.nom(id), prix])
 	_maj()
+
+
+## Bric-à-brac : armes et vêtements en double (on en garde un, sauf s'il est déjà porté), munitions qu'aucune
+## arme portée ne tire, matériaux qui n'entrent dans aucune recette ni construction. Jamais ce qui est dans
+## une case verrouillée de la barre rapide. Renvoie [[id, quantité], …].
+func bric_a_brac(objets: Dictionary) -> Array:
+	var p = Game.player
+	var calibres := {}
+	for g in p.grilles():
+		for e in g.entrees:
+			var it := Items.info(e.id)
+			if it.has("ammo"):
+				calibres[it.ammo] = true
+	var utiles := {}
+	for r in Items.RECIPES:
+		for m in r.needs:
+			utiles[m] = true
+	for t in Construction.PIECES:
+		for m in Construction.PIECES[t].cout:
+			utiles[m] = true
+	for v in Construction.COUT_TIER:
+		for m in Construction.COUT_TIER[v]:
+			utiles[m] = true
+	var res: Array = []
+	for id in objets:
+		if Items.prix_vente(id) <= 0 or (id in p.hotbar and p.hotbar_verrou[p.hotbar.find(id)]):
+			continue
+		var t: String = Items.info(id).get("type", "")
+		var n: int = objets[id]
+		var garder := n
+		if t in ["gun", "melee", "arc"]:
+			garder = 1
+		elif t == "armor":
+			var porte: Dictionary = p.equipped.get(Items.info(id).get("slot", ""), {})
+			garder = 0 if not porte.is_empty() and porte.id == id else 1
+		elif t == "ammo":
+			garder = n if calibres.has(id) else 0
+		elif t == "material":
+			garder = n if utiles.has(id) else 0
+		if n > garder:
+			res.append([id, n - garder])
+	res.sort_custom(func(a, b): return Items.nom(a[0]) < Items.nom(b[0]))
+	return res
+
+
+func _confirmer_bric(bric: Array, total: int) -> void:
+	var lignes: PackedStringArray = []
+	for b in bric:
+		lignes.append("%d× %s  (%d €)" % [b[1], Items.nom(b[0]), Items.prix_vente(b[0]) * int(b[1])])
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Vendre le bric-à-brac"
+	dlg.dialog_text = "Vendre ces objets pour %d € ?\n\n%s" % [total, "\n".join(lignes)]
+	dlg.ok_button_text = "Vendre"
+	dlg.cancel_button_text = "Annuler"
+	dlg.confirmed.connect(func():
+		for b in bric:
+			if Game.player.count(b[0]) >= int(b[1]):
+				_vendre(b[0], int(b[1]))
+		dlg.queue_free())
+	dlg.canceled.connect(dlg.queue_free)
+	add_child(dlg)
+	dlg.popup_centered()
 
 
 func _vendre(id: String, n: int) -> void:

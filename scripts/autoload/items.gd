@@ -121,6 +121,7 @@ const DB := {
 	"piques": {"name": "Piques en bois (piège à placer)", "type": "placeable", "weight": 5.0},
 	"barbeles": {"name": "Barbelés (piège à placer)", "type": "placeable", "weight": 4.0},
 	"projecteur": {"name": "Projecteur (à placer)", "type": "placeable", "weight": 4.0},
+	"lit": {"name": "Lit de camp (à placer)", "type": "placeable", "weight": 6.0, "desc": "À poser dans ta base : [F] la nuit pour dormir jusqu'au matin, si aucun zombie ne rôde."},
 	"torche": {"name": "Torche (à planter)", "type": "placeable", "weight": 0.5, "desc": "Se plante n'importe où : éclaire les alentours la nuit."},
 	"collet": {"name": "Collet à lapin (piège à placer)", "type": "placeable", "weight": 0.2, "desc": "À poser dehors, loin de la ville : un lapin s'y prend au bout de quelques minutes si personne ne rôde autour."},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
@@ -158,7 +159,7 @@ const SIZES := {
 	"veste_cuir": [2, 2], "veste_renforcee": [2, 3], "gilet_police": [2, 3], "gilet_militaire": [3, 3],
 	"casque_moto": [2, 2], "casque_police": [2, 2], "casque_militaire": [2, 2],
 	"sac_toile": [2, 2], "sac_a_dos": [3, 3], "sac_militaire": [3, 4], "sac_chasse": [3, 3], "capuche_cuir": [2, 2], "ragout": [1, 2], "bouillon": [1, 2],
-	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3], "torche": [1, 3],
+	"etabli": [3, 2], "feu_camp": [2, 2], "plan_couture": [3, 2], "barricade": [2, 3], "caisse_stockage": [2, 2], "ciment": [2, 2], "marteau": [1, 2], "essence": [2, 2], "piece_auto": [2, 1], "cle_molette": [1, 2], "piques": [2, 2], "barbeles": [2, 2], "projecteur": [1, 3], "torche": [1, 3], "lit": [2, 3],
 	"couteau_km2000": [1, 2], "arc": [1, 4], "peau": [2, 2], "viande_crue": [1, 1],
 	"glock19": [2, 1], "mr920": [2, 1], "m45a1": [2, 1], "desert_eagle": [2, 2],
 	"mp5k": [3, 2], "mp7": [2, 2], "benelli_m4": [5, 1], "toz34": [5, 1],
@@ -209,6 +210,7 @@ const RECIPES := [
 	{"out": "plan_couture", "qty": 1, "needs": {"planche": 3, "clous": 4, "tissu": 2}, "cat": "construction", "station": "", "duree": 6.0, "niv": 1},
 	{"out": "barricade", "qty": 1, "needs": {"planche": 3, "clous": 4}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
 	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
+	{"out": "lit", "qty": 1, "needs": {"planche": 4, "clous": 4, "tissu": 4}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 0},
 	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 0},
 	{"out": "barbeles", "qty": 1, "needs": {"ferraille": 4, "clous": 2}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 1},
 	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 3},
@@ -300,7 +302,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6, "lit": 40,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}

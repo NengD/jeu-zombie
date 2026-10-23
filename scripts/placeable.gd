@@ -93,6 +93,18 @@ func setup(p_kind: String) -> void:
 			lumiere_feu.position = Vector3(0, 1.45, 0)
 			add_child(lumiere_feu)
 			_shape(Vector3(0, 0.6, 0), Vector3(0.2, 1.2, 0.2))
+		"lit":
+			# lit de camp : cadre en bois, matelas, oreiller, couverture
+			add_to_group("lits")
+			health = 120.0
+			_part(Vector3(0, 0.3, 0), Vector3(0.95, 0.08, 1.95), wood)
+			for x in [-0.42, 0.42]:
+				for z in [-0.9, 0.9]:
+					_part(Vector3(x, 0.15, z), Vector3(0.07, 0.3, 0.07), wood.darkened(0.2))
+			_part(Vector3(0, 0.4, 0), Vector3(0.88, 0.12, 1.85), Color(0.72, 0.7, 0.62))
+			_part(Vector3(0, 0.5, -0.75), Vector3(0.6, 0.1, 0.32), Color(0.9, 0.9, 0.86))
+			_part(Vector3(0, 0.47, 0.25), Vector3(0.9, 0.06, 1.2), Color(0.3, 0.38, 0.5))
+			_shape(Vector3(0, 0.25, 0), Vector3(1.0, 0.5, 2.0))
 		"plan_couture":
 			# table, rouleau de tissu, peau tendue sur un cadre, ciseaux
 			add_to_group("plan_couture")
@@ -269,6 +281,8 @@ func get_prompt() -> String:
 			return "[F] Projecteur : %s" % ("automatique (s'allume la nuit)" if mode == 0 else MODES[mode])
 		"torche":
 			return "Torche"
+		"lit":
+			return "[F] Dormir jusqu'au matin" if Game.is_night() else "Lit de camp (on n'y dort que la nuit, après 20 h 30)"
 	return "Barricade (%d PV)" % int(health)
 
 
@@ -356,6 +370,8 @@ func _physics_process(delta: float) -> void:
 func interact(player: Node) -> void:
 	if kind in ["etabli", "feu_camp", "plan_couture"]:
 		player.open_inventory()
+	elif kind == "lit":
+		player.dormir()
 	elif kind == "collet" and lapin_pris.visible:
 		lapin_pris.visible = false
 		collet_t = randf_range(200.0, 450.0)

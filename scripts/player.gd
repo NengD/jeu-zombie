@@ -26,7 +26,7 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25)}
+const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25), "lit": Vector3(1.0, 0.5, 2.0)}
 const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche"]   # se posent n'importe où
 
 # --- état de survie
@@ -2040,6 +2040,42 @@ func trier_inventaire(mode: String) -> bool:
 			l[0].r = l[3]
 			l[0].n = l[4]
 	return false
+
+
+## Dormir dans un lit (la nuit) jusqu'à 7 h : refusé si un zombie ou un bandit vivant est à moins de 30 m,
+## ou si l'on a trop faim / soif. Faim et soif baissent deux fois moins vite qu'éveillé ; santé et endurance
+## remontent.
+const SOMMEIL_RAYON := 30.0
+
+
+func dormir() -> void:
+	if not Game.is_night():
+		Game.msg("Tu n'as pas sommeil : on ne dort que la nuit (après 20 h 30).")
+		return
+	for g in ["zombies", "bandits"]:
+		for z in get_tree().get_nodes_in_group(g):
+			var mort := float(z.get("dead_t") if z.get("dead_t") != null else 0.0) > 0.0 or float(z.get("mort_t") if z.get("mort_t") != null else 0.0) > 0.0
+			if not mort and (z as Node3D).global_position.distance_to(global_position) < SOMMEIL_RAYON:
+				Game.msg("Impossible de dormir : il y a du danger tout près.")
+				return
+	var heures := fposmod(7.0 - Game.time_hours, 24.0)
+	var faim_h := 0.045 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.faim_mult()
+	var soif_h := 0.07 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.soif_mult()
+	if hunger - faim_h * heures < 5.0 or thirst - soif_h * heures < 5.0:
+		Game.msg("Tu as trop faim ou trop soif pour dormir : mange et bois d'abord.")
+		return
+	hunger -= faim_h * heures
+	thirst -= soif_h * heures
+	health = minf(prog.sante_max(), health + 5.0 * heures)
+	stamina = prog.endurance_max()
+	if Game.time_hours >= 12.0:
+		Game.day += 1      # couché avant minuit
+	Game.time_hours = 7.0
+	if fab_n > 0:
+		arreter_fabrication()
+	hurt_flash = 0.0
+	Game.play_ui("fouille", -10.0, 0.05, 0.7)
+	Game.msg("Tu as dormi %d h. Jour %d, 07:00." % [roundi(heures), Game.day])
 
 
 ## Verrouille / déverrouille une case de la barre rapide : verrouillée, elle garde son objet même
