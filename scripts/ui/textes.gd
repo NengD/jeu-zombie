@@ -40,6 +40,7 @@ const GUIDE := """[b]LES BASES[/b]
   fusil de précision gros coup unique. La visée revient ensuite doucement au centre ; baisser la souris compense plus vite.
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
+• Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras.
 • Chaque coup affiche ses [b]dégâts[/b] au-dessus de la cible (orange : tir à la tête, doré : coup critique) ;
   une petite [b]barre de vie[/b] apparaît au-dessus des ennemis touchés ou visés, puis s'efface.
 

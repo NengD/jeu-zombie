@@ -152,6 +152,7 @@ func _ready() -> void:
 	think_t = randf() * 0.3
 	Game.noise_made.connect(_on_noise)
 	_apply_look()
+	_posture_zombie()
 	if corps != Vector3.ONE:
 		modele.scale = corps
 		var cs0: CollisionShape3D = $Collision
@@ -1038,10 +1039,7 @@ func _toucher_membre(pos: Vector3, dmg: float, from: Vector3) -> void:
 func _arracher(os_nom: String, from: Vector3) -> void:
 	var p_os := _pos_os(os_nom)
 	coupes.append(os_nom)
-	if demembre == null:
-		demembre = preload("res://scripts/demembrement.gd").new()
-		squelette.add_child(demembre)
-	demembre.coupes = coupes
+	_modificateur().coupes = coupes
 	Game.spawn_blood(p_os, get_parent())
 	Game.spawn_blood(p_os + Vector3.UP * 0.1, get_parent())
 	Game.play_3d("impact", p_os, 2.0, 0.2, 30.0)
@@ -1160,3 +1158,37 @@ func _process(delta: float) -> void:
 	if anim_image % palier == 0:
 		ap.advance(anim_acc)
 		anim_acc = 0.0
+
+
+## Modificateur d'après-animation du squelette (membres coupés, posture), créé au besoin.
+func _modificateur() -> Node:
+	if demembre == null:
+		demembre = preload("res://scripts/demembrement.gd").new()
+		squelette.add_child(demembre)
+	return demembre
+
+
+## Zombie « dédié » : tête penchée sur le côté, dos voûté, parfois un avant-bras ou un bras déjà arraché.
+## Rotations données dans le repère du squelette (avant = +Z) et ramenées dans celui de chaque os.
+func _posture_zombie() -> void:
+	if squelette == null:
+		return
+	var voute := 0.0 if rampant else (0.06 if kind == "coureur" else randf_range(0.1, 0.2))
+	var cote := -1.0 if randf() < 0.5 else 1.0
+	var penche := randf_range(0.15, 0.45) * cote
+	var p: Array = []
+	for r in [["spine_02", voute * 0.5, 0.0], ["spine_03", voute * 0.4, penche * 0.15], ["neck_01", 0.05 + voute * 0.3, penche * 0.6],
+			["Head", randf_range(0.0, 0.08), penche * 0.5]]:
+		var i := squelette.find_bone(r[0])
+		if i < 0:
+			continue
+		var g := squelette.get_bone_global_rest(i).basis.orthonormalized()
+		var b := Basis(Vector3.RIGHT, r[1]) * Basis(Vector3.BACK, r[2])
+		p.append([r[0], Quaternion(g.inverse() * b * g)])
+	_modificateur().posture = p
+	# membres arrachés dès l'apparition (sans effet de sang : blessure ancienne)
+	if not est_boss and not rampant and randf() < 0.2:
+		var os_nom: String = ["lowerarm_l", "lowerarm_r", "lowerarm_l", "lowerarm_r", "upperarm_l", "upperarm_r"].pick_random()
+		if squelette.find_bone(os_nom) >= 0:
+			coupes.append(os_nom)
+			demembre.coupes = coupes

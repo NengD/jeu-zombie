@@ -36,7 +36,7 @@ const MODELES := {
 	"patient": ["h_beach", "f_casual"],
 	"boss": ["h_worker"],
 }
-const PEAU_ZOMBIE := [Color(0.55, 0.62, 0.48), Color(0.62, 0.64, 0.55), Color(0.5, 0.56, 0.5), Color(0.66, 0.6, 0.52)]
+const PEAU_ZOMBIE := [Color(0.6, 0.62, 0.57), Color(0.53, 0.56, 0.53), Color(0.64, 0.62, 0.58), Color(0.5, 0.54, 0.5)]   # gris cendre, à peine verdâtre
 static var _mats := {}   # matériaux recolorés, partagés (clé = matériau + couleur)
 
 
