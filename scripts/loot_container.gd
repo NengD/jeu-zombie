@@ -54,6 +54,176 @@ func set_modele(id: String, angle: float) -> void:
 	modele = n
 
 
+# ---------------------------------------------------------------- tas au sol : objets visibles
+const VISUEL_MAX := 5
+const ModeleUtil = preload("res://scripts/modele_util.gd")
+const ArcModele = preload("res://scripts/arc.gd")
+const EquipVisuel = preload("res://scripts/equipement_visuel.gd")
+# objets sans modèle : petite boîte (taille, couleur)
+const FORME_TYPE := {
+	"material": [Vector3(0.22, 0.08, 0.16), Color(0.45, 0.38, 0.3)],
+	"food": [Vector3(0.14, 0.06, 0.1), Color(0.55, 0.25, 0.2)],
+	"drink": [Vector3(0.08, 0.2, 0.08), Color(0.35, 0.45, 0.55)],
+	"heal": [Vector3(0.1, 0.05, 0.07), Color(0.85, 0.85, 0.82)],
+	"armor": [Vector3(0.32, 0.06, 0.26), Color(0.33, 0.35, 0.28)],
+	"placeable": [Vector3(0.3, 0.12, 0.2), Color(0.45, 0.33, 0.2)],
+}
+const FORME_ID := {
+	"batterie": [Vector3(0.26, 0.18, 0.17), Color(0.12, 0.12, 0.13)],
+	"pneu": [Vector3(0.6, 0.2, 0.6), Color(0.08, 0.08, 0.08)],
+	"buche": [Vector3(0.5, 0.16, 0.16), Color(0.4, 0.27, 0.15)],
+	"planche": [Vector3(0.8, 0.03, 0.14), Color(0.6, 0.45, 0.28)],
+	"pierre": [Vector3(0.2, 0.14, 0.17), Color(0.5, 0.5, 0.48)],
+	"minerai": [Vector3(0.2, 0.14, 0.17), Color(0.42, 0.3, 0.25)],
+	"ciment": [Vector3(0.45, 0.12, 0.3), Color(0.7, 0.68, 0.62)],
+	"tissu": [Vector3(0.26, 0.03, 0.2), Color(0.7, 0.65, 0.55)],
+	"viande_crue": [Vector3(0.16, 0.05, 0.12), Color(0.65, 0.18, 0.16)],
+	"viande_cuite": [Vector3(0.16, 0.05, 0.12), Color(0.45, 0.25, 0.12)],
+	"soda": [Vector3(0.07, 0.12, 0.07), Color(0.75, 0.12, 0.1)],
+	"fleche": [Vector3(0.015, 0.015, 0.7), Color(0.55, 0.42, 0.25)],
+}
+# objets qui reprennent le modèle d'un autre
+const MODELE_ID := {"soda": "", "ration": "barre", "antidouleur": "bandage", "medicament": "bandage",
+	"alcool": "eau", "bouillon": "conserve", "ragout": "conserve"}
+static var _formes := {}
+var _sig_tas := ""
+var _t_tas := 0.0
+var _visuel: Node3D = null
+
+
+func _ready() -> void:
+	set_process(is_in_group("tas_sol"))
+
+
+func _process(delta: float) -> void:
+	_t_tas -= delta
+	if _t_tas <= 0.0:
+		_t_tas = 0.5
+		maj_visuel_tas()
+
+
+## Montre au sol les objets du tas (arme, conserve, bandage…) au lieu d'un paquet : jusqu'à VISUEL_MAX objets
+## différents en couronne ; refait seulement quand le contenu change.
+func maj_visuel_tas() -> void:
+	if grille == null:
+		return
+	var ids: Array = []
+	for e in grille.entrees:
+		if not ids.has(e.id):
+			ids.append(e.id)
+		if ids.size() >= VISUEL_MAX:
+			break
+	var sig := ",".join(ids)
+	if sig == _sig_tas:
+		return
+	_sig_tas = sig
+	if _visuel:
+		_visuel.queue_free()
+		_visuel = null
+		modele = null
+	if ids.is_empty():
+		return
+	_visuel = Node3D.new()
+	add_child(_visuel)
+	var h := hash(get_instance_id())
+	for i in ids.size():
+		var n := _modele_objet(ids[i])
+		if n == null:
+			continue
+		var pivot := Node3D.new()
+		_visuel.add_child(pivot)
+		pivot.add_child(n)
+		# posé à plat, centré sur sa boîte, en couronne autour du centre du tas
+		var b := _boite_noeud(n, n.transform)
+		n.position -= Vector3(b.get_center().x, b.position.y, b.get_center().z)
+		var a := float(i) / ids.size() * TAU + float(h % 100) * 0.06
+		var r := 0.0 if ids.size() == 1 else 0.18 + 0.03 * ids.size()
+		pivot.position = Vector3(cos(a) * r, 0.0, sin(a) * r)
+		pivot.rotation.y = a * 1.7 + float(h % 7)
+		ModeleUtil.distance_visible(pivot, 45.0)
+	mesh_i.visible = false
+	modele = _visuel
+	if surligne:   # surbrillance remise sur les nouveaux objets
+		surligne = false
+		surligner(true)
+
+
+func _modele_objet(id: String) -> Node3D:
+	var info: Dictionary = Items.info(id)
+	var t := str(info.get("type", ""))
+	var src: String = MODELE_ID.get(id, id)
+	if src != "" and ResourceLoader.exists("res://modeles/objets/%s.scn" % src):
+		return ModeleUtil.charger("res://modeles/objets/%s.scn" % src)
+	if t in ["gun", "melee", "lancer", "outil", "accessoire"] or ResourceLoader.exists("res://modeles/armes/%s.scn" % id):
+		var m := ModeleUtil.arme(id)
+		if m:
+			# couché sur le flanc
+			var p := Node3D.new()
+			p.add_child(m)
+			m.rotation.z = PI / 2.0
+			return p
+	if t == "arc":
+		var arc := ArcModele.new()
+		var p2 := Node3D.new()
+		p2.add_child(arc)
+		arc.rotation.x = PI / 2.0
+		return p2
+	if t == "ammo":
+		var cart := "cart_" + id.trim_prefix("mun_")
+		if ResourceLoader.exists("res://modeles/armes/%s.scn" % cart):
+			# boîte de munitions entrouverte et quelques cartouches à côté
+			var tas := _boite_forme([Vector3(0.11, 0.05, 0.075), Color(0.55, 0.42, 0.25)])
+			for k in 3:
+				var c := ModeleUtil.charger("res://modeles/armes/%s.scn" % cart)
+				c.scale = Vector3.ONE * 1.4
+				c.rotation = Vector3(0, k * 1.9, PI / 2.0)
+				c.position = Vector3(0.09 + k * 0.025, -0.02, k * 0.02 - 0.02)
+				tas.add_child(c)
+			return tas
+	if t == "armor" and EquipVisuel.PIECES.has(id):
+		var piece: Dictionary = EquipVisuel.PIECES[id]
+		var chemin := "res://modeles/equipement/%s.res" % piece.m
+		if ResourceLoader.exists(chemin):
+			var mi := MeshInstance3D.new()
+			mi.mesh = load(chemin)
+			if piece.has("col"):
+				var mc := StandardMaterial3D.new()
+				mc.albedo_color = piece.col
+				mi.material_override = mc
+			return mi
+	return _boite_forme(FORME_ID.get(id, FORME_TYPE.get(t, [Vector3(0.15, 0.08, 0.12), Color(0.4, 0.38, 0.34)])))
+
+
+func _boite_forme(forme: Array) -> MeshInstance3D:
+	var cle := str(forme)
+	if not _formes.has(cle):
+		var bm := BoxMesh.new()
+		bm.size = forme[0]
+		var mf := StandardMaterial3D.new()
+		mf.albedo_color = forme[1]
+		mf.roughness = 0.9
+		bm.material = mf
+		_formes[cle] = bm
+	var mb := MeshInstance3D.new()
+	mb.mesh = _formes[cle]
+	return mb
+
+
+static func _boite_noeud(n: Node, xf: Transform3D) -> AABB:
+	var b := AABB()
+	var premier := true
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh:
+		b = xf * (n as MeshInstance3D).get_aabb()
+		premier = false
+	for c in n.get_children():
+		if c is Node3D:
+			var bc := _boite_noeud(c, xf * (c as Node3D).transform)
+			if bc.size != Vector3.ZERO:
+				b = bc if premier else b.merge(bc)
+				premier = false
+	return b
+
+
 ## Habille la boîte d'une texture du décor (appareils sans modèle 3D : réfrigérateur…).
 func set_texture(nom: String) -> void:
 	var p := "res://textures/%s_albedo.jpg" % nom

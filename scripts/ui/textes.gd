@@ -47,7 +47,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Chaque objet occupe des cases : une conserve 1×1, une batte 1×4, un sac 3×3…
 • Glisse-dépose les objets entre tes poches, ton sac et les meubles fouillés. [b]R[/b] pendant le glissement pour tourner un objet.
 • Double-clic : utiliser / équiper. Ctrl + clic : transfert rapide. Clic droit : options (diviser une pile, jeter…).
-• Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas).
+• Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas) : les objets du tas se voient au sol (arme, conserve, bandage…).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
 • L'équipement porté se voit sur ton personnage : casque, bonnet ou casquette (Tête), masque à gaz ou lunettes (Visage), gilet ou veste (Torse), sac (Dos). Les armes de ta barre rapide que tu ne tiens pas sont rangées sur toi : fusil, arc ou arme longue dans le dos, pistolet à la cuisse, couteau à la hanche. Bandits et zombies portent aussi de l'équipement.
 • [b]Trier par type / par poids[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
@@ -91,6 +91,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 • Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; sanglier, lapin et faisan : Poly by Google (CC BY 3.0, via Poly Pizza).
+• Objets au sol (conserve, bandage, trousse, jerrican, bouteille, barre) : « Survival Pack » et « Ultimate Food » de Quaternius, licence CC0.
 • Train, tentes et tours de garde : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer et bus scolaire : Poly by Google ; camion militaire : Alex Safayan (CC BY 3.0, via Poly Pizza).
 • Équipement porté : sacs (Quaternius, Voxel_dev, accidentallyc), lunettes (iPoly3D) — CC0 ; casque intégral (CreativeTechLab), casque de chantier (Poly by Google), masque à gaz (Marisha), sac de chasse, bonnet et casquette (J-Toastie), casquette de police (Casey Tumbers) — CC BY 3.0, via Poly Pizza ; casque militaire (hc, OpenGameArt, CC BY 3.0).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.

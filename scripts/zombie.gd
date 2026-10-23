@@ -297,10 +297,7 @@ func _lacher_arme() -> void:
 	if mun != "" and randf() < 0.7:
 		pile.grille.ajouter(mun, randi_range(4, int(Items.info(arme_portee).get("mag", 10))))
 	pile.mesh_i.visible = false
-	arme_noeud.get_parent().remove_child(arme_noeud)
-	pile.add_child(arme_noeud)
-	arme_noeud.transform = Transform3D(Basis(Vector3(0, 0, 1), PI / 2.0), Vector3(0, 0.035, 0))
-	ModeleUtil.distance_visible(arme_noeud, 60.0)
+	arme_noeud.queue_free()   # l'arme est montrée au sol par le tas (LootContainer.maj_visuel_tas)
 	arme_noeud = null
 	arme_portee = ""
 	Game.play_3d("chargeur_sol", pile.global_position, -4.0, 0.15, 15.0)

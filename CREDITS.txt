@@ -64,6 +64,9 @@ Décor (tous CC0 — domaine public) :
    et faisan « Pheasant ring-necked » (https://poly.pizza/m/emvqBiIhl-C) : Poly by Google, licence CC BY 3.0
    (découpés en tête et pattes animées par outils/godot/normaliser_animaux.gd).
    Arc et flèches : modèles construits par le code du jeu.
+— Objets au sol (conserve, bandage, trousse de soin, jerrican) : « Survival Pack » de Quaternius ; bouteille et barre
+   chocolatée : « Ultimate Food » de Quaternius — licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ;
+   conversion : outils/godot/normaliser_objets.gd).
 — Textures photo (asphalte, béton, briques, carrelage, écorce, enduit, herbe, métal, parpaing, parquet, planches,
    roche, terre, toit, tôle, trottoir, tuiles) : Poly Haven (https://polyhaven.com), licence CC0, en 2k
    (outils/godot/installer_textures.gd ; anciennes textures générées dans outils/textures_generees/).
