@@ -91,7 +91,7 @@ static func sauver(main: Node) -> bool:
 	d["joueur"] = {
 		"pos": _v(p.global_position), "rot": p.rotation.y, "tete": p.head.rotation.x,
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
-		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "slot": p.slot,
+		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "barre_verrou": p.hotbar_verrou, "slot": p.slot,
 		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on, "maladie": p.maladie,
 	}
 	# meubles du monde (identifiés par leur numéro de génération)
@@ -217,6 +217,9 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 	var barre: Array = j.get("barre", [])
 	for i in mini(5, barre.size()):
 		p.hotbar[i] = str(barre[i]) if Items.DB.has(str(barre[i])) else ""
+	var verrou: Array = j.get("barre_verrou", [])
+	for i in 5:
+		p.hotbar_verrou[i] = i < verrou.size() and bool(verrou[i]) and p.hotbar[i] != ""
 	p.mags = {}
 	for k in j.get("chargeurs", {}):
 		p.mags[k] = int(j.chargeurs[k])

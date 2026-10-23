@@ -80,6 +80,7 @@ var mouse_sens := 1.0
 var volume := 0.8
 var pluie := 0.0                 # intensité de la pluie (0..1), gérée par meteo.gd
 var qualite := 3                # qualité graphique : 0 Bas, 1 Moyen, 2 Élevé, 3 Ultra
+var ramassage_auto := true      # munitions et flèches ramassées en passant dessus
 const NOMS_QUALITE := ["Bas", "Moyen", "Élevé", "Ultra"]
 signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
@@ -183,6 +184,7 @@ func load_settings() -> void:
 		mouse_sens = float(cf.get_value("jeu", "sensibilite", 1.0))
 		volume = float(cf.get_value("jeu", "volume", 0.8))
 		qualite = clampi(int(cf.get_value("jeu", "qualite", 3)), 0, 3)
+		ramassage_auto = bool(cf.get_value("jeu", "ramassage_auto", true))
 	apply_settings()
 
 
@@ -191,6 +193,7 @@ func save_settings() -> void:
 	cf.set_value("jeu", "sensibilite", mouse_sens)
 	cf.set_value("jeu", "volume", volume)
 	cf.set_value("jeu", "qualite", qualite)
+	cf.set_value("jeu", "ramassage_auto", ramassage_auto)
 	cf.save(SETTINGS_PATH)
 	apply_settings()
 

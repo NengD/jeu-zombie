@@ -151,6 +151,7 @@ func _planter(hit: Dictionary) -> void:
 	recuperable = randf() < 0.75
 	if recuperable:
 		var r := Ramassage.new()
+		r.name = "Ramassage"
 		r.collision_layer = Game.LAYER_INTERACT
 		r.collision_mask = 0
 		var cs := CollisionShape3D.new()

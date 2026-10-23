@@ -77,6 +77,7 @@ var lbl_prompt: Label
 var lbl_info: Label
 var lbl_alerte: Label        # alerte de horde (haut de l'écran)
 var lbl_cache: Label         # « Caché » sous le réticule quand on est dans un buisson
+var lbl_charge: Label        # poids porté / seuil de ralentissement (sous les jauges)
 var hot_panels: Array = []
 var hot_labels: Array = []
 var hot_icons: Array = []
@@ -134,6 +135,8 @@ func _ready() -> void:
 		row.add_child(pb)
 		bar_box.add_child(row)
 		bars[b[0]] = pb
+	lbl_charge = _label("", 15)
+	bar_box.add_child(lbl_charge)
 	# arme
 	lbl_weapon = _label("", 22)
 	lbl_weapon.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -306,6 +309,10 @@ func _process(delta: float) -> void:
 	bars.faim.value = p.hunger
 	bars.soif.value = p.thirst
 	bars.endurance.value = p.stamina
+	var kg: float = p.charge()
+	var seuil: float = p.charge_max()
+	lbl_charge.text = "Charge  %.1f / %.0f kg%s" % [kg, seuil, ("   — ralenti -%d %%" % int((1.0 - p.facteur_charge()) * 100.0)) if kg > seuil else ""]
+	lbl_charge.label_settings.font_color = Color(1.0, 0.5, 0.35) if kg > seuil else (Color(1.0, 0.85, 0.45) if kg > seuil * 0.85 else Color(0.85, 0.85, 0.8))
 	# bords rouges : montent sous 60 % de santé, battent sous 25 % ; éclair à chaque coup reçu
 	var k_sante: float = p.health / p.prog.sante_max()
 	var force := clampf((0.6 - k_sante) / 0.6, 0.0, 1.0) * 0.75
@@ -352,7 +359,7 @@ func _process(delta: float) -> void:
 			txt = Items.nom(id)
 			if not Items.is_weapon(id) or Items.info(id).get("type", "") == "lancer":
 				txt += " ×%d" % p.count(id)
-		hot_labels[i].text = "%d  %s" % [i + 1, txt]
+		hot_labels[i].text = ("[%d] %s" if p.hotbar_verrou[i] else "%d  %s") % [i + 1, txt]
 		var tex: Texture2D = Items.icon(id) if id != "" else null
 		hot_icons[i].texture = tex
 		hot_icons[i].modulate = Items.category_color(id) if tex and String(tex.resource_path).ends_with(".svg") else Color.WHITE
@@ -478,7 +485,7 @@ func _maj_xp(delta: float, vs: Vector2) -> void:
 
 func _layout(vs: Vector2) -> void:
 	_maj_xp(get_process_delta_time(), vs)
-	root.get_node("Jauges").position = Vector2(24, vs.y - 140)
+	root.get_node("Jauges").position = Vector2(24, vs.y - 164)
 	lbl_weapon.position = Vector2(vs.x - 424, vs.y - 110)
 	lbl_weapon.size = Vector2(400, 30)
 	lbl_ammo.position = Vector2(vs.x - 424, vs.y - 76)

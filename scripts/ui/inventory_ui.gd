@@ -88,6 +88,13 @@ class SlotView extends Control:
 		var e: Dictionary = ui.slot_entry(self)
 		if not e.is_empty():
 			ui.draw_entry(self, Rect2(Vector2(4, 18), size - Vector2(8, 22)), e, kind == "hot")
+			if kind == "hot" and int(e.n) <= 0:
+				draw_rect(Rect2(Vector2(4, 18), size - Vector2(8, 22)), Color(0, 0, 0, 0.55))
+		if kind == "hot" and Game.player and Game.player.hotbar_verrou[key]:
+			# petit cadenas en haut à droite
+			var c := Vector2(size.x - 11, 9)
+			draw_arc(c + Vector2(0, -1), 3.0, PI, TAU, 8, Color(1, 0.85, 0.4), 1.5)
+			draw_rect(Rect2(c + Vector2(-4.5, -1), Vector2(9, 7)), Color(1, 0.85, 0.4))
 
 	func _gui_input(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton and ev.pressed:
@@ -193,8 +200,13 @@ func _ready() -> void:
 
 	# --- colonne inventaire du joueur
 	var c2 := _column(hb, "INVENTAIRE")
+	var tri := HBoxContainer.new()
+	tri.add_theme_constant_override("separation", 6)
+	c2.add_child(tri)
+	_button(tri, "Trier par type", func(): _trier("type"))
+	_button(tri, "Trier par poids", func(): _trier("poids"))
 	var sc := ScrollContainer.new()
-	sc.custom_minimum_size = Vector2(CELL * 8 + 24, 720)
+	sc.custom_minimum_size = Vector2(CELL * 8 + 24, 680)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	c2.add_child(sc)
 	player_box = VBoxContainer.new()
@@ -374,6 +386,7 @@ func open(crate: Node) -> void:
 	panel.scale = Vector2.ONE
 	Game.ui_open = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	p.regrouper_piles()
 	refresh()
 
 
@@ -425,7 +438,11 @@ func refresh() -> void:
 		var vb := VBoxContainer.new()
 		sc.add_child(vb)
 		_add_grid(vb, storage.grille, storage.label.to_upper())
-		_button(cont_box, "Tout prendre", _take_all)
+		var bb := HBoxContainer.new()
+		bb.add_theme_constant_override("separation", 6)
+		cont_box.add_child(bb)
+		_button(bb, "Tout prendre", _take_all)
+		_button(bb, "Déposer les matériaux", _deposer_materiaux)
 	_refresh_recipes()
 	_update_side()
 
@@ -443,7 +460,11 @@ func _update_side() -> void:
 	var p = Game.player
 	for sv in equip_slots + hot_slots:
 		sv.queue_redraw()
-	stats_label.text = "Santé %d   Faim %d   Soif %d\nProtection : %d %%" % [int(p.health), int(p.hunger), int(p.thirst), int(p.armor_total() * 100)]
+	var kg: float = p.charge()
+	var seuil: float = p.charge_max()
+	stats_label.text = "Santé %d   Faim %d   Soif %d\nProtection : %d %%\nCharge : %.1f / %.0f kg%s" % [int(p.health), int(p.hunger), int(p.thirst), int(p.armor_total() * 100),
+			kg, seuil, ("\nTrop chargé : vitesse -%d %%" % int((1.0 - p.facteur_charge()) * 100.0)) if kg > seuil else ""]
+	stats_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.4) if kg > seuil else (Color(1.0, 0.85, 0.45) if kg > seuil * 0.85 else Color(0.85, 0.85, 0.8)))
 
 
 func _redraw_all() -> void:
@@ -560,10 +581,68 @@ func _desc(id: String) -> String:
 		_:
 			d = "Matériau de fabrication."
 	var s: Vector2i = Items.size(id)
-	d += "\nTaille : %d×%d" % [s.x, s.y]
+	d += "\nTaille : %d×%d   ·   %s kg" % [s.x, s.y, _kg(Items.poids(id))]
 	if Items.stack(id) > 1:
 		d += "   ·   pile de %d max" % Items.stack(id)
-	return d
+	var pv := Items.prix_vente(id) if Items.prix(id) > 0 else 0
+	if pv > 0:
+		d += "\nRevente chez un marchand : %d €%s" % [pv, " pièce" if Items.stack(id) > 1 else ""]
+	return d + _comparaison(id)
+
+
+func _kg(v: float) -> String:
+	return ("%.2f" % v).trim_suffix("0").trim_suffix("0").trim_suffix(".").replace(".", ",") if v < 10.0 else "%.0f" % v
+
+
+## Comparaison avec l'arme en main (armes) ou la pièce portée au même endroit (vêtements, sacs).
+func _comparaison(id: String) -> String:
+	var p = Game.player
+	if p == null:
+		return ""
+	var it := Items.info(id)
+	var t: String = it.get("type", "")
+	var lignes: Array = []
+	var ligne := func(nom: String, a: float, b: float, fmt: String, plus_bas_mieux: bool) -> void:
+		if is_equal_approx(a, b):
+			lignes.append("%s : %s (=)" % [nom, fmt % b])
+		else:
+			var mieux := (b < a) if plus_bas_mieux else (b > a)
+			lignes.append("%s : %s → %s  %s" % [nom, fmt % a, fmt % b, "▲ mieux" if mieux else "▼ moins bien"])
+	if t in ["gun", "melee", "arc"]:
+		var cur: String = p.current_weapon()
+		if cur == id:
+			return "\n— Arme en main —"
+		var a: Dictionary = p.arme_stats(cur)
+		var b: Dictionary = p.arme_stats(id)
+		var ta: String = a.get("type", "")
+		ligne.call("Dégâts", float(a.get("damage", 0)) * int(a.get("pellets", 1)), float(b.get("damage", 0)) * int(b.get("pellets", 1)), "%.0f", false)
+		if ta == t and t != "arc":
+			ligne.call("Coups / s" if t == "melee" else "Cadence (tirs / s)", 1.0 / maxf(0.05, float(a.get("rate", 1.0))), 1.0 / maxf(0.05, float(b.get("rate", 1.0))), "%.1f", false)
+		if ta == "gun" and t == "gun":
+			ligne.call("Dispersion", float(a.spread), float(b.spread), "%.2f°", true)
+			ligne.call("Recul", float(a.get("recoil", 0.0)) * 100.0, float(b.get("recoil", 0.0)) * 100.0, "%.1f", true)
+			ligne.call("Chargeur", float(a.mag), float(b.mag), "%.0f", false)
+			ligne.call("Rechargement", float(a.reload), float(b.reload), "%.1f s", true)
+		ligne.call("Portée", float(a.get("range", 0)), float(b.get("range", 0)), "%.1f m", false)
+		ligne.call("Poids", Items.poids(cur) if cur != "poings" else 0.0, Items.poids(id), "%.1f kg", true)
+		return "\n\nFace à %s (en main) :\n%s" % [Items.nom(cur), "\n".join(lignes)]
+	if t == "armor":
+		var slot: String = it.get("slot", "")
+		var e: Dictionary = p.equipped.get(slot, {})
+		if not e.is_empty() and e.id == id:
+			return ""
+		var ia := Items.info(e.id) if not e.is_empty() else {}
+		ligne.call("Protection", float(ia.get("armor", 0.0)) * 100.0, float(it.get("armor", 0.0)) * 100.0, "%.0f %%", false)
+		var ga := Items.grid(e.id) if not e.is_empty() else Vector2i.ZERO
+		var gb := Items.grid(id)
+		if ga.x > 0 or gb.x > 0:
+			ligne.call("Rangement (cases)", float(ga.x * ga.y), float(gb.x * gb.y), "%.0f", false)
+		if slot == "dos":
+			ligne.call("Charge sans ralentir", p.CHARGE_BASE + float(ia.get("capacity", 6.0 if not e.is_empty() else 0.0)) * 0.5,
+					p.CHARGE_BASE + float(it.get("capacity", 6.0)) * 0.5, "%.0f kg", false)
+		ligne.call("Poids", Items.poids(e.id) if not e.is_empty() else 0.0, Items.poids(id), "%.1f kg", true)
+		return "\n\nFace à %s :\n%s" % [Items.nom(e.id) if not e.is_empty() else "rien de porté", "\n".join(lignes)]
+	return ""
 
 
 # ------------------------------------------------------------------ clics
@@ -596,8 +675,14 @@ func on_slot_press(sv: SlotView, ev: InputEventMouseButton) -> void:
 		return
 	if sv.kind == "hot":
 		if ev.button_index == MOUSE_BUTTON_RIGHT:
-			p.assign_hotbar(sv.key, "")
-			_redraw_all()
+			menu_ctx = {"hot": sv.key}
+			menu.clear()
+			menu.add_item("Déverrouiller la case" if p.hotbar_verrou[sv.key] else "Verrouiller la case (l'objet garde sa place)", 10)
+			menu.set_item_disabled(0, p.hotbar[sv.key] == "" and not p.hotbar_verrou[sv.key])
+			menu.add_item("Vider la case", 11)
+			menu.position = Vector2i(get_viewport().get_mouse_position())
+			menu.reset_size()
+			menu.popup()
 		return
 	var e: Dictionary = p.equipped[sv.key]
 	if e.is_empty():
@@ -796,6 +881,33 @@ func _take_all() -> void:
 	refresh()
 
 
+## Vide d'un coup les matériaux de fabrication (type « material ») du joueur dans le conteneur ouvert.
+func _deposer_materiaux() -> void:
+	if storage == null or not is_instance_valid(storage) or storage.grille == null:
+		return
+	var n := 0
+	var reste := 0
+	for g in Game.player.grilles():
+		for e in g.entrees.duplicate():
+			if Items.info(e.id).get("type", "") != "material":
+				continue
+			var avant := int(e.n)
+			_quick_transfer(e, g)
+			if g.entrees.has(e) and int(e.n) > 0:
+				reste += 1
+			n += avant - (int(e.n) if g.entrees.has(e) else 0)
+	Game.msg("%d matériau(x) déposé(s)%s." % [n, " — plus de place pour le reste" if reste > 0 else ""])
+	refresh()
+
+
+func _trier(mode: String) -> void:
+	if held:
+		return
+	if not Game.player.trier_inventaire(mode):
+		Game.msg("Tri impossible : tout ne rentrerait plus.")
+	refresh()
+
+
 func _open_menu(e: Dictionary, g: Grille) -> void:
 	menu_ctx = {"e": e, "g": g}
 	menu.clear()
@@ -837,6 +949,15 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 
 func _on_menu(id: int) -> void:
 	var p = Game.player
+	if menu_ctx.has("hot"):
+		var i: int = menu_ctx.hot
+		if id == 10:
+			p.basculer_verrou(i)
+		elif id == 11:
+			p.hotbar_verrou[i] = false
+			p.assign_hotbar(i, "")
+		_redraw_all()
+		return
 	var e: Dictionary = menu_ctx.get("e", {})
 	var g: Grille = menu_ctx.get("g")
 	if e.is_empty() or g == null:

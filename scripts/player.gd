@@ -47,6 +47,7 @@ var poches: Grille = Grille.creer("Sur toi", 8, 5)   # inventaire de base ; sacs
 var mags: Dictionary = {}
 var equipped := {"tete": {}, "torse": {}, "dos": {}}
 var hotbar: Array = ["", "", "", "", ""]
+var hotbar_verrou: Array = [false, false, false, false, false]   # cases verrouillées : l'objet garde sa place
 var slot := 0
 
 # --- caméra / mouvement
@@ -345,6 +346,7 @@ func _physics_process(delta: float) -> void:
 	_update_combat(delta, can_act)
 	_update_interact()
 	_maj_fabrication(delta)
+	_ramassage_auto(delta)
 	if placing != "":
 		_update_placement()
 	hurt_flash = maxf(0.0, hurt_flash - delta * 1.5)
@@ -441,7 +443,8 @@ func _move(delta: float, can_act: bool) -> void:
 	dir.y = 0.0
 	dir = dir.normalized()
 	aiming = can_act and Input.is_action_pressed("viser") and placing == ""
-	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0
+	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0 \
+			and charge() < charge_max() * 1.5
 	var speed := WALK
 	if sprinting:
 		speed = SPRINT * (1.12 if prog.a("coureur") else 1.0)
@@ -464,6 +467,7 @@ func _move(delta: float, can_act: bool) -> void:
 			_appliquer_sang()
 	if _adrenaline():
 		speed *= 1.2
+	speed *= facteur_charge()
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -1215,10 +1219,16 @@ func current_weapon() -> String:
 func assign_hotbar(i: int, id: String) -> void:
 	if i < 0 or i > 4:
 		return
+	if hotbar_verrou[i] and hotbar[i] != "" and hotbar[i] != id:
+		Game.msg("Case %d verrouillée (clic droit dessus dans l'inventaire pour la déverrouiller)." % (i + 1))
+		return
 	if id != "":
 		var old := hotbar.find(id)
 		if old >= 0:
 			hotbar[old] = ""
+			hotbar_verrou[old] = false
+	elif hotbar_verrou[i]:
+		hotbar_verrou[i] = false
 	hotbar[i] = id
 	_refresh_weapon_model()
 
@@ -1908,7 +1918,11 @@ func add_item(id: String, n: int = 1) -> int:
 			if reste == 0:
 				break
 	if Items.is_weapon(id) and not hotbar.has(id) and count(id) > 0:
-		var empty := hotbar.find("")
+		var empty := -1
+		for i in 5:
+			if hotbar[i] == "" and not hotbar_verrou[i]:
+				empty = i
+				break
 		if empty >= 0:
 			hotbar[empty] = id
 			if empty == slot:
@@ -1935,10 +1949,192 @@ func remove_item(id: String, n: int = 1) -> bool:
 
 func _check_hotbar() -> void:
 	for i in 5:
-		if hotbar[i] != "" and count(hotbar[i]) <= 0:
+		if hotbar[i] != "" and count(hotbar[i]) <= 0 and not hotbar_verrou[i]:
 			hotbar[i] = ""
 			if i == slot:
 				_refresh_weapon_model()
+
+
+## Regroupe les piles incomplètes du même objet (les premières se remplissent, les vides disparaissent).
+func regrouper_piles() -> void:
+	var tout: Array = []
+	for g in grilles():
+		for e in g.entrees:
+			if Items.stack(e.id) > 1:
+				tout.append([g, e])
+	for i in tout.size():
+		var a: Dictionary = tout[i][1]
+		var pile := Items.stack(a.id)
+		for j in range(i + 1, tout.size()):
+			if int(a.n) >= pile:
+				break
+			var b: Dictionary = tout[j][1]
+			if b.id != a.id or int(b.n) <= 0:
+				continue
+			var k := mini(pile - int(a.n), int(b.n))
+			a.n += k
+			b.n -= k
+	for t in tout:
+		if int(t[1].n) <= 0:
+			t[0].retirer_entree(t[1])
+
+
+const ORDRE_TYPES := ["gun", "arc", "melee", "lancer", "ammo", "heal", "food", "drink", "armor", "accessoire", "outil", "placeable", "material"]
+
+
+## Range tout l'inventaire (poches, gilet, sac) : mode "type" (armes, munitions, soins, nourriture…)
+## ou "poids" (le plus lourd d'abord). Les piles sont regroupées. Si tout ne rentre plus, rien ne bouge.
+func trier_inventaire(mode: String) -> bool:
+	regrouper_piles()
+	var gs := grilles()
+	var sauve: Array = []
+	var tout: Array = []
+	for g in gs:
+		var l: Array = []
+		for e in g.entrees:
+			l.append([e, e.x, e.y, e.r, e.n])
+			tout.append(e)
+		sauve.append([g, g.entrees.duplicate(), l])
+	var cle := func(e: Dictionary) -> Array:
+		var rang := ORDRE_TYPES.find(Items.info(e.id).get("type", ""))
+		if mode == "poids":
+			return [-poids_entree(e), e.id]
+		return [rang if rang >= 0 else 99, e.id, -int(e.n)]
+	var aire := func(e: Dictionary) -> int:
+		var s := Items.size(e.id)
+		return s.x * s.y
+	# d'abord l'ordre demandé, puis (si ça ne rentre pas) les plus gros objets d'abord
+	for essai in 2:
+		var liste := tout.duplicate()
+		liste.sort_custom(func(a, b):
+			if essai == 1 and aire.call(a) != aire.call(b):
+				return aire.call(a) > aire.call(b)
+			var ka: Array = cle.call(a)
+			var kb: Array = cle.call(b)
+			for i in ka.size():
+				if ka[i] != kb[i]:
+					return ka[i] < kb[i]
+			return false)
+		for g in gs:
+			g.entrees.clear()
+		var ok := true
+		for e in liste:
+			var place := false
+			for g in gs:
+				if g.ajouter_entree(e):
+					place = true
+					break
+			if not place:
+				ok = false
+				break
+		if ok:
+			_check_hotbar()
+			return true
+	# échec : tout remettre comme avant
+	for s in sauve:
+		s[0].entrees = s[1]
+		for l in s[2]:
+			l[0].x = l[1]
+			l[0].y = l[2]
+			l[0].r = l[3]
+			l[0].n = l[4]
+	return false
+
+
+## Verrouille / déverrouille une case de la barre rapide : verrouillée, elle garde son objet même
+## quand on n'en a plus (il y revient quand on le reprend) et les nouvelles armes ne s'y rangent pas.
+func basculer_verrou(i: int) -> void:
+	hotbar_verrou[i] = not hotbar_verrou[i]
+	Game.msg("Case %d %s." % [i + 1, "verrouillée" if hotbar_verrou[i] else "déverrouillée"])
+	_check_hotbar()
+
+
+# ---------------------------------------------------------------- charge portée
+const CHARGE_BASE := 22.0      # kg portés sans ralentir (sans sac)
+var _charge_cache := 0.0
+var _charge_t := -1.0
+
+
+static func poids_entree(e: Dictionary) -> float:
+	var kg := Items.poids(e.id) * int(e.get("n", 1))
+	var g = e.get("contenu")
+	if g != null:
+		for c in g.entrees:
+			kg += poids_entree(c)
+	return kg
+
+
+## Poids total porté (kg), recalculé au plus toutes les 0,3 s.
+func charge() -> float:
+	var t := Time.get_ticks_msec() / 1000.0
+	if _charge_t >= 0.0 and t - _charge_t < 0.3:
+		return _charge_cache
+	_charge_t = t
+	var kg := 0.0
+	for e in poches.entrees:
+		kg += poids_entree(e)
+	for s in equipped:
+		if not equipped[s].is_empty():
+			kg += poids_entree(equipped[s])
+	_charge_cache = kg
+	return kg
+
+
+## Seuil au-delà duquel on ralentit : 22 kg + la moitié de la capacité du sac porté.
+func charge_max() -> float:
+	var sac: Dictionary = equipped.get("dos", {})
+	var bonus := 0.0
+	if not sac.is_empty():
+		bonus = float(Items.info(sac.id).get("capacity", 6.0)) * 0.5
+	return CHARGE_BASE + bonus
+
+
+## Multiplicateur de vitesse : 1 jusqu'au seuil, puis -40 % par seuil dépassé (55 % au plus lent).
+func facteur_charge() -> float:
+	var k := charge() / charge_max()
+	return 1.0 if k <= 1.0 else clampf(1.0 - (k - 1.0) * 0.4, 0.55, 1.0)
+
+
+# ---------------------------------------------------------------- ramassage automatique
+var _ramasse_t := 0.0
+
+
+## Munitions et flèches ramassées en passant dessus (option Game.ramassage_auto) :
+## flèches plantées dans le décor et munitions des tas d'objets au sol, à moins de 1,6 m.
+func _ramassage_auto(delta: float) -> void:
+	_ramasse_t -= delta
+	if _ramasse_t > 0.0 or not Game.ramassage_auto:
+		return
+	_ramasse_t = 0.25
+	var pieds := global_position + Vector3(0, 0.5, 0)
+	for f in get_tree().get_nodes_in_group("fleches_plantees"):
+		if f.has_node("Ramassage") and (f as Node3D).global_position.distance_to(pieds) < 1.6:
+			if add_item("fleche", 1) == 0:
+				Game.play_ui("fouille", -12.0, 0.1, 1.5)
+				f.queue_free()
+	for c in get_tree().get_nodes_in_group("tas_sol"):
+		if c.grille == null or c.has_meta("jete") or (c as Node3D).global_position.distance_to(global_position) > 1.6:
+			continue
+		var pris := false
+		for e in c.grille.entrees.duplicate():
+			if Items.info(e.id).get("type", "") != "ammo" and e.id != "fleche":
+				continue
+			var n := int(e.n)
+			var reste := n
+			for g in grilles():
+				reste = g.ajouter(e.id, reste)
+				if reste == 0:
+					break
+			if reste < n:
+				pris = true
+				Game.msg("Ramassé : %d× %s" % [n - reste, Items.nom(e.id)])
+			e.n = reste
+			if reste <= 0:
+				c.grille.retirer_entree(e)
+		if pris:
+			Game.play_ui("fouille", -10.0, 0.1, 1.4)
+			if c.grille.vide():
+				c.queue_free()
 
 
 func armor_total() -> float:
@@ -2106,6 +2302,7 @@ func drop_entry(e: Dictionary) -> void:
 		pile.add_to_group("tas_sol")
 		get_parent().add_child(pile)
 		pile.global_position = global_position - global_basis.z * 0.8
+	pile.set_meta("jete", true)   # pas de ramassage automatique de ce qu'on vient de jeter
 	if not pile.grille.ajouter_entree(e):
 		var g2 := Grille.creer("Objets au sol", 6, 6)
 		g2.ajouter_entree(e)
