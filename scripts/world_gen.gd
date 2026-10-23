@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 5 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 6 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -1374,6 +1374,7 @@ func _regions() -> void:
 	# --- routes secondaires, voie ferrée, forêts, fermes et maisons le long des routes
 	_plan_campagne()
 	_lieux_uniques()
+	_nature_plan()
 	# --- villages reliés par leur route
 	_village_relie(Vector3(-1500, 0, -1400), "Village des Granges", hz)
 	_village_relie(Vector3(1300, 0, 1550), "Village de Pont-Rouge", hz)
@@ -1701,7 +1702,7 @@ func _trees() -> void:
 	for i in trees.size():
 		var p: Vector3 = trees[i]
 		var s := rng.randf_range(0.8, 1.3)
-		var en_ville := absf(p.x) < half + 10 and absf(p.z) < half + 10
+		var en_ville := (absf(p.x) < half + 10 and absf(p.z) < half + 10) or _dans_verger(p)
 		p.y = relief.hauteur(p.x, p.z) - 0.1 if relief else 0.0
 		# plus de sapins sur les hauteurs
 		var p_sapin := 0.35 + smoothstep(6.0, 22.0, p.y) * 0.5
@@ -1891,7 +1892,7 @@ func _carambolage(c: Vector3, le_long_x: bool) -> void:
 # ================================================================ grotte du boss
 ## Colline rocheuse creusée d'un tunnel menant à une grande salle sombre où dort le Colosse.
 ## L'entrée est à l'est ; un chemin de terre la relie à l'autoroute nord-sud.
-func _grotte(c: Vector3, route_x: float) -> void:
+func _grotte(c: Vector3, route_x: float, nom := "") -> void:
 	var col := Color(0.85, 0.82, 0.78)
 	var x0 := c.x - 12.0      # salle : 24 × 24 m, 7 m de haut
 	var x1 := c.x + 12.0
@@ -1974,6 +1975,17 @@ func _grotte(c: Vector3, route_x: float) -> void:
 		decor.add_child(lum)
 		_box(lum.position - Vector3(0, 0.3, 0), Vector3(0.9, 0.15, 0.9), Color(0.15, 0.08, 0.05), false)
 	_grotte_details(c, x0, x1, z0, z1, hs, x1, tx1, tw, th, col)
+	if nom != "":   # autre grotte : cache de contrebandiers gardée par des zombies, sans boss
+		var cache := _container(Vector3(x0 + 2.0, 0, c.z), Vector3(1.4, 0.9, 0.9), Color(0.25, 0.3, 0.2), "Cache des contrebandiers", "armurerie", 5)
+		cache.set_texture("metal_peint")
+		for i in 4:
+			var cp := _container(Vector3(rng.randf_range(x0 + 2, x1 - 2), 0, z1 - 1.5), Vector3(1.0, 0.7, 0.7), Color(0.4, 0.3, 0.2), "Caisse abandonnée", "infeste", 3)
+			cp.set_texture("planches")
+		for i in 10:
+			guards.append({"pos": Vector3(rng.randf_range(x0 + 2, tx1 - 2.0), 0.1, c.z + rng.randf_range(-1.5, 1.5)), "kind": ["militaire", "civil", "civil"][i % 3], "radius": 5.0})
+		_poi(nom, Vector3(c.x, 0, c.z), Color(0.7, 0.6, 0.85))
+		Game.map_rects.append({"rect": Rect2(x0 - ep, z0 - ep, (tx1 - x0) + ep, (z1 - z0) + 2 * ep), "color": Color(0.42, 0.4, 0.38)})
+		return
 	# trésor du Colosse
 	var coffre := _container(Vector3(x0 + 2.0, 0, c.z), Vector3(1.4, 0.9, 0.9), Color(0.25, 0.3, 0.2), "Cache du Colosse", "boss", 7)
 	if Decor.existe("caisse_mil"):
@@ -2091,6 +2103,7 @@ func _relief() -> void:
 	_lignes_ht()
 	_eoliennes()
 	_details_routes()
+	_nature_details()
 	# --- rochers sur les pentes
 	var n_roc := 0
 	for i in 9000:
@@ -4008,3 +4021,304 @@ func _decharge(p: Vector3) -> void:
 		c.set_texture("metal_peint")
 	_guards(p, 16, Vector2(45.0, 35.0), ["civil"], 35.0)
 	_poi("Décharge", p, Color(0.6, 0.55, 0.4))
+
+
+# ================================================================ nature et détails
+## Avant le relief : vergers, vignes, champs de maïs (cachette), marais près de la rivière, carrière et deuxième grotte.
+## Après le relief : épaves dans les fossés, feux de camp abandonnés, cachettes de survivants, nids de zombies.
+var vergers: Array = []   # Rect2 : arbres fruitiers (feuillus seulement)
+
+
+func _nature_plan() -> void:
+	for b in [Vector3(-1850, 0, -1080), Vector3(-850, 0, 1400), Vector3(960, 0, -1200), Vector3(2100, 0, 900)]:
+		var p := _libre_rect(b, Rect2(-27, -22, 54, 44), 140.0)
+		if p != Vector3.INF:
+			_verger(p)
+	for b in [Vector3(1150, 0, 620), Vector3(-800, 0, -560)]:
+		var p := _libre_rect(b, Rect2(-36, -26, 72, 52), 160.0)
+		if p != Vector3.INF:
+			_vignoble(p)
+	for b in [Vector3(-1300, 0, -1050), Vector3(250, 0, -650), Vector3(1450, 0, 620), Vector3(-300, 0, 950)]:
+		var p := _libre_rect(b, Rect2(-27, -22, 54, 44), 160.0)
+		if p != Vector3.INF:
+			_mais(p)
+	for x in [-1250.0, 1550.0]:
+		_marais(Vector3(x, 0, relief.riviere_z(x) + 48.0))
+	var g := _libre_rect(Vector3(600, 0, -1350), Rect2(-26, -26, 74, 52), 80.0)
+	if g != Vector3.INF:
+		_grotte(g, 780.0, "Grotte des Contrebandiers")
+	var q := _libre_rect(Vector3(470, 0, -1240), Rect2(-42, -36, 84, 72), 120.0)
+	if q != Vector3.INF:
+		_carriere(q)
+		_reserve(Rect2(q.x - 42, q.z - 36, 84, 72))
+		_relier(q, Rect2(-42, -36, 84, 72), 6.0, C_ASPHALT, 0.06)
+
+
+func _verger(p: Vector3) -> void:
+	var r := Rect2(p.x - 25.0, p.z - 20.0, 50.0, 40.0)
+	vergers.append(r)
+	_reserve(Rect2(p.x - 27.0, p.z - 22.0, 54.0, 44.0), Color(0.3, 0.45, 0.2, 0.6))
+	var x := r.position.x + 3.0
+	while x < r.end.x:
+		var z := r.position.y + 3.0
+		while z < r.end.y:
+			trees.append(Vector3(x + rng.randf_range(-0.4, 0.4), 0, z + rng.randf_range(-0.4, 0.4)))
+			z += 6.5
+		x += 6.5
+	var cab := _building(p + Vector3(0, 0, 25.5), 5.0, 3.5, 3.0, Color(0.6, 0.48, 0.34), ["s"], "ferme", "", false, 2, Color(0.5, 0.4, 0.3), "pente")
+	_residents(cab, 0.4, 1)
+	for i in 3:
+		var c := _container(p + Vector3(-6.0 + i * 1.4, 0, 21.5), Vector3(0.9, 0.45, 0.6), Color(0.6, 0.45, 0.3), "Cagettes de fruits", "magasin", 1)
+		c.set_texture("planches")
+	_guards(p, 4, Vector2(22.0, 18.0), ["civil"], 20.0)
+	_poi("Verger", p, Color(0.55, 0.75, 0.35))
+
+
+func _dans_verger(p: Vector3) -> bool:
+	for r in vergers:
+		if (r as Rect2).grow(2.0).has_point(Vector2(p.x, p.z)):
+			return true
+	return false
+
+
+func _vignoble(p: Vector3) -> void:
+	_reserve(Rect2(p.x - 36.0, p.z - 26.0, 72.0, 52.0), Color(0.42, 0.3, 0.38, 0.6))
+	_flat(Rect2(p.x - 34.0, p.z - 14.0, 68.0, 38.0), 0.012, Color(0.85, 0.78, 0.7), "terre")
+	var vert := Color(0.3, 0.42, 0.18)
+	var z := p.z - 12.0
+	while z < p.z + 23.0:
+		for s in 3:   # rangs par tronçons de 22 m (regroupement par case)
+			var x0 := p.x - 33.0 + s * 22.0
+			_box(Vector3(x0 + 11.0, 0.85, z), Vector3(21.0, 1.0, 0.55), vert.darkened(rng.randf_range(0.0, 0.2)), false, "herbe")
+			for k in 4:
+				_box(Vector3(x0 + 0.5 + k * 7.0, 0.7, z), Vector3(0.08, 1.4, 0.08), Color(0.45, 0.35, 0.25), false, "planches")
+		z += 2.6
+	var chai := _building(p + Vector3(-18.0, 0, -20.0), 16.0, 9.0, 4.5, Color(0.8, 0.72, 0.6), ["s"], "bar", "Domaine viticole", false, 7, Color(0.5, 0.35, 0.4), "pente")
+	_residents(chai, 0.8, 3)
+	for i in 4:
+		_prop("baril_rouge", p + Vector3(-6.0 + i * 1.3, 0, -18.0), 0.0, true, 1.0, 120.0)
+	_guards(p, 6, Vector2(30.0, 16.0), ["civil"], 25.0)
+	_poi("Vignoble", p, Color(0.65, 0.4, 0.6))
+
+
+## Champ de maïs haut (2 m) : on peut s'y cacher (comme dans les buissons).
+func _mais(p: Vector3) -> void:
+	var r := Rect2(p.x - 25.0, p.z - 20.0, 50.0, 40.0)
+	_reserve(Rect2(p.x - 27.0, p.z - 22.0, 54.0, 44.0), Color(0.75, 0.68, 0.25, 0.7))
+	champs.append(r)
+	_flat(r, 0.012, Color(0.85, 0.78, 0.7), "terre")
+	var x := r.position.x + 0.8
+	while x < r.end.x:
+		var z := r.position.y + 0.8
+		while z < r.end.y:
+			var h := rng.randf_range(1.9, 2.5)
+			var c := Color(0.42, 0.5, 0.2).lerp(Color(0.62, 0.58, 0.25), rng.randf())
+			_box(Vector3(x, h / 2.0, z), Vector3(0.45, h, 0.45), c, false, "herbe")
+			z += 1.5
+		x += 1.3
+	x = r.position.x + 2.0
+	while x < r.end.x:
+		var z := r.position.y + 2.0
+		while z < r.end.y:
+			Game.ajouter_buisson(Vector3(x, 0, z), 2.3)
+			z += 3.0
+		x += 3.0
+	_guards(p, 5, Vector2(22.0, 18.0), ["civil"], 20.0)
+	_poi("Champ de maïs", p, Color(0.85, 0.8, 0.3))
+
+
+## Marais : mares peu profondes, roseaux (on s'y cache), arbres morts, zombies noyés.
+func _marais(c: Vector3) -> void:
+	var n := 0
+	var centres: Array = []
+	for essai in 30:
+		if n >= 6:
+			break
+		var rr := rng.randf_range(9.0, 15.0)
+		var e := rr * 1.3 + 6.0
+		var p := _libre_rect(c + Vector3(rng.randf_range(-55.0, 55.0), 0, rng.randf_range(-15.0, 35.0)), Rect2(-e, -e, 2.0 * e, 2.0 * e), 10.0)
+		if p == Vector3.INF:
+			continue
+		lacs_speciaux.append({"c": Vector2(p.x, p.z), "r": rr, "p": [rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU], "prof": 0.5})
+		_reserve(Rect2(p.x - e, p.z - e, 2.0 * e, 2.0 * e))
+		centres.append([p, rr])
+		n += 1
+	if centres.is_empty():
+		return
+	var vert := Color(0.38, 0.42, 0.22)
+	for e in centres:
+		var p: Vector3 = e[0]
+		var rr: float = e[1]
+		for i in 26:   # roseaux sur la rive
+			var a := rng.randf() * TAU
+			var q: Vector3 = p + Vector3(cos(a), 0, sin(a)) * rr * rng.randf_range(1.15, 1.6)
+			for k in 4:
+				var h := rng.randf_range(1.4, 2.2)
+				_box(q + Vector3(rng.randf_range(-0.5, 0.5), h / 2.0 - 0.2, rng.randf_range(-0.5, 0.5)), Vector3(0.08, h, 0.08), vert.lerp(Color(0.6, 0.55, 0.3), rng.randf()), false, "uni")
+			Game.ajouter_buisson(q, 1.4)
+		for i in 2:
+			var a2 := rng.randf() * TAU
+			_prop(["tronc_mort", "souche"][i], p + Vector3(cos(a2), 0, sin(a2)) * rr * 1.45, rng.randf() * TAU, true, rng.randf_range(0.9, 1.3), 180.0)
+	var p0: Vector3 = centres[0][0]
+	_guards(p0, 9, Vector2(40.0, 25.0), ["civil"], 30.0)
+	var sac := _container(p0 + Vector3(centres[0][1] * 1.5, 0, 0), Vector3(0.8, 0.4, 0.5), Color(0.3, 0.32, 0.25), "Sac d'un noyé", "maison", 2)
+	sac.set_texture("planches")
+	_poi("Marais", p0, Color(0.4, 0.55, 0.45))
+
+
+## Carrière de pierre : fosse aux parois rocheuses, gros rochers (pioche : pierre et minerai), engins, bureau.
+func _carriere(p: Vector3) -> void:
+	var roche := Color(0.72, 0.7, 0.66)
+	_flat(Rect2(p.x - 40.0, p.z - 34.0, 80.0, 68.0), 0.012, Color(0.85, 0.82, 0.78), "roche")
+	for k in 3:   # parois en gradins au nord, à l'ouest et à l'est
+		var hk := 7.0 - k * 2.2
+		var ek := 3.0 + k * 3.0
+		_box(Vector3(p.x, hk / 2.0, p.z - 34.0 + ek / 2.0), Vector3(80.0, hk, ek), roche.darkened(k * 0.05), true, "roche")
+		for sd in [-1.0, 1.0]:
+			_box(Vector3(p.x + sd * (40.0 - ek / 2.0), hk / 2.0, p.z - 6.0), Vector3(ek, hk, 56.0), roche.darkened(k * 0.05), true, "roche")
+	for i in 22:
+		var q := p + Vector3(rng.randf_range(-26.0, 26.0), 0, rng.randf_range(-20.0, 22.0))
+		var k := rng.randf_range(1.6, 3.6)
+		q.y = -k * 0.3
+		_prop("rocher", q, rng.randf() * TAU, true, k, 300.0)
+	# concasseur et tapis
+	var jaune := Color(0.85, 0.65, 0.12)
+	_box(p + Vector3(20.0, 2.0, 22.0), Vector3(5.0, 4.0, 4.0), jaune.darkened(0.2), true, "metal")
+	_box(p + Vector3(10.0, 2.6, 22.0), Vector3(14.0, 0.3, 1.4), Color(0.2, 0.2, 0.2), false, "metal")
+	for x in [5.0, 11.0]:
+		_box(p + Vector3(x, 1.2, 22.0), Vector3(0.25, 2.4, 0.25), Color(0.4, 0.4, 0.4), false, "metal")
+	_cone(p + Vector3(-12.0, 0, 24.0), 5.0, 3.5, roche.lightened(0.05), "roche", 10)
+	_box(p + Vector3(-12.0, 1.0, 24.0), Vector3(5.5, 2.0, 5.5), Color.WHITE, true, "invisible")
+	var bur := _building(p + Vector3(30.0, 0, 30.0), 8.0, 5.0, 3.0, Color(0.7, 0.68, 0.6), ["w"], "quincaillerie", "Bureau de la carrière", false, 4, Color(0.5, 0.48, 0.45))
+	_residents(bur, 0.7, 2)
+	var c := _container(p + Vector3(24.0, 0, 30.0), Vector3(1.2, 0.8, 0.8), Color(0.7, 0.2, 0.15), "Caisse d'outils", "quincaillerie", 3)
+	c.set_texture("metal_peint")
+	_guards(p, 8, Vector2(30.0, 25.0), ["civil"], 30.0)
+	_poi("Carrière de pierre", p, Color(0.7, 0.7, 0.68))
+
+
+# ---------------------------------------------------------------- après le relief
+func _nature_details() -> void:
+	# épaves dans les fossés des routes secondaires
+	var asphalte: Array = []
+	for d in drapees:
+		if d[3] == C_ASPHALT and float(d[2]) >= 7.0:
+			asphalte.append(d)
+	var n := 0
+	for essai in 120:
+		if n >= 30:
+			break
+		var d: Array = asphalte[rng.randi() % asphalte.size()]
+		var a: Vector2 = d[0]
+		var b: Vector2 = d[1]
+		var dir := (b - a).normalized()
+		var lat := Vector2(-dir.y, dir.x) * (5.8 + rng.randf_range(0.0, 1.0)) * (1.0 if rng.randf() < 0.5 else -1.0)
+		var q := a.lerp(b, rng.randf_range(0.03, 0.97)) + lat
+		if relief.dans_eau(q.x, q.y) or _overlaps(Rect2(q.x - 2.6, q.y - 2.6, 5.2, 5.2)):
+			continue
+		var ang := (PI / 2.0 if absf(dir.x) > 0.5 else 0.0) + rng.randf_range(-0.6, 0.6) + (PI if rng.randf() < 0.5 else 0.0)
+		var v := _prop(VOITURES[rng.randi() % VOITURES.size()], Vector3(q.x, relief.hauteur(q.x, q.y) - 0.25, q.y), ang, true, 1.0, 220.0)
+		if v:
+			v.rotation.z = rng.randf_range(-0.18, 0.18)
+			Decor.peindre(v, CAR_COLORS[rng.randi() % CAR_COLORS.size()].darkened(rng.randf_range(0.35, 0.6)))
+		_reserve(Rect2(q.x - 2.6, q.y - 2.6, 5.2, 5.2))
+		n += 1
+	for i in 14:
+		var p := _point_campagne(6.0)
+		if p != Vector3.INF:
+			_feu_abandonne(p)
+	for i in 8:
+		var f: Dictionary = forets[i % forets.size()]
+		for essai in 20:
+			var a := rng.randf() * TAU
+			var p: Vector3 = f.c + Vector3(cos(a), 0, sin(a)) * float(f.r) * rng.randf_range(0.3, 0.85)
+			if _sol_libre(p, 4.0):
+				_cachette(Vector3(p.x, relief.hauteur(p.x, p.z), p.z))
+				break
+	for i in 6:
+		var p := _point_campagne(16.0)
+		if p != Vector3.INF:
+			_nid_zombies(p)
+
+
+## Point de campagne au hasard : sec, presque plat, libre, hors des villes et loin du départ.
+func _point_campagne(demi: float) -> Vector3:
+	var m := Game.map_half - 120.0
+	for essai in 60:
+		var p := Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m))
+		if Game.in_city(p) or p.length() < 450.0 or not _sol_libre(p, demi):
+			continue
+		p.y = relief.hauteur(p.x, p.z)
+		return p
+	return Vector3.INF
+
+
+func _sol_libre(p: Vector3, demi: float) -> bool:
+	if relief.dans_eau(p.x, p.z) or relief.pente(p.x, p.z) > 0.12:
+		return false
+	for o in [Vector2(-demi, -demi), Vector2(demi, demi), Vector2(-demi, demi), Vector2(demi, -demi)]:
+		if relief.dans_eau(p.x + o.x, p.z + o.y) or absf(relief.hauteur(p.x + o.x, p.z + o.y) - relief.hauteur(p.x, p.z)) > 1.5:
+			return false
+	return not _overlaps(Rect2(p.x - demi, p.z - demi, 2.0 * demi, 2.0 * demi))
+
+
+## Feu de camp de survivants abandonné : foyer éteint, tente, couchage, sac à fouiller.
+func _feu_abandonne(p: Vector3) -> void:
+	for i in 7:
+		var a := TAU * i / 7.0
+		_box(p + Vector3(cos(a) * 0.8, 0.1, sin(a) * 0.8), Vector3(0.35, 0.25, 0.35), Color(0.55, 0.55, 0.52), false, "roche")
+	for i in 3:
+		_box(p + Vector3(0, 0.1, 0), Vector3(1.0, 0.12, 0.15) if i % 2 == 0 else Vector3(0.15, 0.12, 1.0), Color(0.1, 0.08, 0.07), false, "planches")
+	var u := Vector3(1, 0, 0)
+	var v := Vector3(0, 0, 1)
+	_tente(p + Vector3(3.5, 0, 0), u, v, [Color(0.25, 0.4, 0.3), Color(0.55, 0.35, 0.2), Color(0.3, 0.35, 0.5)][rng.randi() % 3])
+	_box(p + Vector3(-1.5, 0.08, 2.4), Vector3(0.8, 0.16, 1.9), Color(0.3, 0.35, 0.45), false, "uni")
+	var s := _container(p + Vector3(-2.2, 0, -1.6), Vector3(0.6, 0.5, 0.4), Color(0.35, 0.33, 0.25), "Sac abandonné", "camping", 2)
+	s.set_texture("planches")
+	_reserve(Rect2(p.x - 6.0, p.z - 6.0, 12.0, 12.0))
+	for i in rng.randi_range(1, 3):
+		guards.append({"pos": p + Vector3(rng.randf_range(-8.0, 8.0), 0.1, rng.randf_range(-8.0, 8.0)), "kind": "civil", "radius": 12.0})
+	_poi("Feu de camp abandonné", p, Color(0.9, 0.6, 0.3))
+
+
+## Cachette de survivant (pas sur la carte) : abri bas camouflé sous une bâche, bon butin.
+func _cachette(p: Vector3) -> void:
+	var bache := Color(0.25, 0.32, 0.2)
+	for sx in [-1.0, 1.0]:
+		_box(p + Vector3(sx * 1.4, 0.6, 0), Vector3(0.15, 1.2, 2.6), Color(0.45, 0.35, 0.25), true, "planches")
+	_box(p + Vector3(0, 0.6, -1.3), Vector3(2.9, 1.2, 0.15), Color(0.45, 0.35, 0.25), true, "planches")
+	_box(p + Vector3(0, 1.3, 0), Vector3(3.6, 0.1, 3.4), bache, false, "uni")
+	_prop("buisson", p + Vector3(2.4, 0, 1.0), rng.randf() * TAU, false, 1.1, 150.0)
+	_prop("buisson2", p + Vector3(-2.2, 0, 1.4), rng.randf() * TAU, false, 1.0, 150.0)
+	var c := _container(p + Vector3(0, 0, -0.5), Vector3(1.2, 0.7, 0.7), Color(0.3, 0.33, 0.25), "Cachette de survivant", "cachette", 4)
+	c.set_texture("metal_peint")
+	_reserve(Rect2(p.x - 4.0, p.z - 4.0, 8.0, 8.0))
+
+
+## Nid de zombies : charnier, barricade effondrée, horde (zone infestée sur la carte).
+func _nid_zombies(p: Vector3) -> void:
+	var sang := Color(0.3, 0.06, 0.05)
+	for i in 6:
+		var q := p + Vector3(rng.randf_range(-8.0, 8.0), 0, rng.randf_range(-8.0, 8.0))
+		q.y = relief.hauteur(q.x, q.z)
+		_box(q + Vector3(0, 0.03, 0), Vector3(rng.randf_range(2.0, 4.0), 0.04, rng.randf_range(2.0, 4.0)), sang, false, "terre")
+	for i in 10:
+		var q := p + Vector3(rng.randf_range(-7.0, 7.0), 0, rng.randf_range(-7.0, 7.0))
+		q.y = relief.hauteur(q.x, q.z)
+		if i % 3 == 0:
+			_box(q + Vector3(0, 0.2, 0), Vector3(0.6, 0.4, 1.8), Color(0.12, 0.13, 0.12), false, "uni")   # housse mortuaire
+		else:
+			_box(q + Vector3(0, 0.06, 0), Vector3(0.5, 0.08, 0.1), Color(0.85, 0.82, 0.75), false, "uni")   # os
+	for i in 5:
+		var q := p + Vector3(rng.randf_range(-12.0, 12.0), 0, rng.randf_range(-12.0, 12.0))
+		q.y = relief.hauteur(q.x, q.z)
+		_prop(["palette", "pneu", "baril_rouge", "caisse_bois", "tronc_mort"][i], q, rng.randf() * TAU, false, 1.0, 140.0)
+	var c := _container(p + Vector3(2.0, 0, 1.0), Vector3(0.8, 0.5, 0.5), Color(0.35, 0.3, 0.25), "Restes d'un survivant", "infeste", 3)
+	c.set_texture("planches")
+	_reserve(Rect2(p.x - 16.0, p.z - 16.0, 32.0, 32.0))
+	for i in 28:
+		var q := p + Vector3(rng.randf_range(-14.0, 14.0), 0, rng.randf_range(-14.0, 14.0))
+		q.y = relief.hauteur(q.x, q.z) + 0.1
+		guards.append({"pos": q, "kind": ["civil", "civil", "civil", "police", "militaire"][rng.randi() % 5], "radius": 28.0})
+	_poi("Nid de zombies (zone infestée)", p, Color(1.0, 0.25, 0.2))
+	Game.map_rects.append({"rect": Rect2(p.x - 25.0, p.z - 25.0, 50.0, 50.0), "color": Color(0.8, 0.1, 0.1, 0.25)})
