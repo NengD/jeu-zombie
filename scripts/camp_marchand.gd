@@ -158,15 +158,36 @@ func _garde(p: Vector3, regard: float, rng: RandomNumberGenerator) -> Node3D:
 
 ## Palissade de planches en cercle, ouverte côté +Z (entrée).
 func _palissade() -> void:
-	var bois := StandardMaterial3D.new()
-	bois.albedo_color = Color(0.55, 0.42, 0.3)
-	bois.roughness = 1.0
-	if ResourceLoader.exists("res://textures/planches_albedo.jpg"):
-		bois.albedo_texture = load("res://textures/planches_albedo.jpg")
-		bois.uv1_triplanar = true
-		bois.uv1_scale = Vector3.ONE * 0.6
+	# rondins verticaux taillés en pointe (deux MultiMesh : fûts et pointes), collisions par pan
+	var ecorce := StandardMaterial3D.new()
+	ecorce.albedo_color = Color(0.62, 0.52, 0.42)
+	ecorce.roughness = 1.0
+	if ResourceLoader.exists("res://textures/ecorce_albedo.jpg"):
+		ecorce.albedo_texture = load("res://textures/ecorce_albedo.jpg")
+		ecorce.uv1_scale = Vector3(1.0, 2.0, 1.0)
+	var taille := StandardMaterial3D.new()
+	taille.albedo_color = Color(0.72, 0.58, 0.4)   # bois clair des pointes taillées
+	taille.roughness = 1.0
+	var fut := CylinderMesh.new()
+	fut.top_radius = 0.11
+	fut.bottom_radius = 0.12
+	fut.height = 1.0
+	fut.radial_segments = 7
+	fut.rings = 1
+	fut.material = ecorce
+	var pointe := CylinderMesh.new()
+	pointe.top_radius = 0.0
+	pointe.bottom_radius = 0.11
+	pointe.height = 0.32
+	pointe.radial_segments = 7
+	pointe.rings = 1
+	pointe.material = taille
+	var xf_futs := []
+	var xf_pointes := []
 	var pas := TAU / NB_PANS
 	var largeur := 2.0 * RAYON * sin(pas / 2.0) + 0.25
+	var r := RandomNumberGenerator.new()
+	r.seed = int(position.x * 13.0 + position.z * 7.0)
 	for k in NB_PANS:
 		var a := PI / 2.0 + pas / 2.0 + k * pas   # pans centrés de part et d'autre de +Z
 		# ouverture : les deux pans de part et d'autre de +Z (angle PI/2), environ 7,5 m
@@ -176,14 +197,34 @@ func _palissade() -> void:
 		var h := 2.1 + 0.15 * sin(k * 2.7)
 		var pos := _sol(c) + Vector3(0, h / 2.0 - 0.15, 0)
 		var ang := -a - PI / 2.0   # pan tangent au cercle (axe X local le long de la tangente)
-		var mi := _boite(self, Vector3(largeur, h, 0.16), pos, bois, Vector3(0, ang, 0))
-		Decor.distance(mi, 160.0)
-		_boite_collision(Vector3(largeur, h, 0.16), Transform3D(Basis(Vector3.UP, ang), pos))
+		var axe := Basis(Vector3.UP, ang)
+		var nb := int(ceil(largeur / 0.22))
+		for i in nb:
+			var lx := -largeur / 2.0 + (i + 0.5) * largeur / nb
+			var hr := h + r.randf_range(-0.15, 0.2)
+			var base := _sol(c + Vector2((axe * Vector3(lx, 0, 0)).x, (axe * Vector3(lx, 0, 0)).z)) - Vector3(0, 0.2, 0)
+			var b := Basis(Vector3.UP, r.randf() * TAU).rotated(Vector3.RIGHT, r.randf_range(-0.03, 0.03))
+			xf_futs.append(Transform3D(b.scaled(Vector3(1.0, hr + 0.2, 1.0)), base + Vector3(0, (hr + 0.2) / 2.0, 0)))
+			xf_pointes.append(Transform3D(b, base + Vector3(0, hr + 0.2 + 0.16, 0)))
+		# traverse intérieure qui tient les rondins
+		_boite(self, Vector3(largeur, 0.12, 0.1), pos + axe * Vector3(0, h * 0.25, 0.16), taille, Vector3(0, ang, 0))
+		_boite_collision(Vector3(largeur, h, 0.24), Transform3D(axe, pos))
+	for paire in [[fut, xf_futs], [pointe, xf_pointes]]:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = paire[0]
+		mm.instance_count = paire[1].size()
+		for i in paire[1].size():
+			mm.set_instance_transform(i, paire[1][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		add_child(mmi)
+		mmi.visibility_range_end = 160.0
 	# deux poteaux plus hauts encadrent l'entrée
 	for s in [-1.0, 1.0]:
 		var a2: float = PI / 2.0 + s * pas
 		var pp := _sol(Vector2(cos(a2), sin(a2)) * RAYON) + Vector3(0, 1.4, 0)
-		_boite(self, Vector3(0.28, 2.8, 0.28), pp, bois)
+		_boite(self, Vector3(0.28, 2.8, 0.28), pp, ecorce)
 		_boite_collision(Vector3(0.28, 2.8, 0.28), Transform3D(Basis.IDENTITY, pp))
 
 
@@ -210,6 +251,18 @@ func _mirador(p: Vector2) -> void:
 	for x in [-1.1, 1.1]:
 		for z in [-1.1, 1.1]:
 			_boite(t, Vector3(0.1, 1.2, 0.1), Vector3(x, h + 1.6, z), bois)
+	# croix de Saint-André entre les poteaux et échelle côté camp (+Z)
+	var diag := Vector2(2.2, h - 0.5)
+	var ang_d := atan2(diag.y, diag.x)
+	for s in [-1.0, 1.0]:
+		for sens in [-1.0, 1.0]:
+			_boite(t, Vector3(diag.length(), 0.09, 0.05), Vector3(0, h / 2.0, 1.15 * s), bois, Vector3(0, 0, ang_d * sens))
+			_boite(t, Vector3(0.05, 0.09, diag.length()), Vector3(1.15 * s, h / 2.0, 0), bois, Vector3(ang_d * sens, 0, 0))
+	for sx in [-0.25, 0.25]:
+		_boite(t, Vector3(0.07, h + 0.9, 0.07), Vector3(sx, (h + 0.9) / 2.0, 1.45), bois, Vector3(-0.12, 0, 0))
+	for k in int(h / 0.32):
+		var y := 0.3 + k * 0.32
+		_boite(t, Vector3(0.5, 0.05, 0.05), Vector3(0, y, 1.45 + (h / 2.0 - y) * 0.12), bois)
 	_boite_collision(Vector3(2.6, 0.12, 2.6), Transform3D(Basis.IDENTITY, t.position + Vector3(0, h, 0)))
 	for x in [-1.1, 1.1]:
 		for z in [-1.1, 1.1]:
