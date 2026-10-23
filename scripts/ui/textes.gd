@@ -184,6 +184,13 @@ const GUIDE := """[b]LES BASES[/b]
   [b]relais routier[/b] (remorques de camions pleines de marchandises), [b]châteaux d'eau[/b] et silos des fermes, visibles de loin.
 • [b]Châteaux d'eau[/b] : une échelle mène à la coursive (22 m), point de vue pour repérer les environs, hors d'atteinte des zombies.
   Face à l'échelle, [Z] monte, [S] descend ; en haut, [Z] fait passer sur la coursive ; [Espace] lâche l'échelle (attention à la chute).
+• [b]Routes secondaires[/b] : elles quadrillent la campagne ; aux carrefours, un panneau indique les villes et villages proches
+  (direction et distance), parfois un abribus. Des [b]barrages routiers[/b] abandonnés gardent une caisse de la police… et des policiers zombies.
+• [b]Voie ferrée[/b] au nord (gare de Valmont, halte des Granges) : wagons de marchandises à fouiller ; le [b]train déraillé[/b]
+  (zone infestée, en rouge) transporte du matériel militaire et un wagon blindé au butin rare.
+• [b]Forêts[/b] nommées sur la carte, plus denses (gibier) : cabanes de chasseur (munitions de chasse, arcs, flèches) et
+  miradors (échelle, caisse en haut), reliés à la route par un sentier. Fermes et maisons isolées le long des routes ;
+  lignes à haute tension et parcs éoliens sur les collines, repères visibles de loin.
 • [b]Poste de police[/b] : pistolets, MP5K, Benelli, munitions, gilets pare-balles.
 • [b]Base militaire[/b] : fusils d'assaut, fusils de précision, grenades, gilet tactique, casque — très gardée ! Portail à l'est… et une brèche quelque part au nord.
 • [b]Hôpital[/b] : bandages, trousses de soin, antidouleurs.
