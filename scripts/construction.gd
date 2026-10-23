@@ -159,6 +159,141 @@ static func maillages(n: Node3D, t: String, n_tier: int, collisions: bool, mat: 
 				cs.position = Vector3(0, H / 2.0, 0)
 				cs.rotation.x = atan2(H, S)
 				n.add_child(cs)
+	if mat == null:
+		_habillage(n, t, n_tier)
+
+
+# ---------------------------------------------------------------- habillage (sans collision)
+## Détails selon le matériau : bois = poteaux d'angle et traverses ; tôle = panneaux ondulés sur une
+## ossature ; parpaing = chaînages d'angle et chaperon. Portes et fenêtres : cadres, écharpe, barreaux.
+static func _habillage(n: Node3D, t: String, n_tier: int) -> void:
+	var l := S + EP
+	var h: float = {"mur": HM, "demi_mur": 1.2, "mur_fenetre": HM, "mur_porte": HM}.get(t, 0.0)
+	if h > 0.0:
+		var poteau: StandardMaterial3D = _mat_detail("poteau") if n_tier < 2 else _mat_detail("beton")
+		var p := 0.16 if n_tier < 2 else 0.24
+		for sx in [-1.0, 1.0]:
+			_deco(n, Vector3(p, h, EP + 0.06), Vector3(sx * (l / 2.0 - p / 2.0), h / 2.0, 0), poteau)
+		match n_tier:
+			0:
+				# traverses horizontales des deux côtés (en haut et en bas)
+				for y in ([0.25, h - 0.3] if h > 2.0 else [0.25, h - 0.15]):
+					for sz in [-1.0, 1.0]:
+						_deco(n, Vector3(l - 2.0 * p, 0.12, 0.04), Vector3(0, y, sz * (EP / 2.0 + 0.02)), poteau)
+			1:
+				# tôle ondulée sur les deux faces (hors ouvertures)
+				for sz in [-1.0, 1.0]:
+					for r in _zones_pleines(t, l, h):
+						var mi := MeshInstance3D.new()
+						mi.mesh = _ondule(r.size.x, r.size.y)
+						mi.material_override = materiau(1)
+						mi.position = Vector3(r.position.x + r.size.x / 2.0, r.position.y + r.size.y / 2.0, sz * (EP / 2.0 + 0.02))
+						mi.rotation.y = 0.0 if sz > 0.0 else PI
+						mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+						n.add_child(mi)
+			2:
+				_deco(n, Vector3(l + 0.04, 0.08, EP + 0.1), Vector3(0, h + 0.04, 0), _mat_detail("beton"))   # chaperon
+		var cadre: StandardMaterial3D = _mat_detail("poteau") if n_tier == 0 else _mat_detail("metal")
+		if t == "mur_fenetre":
+			for sz in [-1.0, 1.0]:
+				_deco(n, Vector3(1.32, 0.08, 0.05), Vector3(0, 1.0, sz * (EP / 2.0 + 0.025)), cadre)
+				_deco(n, Vector3(1.32, 0.08, 0.05), Vector3(0, 2.0, sz * (EP / 2.0 + 0.025)), cadre)
+				for sx in [-1.0, 1.0]:
+					_deco(n, Vector3(0.08, 1.0, 0.05), Vector3(sx * 0.62, 1.5, sz * (EP / 2.0 + 0.025)), cadre)
+			# barreaux (tôle, parpaing) ou croisillon de planches (bois)
+			if n_tier == 0:
+				_deco(n, Vector3(1.3, 0.1, 0.04), Vector3(0, 1.5, 0), cadre, Vector3(0, 0, 0.6))
+			else:
+				for k in 5:
+					_deco(n, Vector3(0.025, 1.0, 0.025), Vector3(-0.5 + k * 0.25, 1.5, 0), _mat_detail("metal"))
+		elif t == "mur_porte":
+			for sz in [-1.0, 1.0]:
+				_deco(n, Vector3(PORTE_L + 0.16, 0.1, 0.05), Vector3(0, PORTE_H + 0.05, sz * (EP / 2.0 + 0.025)), cadre)
+				for sx in [-1.0, 1.0]:
+					_deco(n, Vector3(0.08, PORTE_H, 0.05), Vector3(sx * (PORTE_L / 2.0 + 0.04), PORTE_H / 2.0, sz * (EP / 2.0 + 0.025)), cadre)
+	elif t == "porte":
+		var cadre: StandardMaterial3D = _mat_detail("poteau") if n_tier == 0 else _mat_detail("metal")
+		for sz in [-1.0, 1.0]:
+			var z: float = sz * 0.055
+			# traverses haute et basse, écharpe en Z (porte de grange) ; renforts sur la porte en tôle
+			_deco(n, Vector3(PORTE_L - 0.12, 0.12, 0.03), Vector3(PORTE_L / 2.0, 0.3, z), cadre)
+			_deco(n, Vector3(PORTE_L - 0.12, 0.12, 0.03), Vector3(PORTE_L / 2.0, PORTE_H - 0.3, z), cadre)
+			var diag := Vector2(PORTE_L - 0.2, PORTE_H - 0.6)
+			_deco(n, Vector3(0.11, diag.length(), 0.03), Vector3(PORTE_L / 2.0, PORTE_H / 2.0, z), cadre, Vector3(0, 0, -atan2(diag.x, diag.y)))
+	elif t == "fondation" and n_tier > 0:
+		_deco(n, Vector3(S + 0.04, 0.06, S + 0.04), Vector3(0, -0.4, 0), _mat_detail("beton"))
+
+
+## Parties pleines d'un mur (rectangles dans le plan X/Y) : autour des ouvertures.
+static func _zones_pleines(t: String, l: float, h: float) -> Array:
+	var x0 := -l / 2.0 + 0.16
+	var w := l - 0.32
+	match t:
+		"mur_fenetre":
+			var c := (w - 1.2) / 2.0
+			return [Rect2(x0, 0.0, w, 1.0), Rect2(x0, 2.0, w, h - 2.0), Rect2(x0, 1.0, c, 1.0), Rect2(0.6, 1.0, c, 1.0)]
+		"mur_porte":
+			var c2 := (w - PORTE_L) / 2.0
+			return [Rect2(x0, PORTE_H, w, h - PORTE_H), Rect2(x0, 0.0, c2, PORTE_H), Rect2(PORTE_L / 2.0, 0.0, c2, PORTE_H)]
+	return [Rect2(x0, 0.0, w, h)]
+
+
+static var _ondules := {}
+
+
+## Panneau de tôle ondulée (largeur X, hauteur Y), ondes verticales tous les 7,6 cm, face vers +Z.
+static func _ondule(w: float, h: float) -> ArrayMesh:
+	var cle := "%.2f_%.2f" % [w, h]
+	if _ondules.has(cle):
+		return _ondules[cle]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var nb := maxi(2, int(w / 0.038))
+	for i in nb:
+		var xa := -w / 2.0 + w * i / nb
+		var xb := -w / 2.0 + w * (i + 1) / nb
+		var za := 0.02 * sin(i * PI / 2.0)
+		var zb := 0.02 * sin((i + 1) * PI / 2.0)
+		var nrm := Vector3(-(zb - za), 0, xb - xa).normalized()
+		for v in [Vector3(xa, -h / 2.0, za), Vector3(xb, -h / 2.0, zb), Vector3(xb, h / 2.0, zb),
+				Vector3(xa, -h / 2.0, za), Vector3(xb, h / 2.0, zb), Vector3(xa, h / 2.0, za)]:
+			st.set_normal(nrm)
+			st.set_uv(Vector2(v.x, v.y))
+			st.add_vertex(v)
+	var m := st.commit()
+	_ondules[cle] = m
+	return m
+
+
+static func _mat_detail(nom: String) -> StandardMaterial3D:
+	var cle := "detail_" + nom
+	if _mats.has(cle):
+		return _mats[cle]
+	var m: StandardMaterial3D = materiau(0).duplicate() if nom == "poteau" else StandardMaterial3D.new()
+	match nom:
+		"poteau":
+			m.albedo_color = Color(0.55, 0.4, 0.27)   # bois plus sombre que les planches
+		"beton":
+			m.albedo_color = Color(0.62, 0.61, 0.58)
+			m.roughness = 0.95
+		"metal":
+			m.albedo_color = Color(0.3, 0.3, 0.32)
+			m.metallic = 0.7
+			m.roughness = 0.45
+	_mats[cle] = m
+	return m
+
+
+static func _deco(n: Node3D, taille: Vector3, pos: Vector3, m: Material, r := Vector3.ZERO) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = taille
+	mi.mesh = bm
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation = r
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.add_child(mi)
 
 
 static func _metal_porte() -> StandardMaterial3D:
