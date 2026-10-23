@@ -1,5 +1,6 @@
 extends CharacterBody3D
-## Animaux sauvages : cerf et biche (modèles animés de Quaternius), sanglier, lapin et faisan (faits par le code).
+## Animaux sauvages : cerf et biche (modèles animés de Quaternius), sanglier, lapin et faisan (modèles Poly by Google
+## découpés en tête et pattes animées par le code, cf. outils/godot/normaliser_animaux.gd).
 ## Ils paissent autour de leur point de départ, entendent les bruits (Game.make_noise), voient le joueur
 ## (moins s'il est accroupi ou caché) et fuient ; le sanglier peut charger. Mort : [F] pour dépecer au couteau.
 ## Placés et retirés par cases autour du joueur (scripts/faune.gd).
@@ -48,6 +49,7 @@ var anim := ""
 var modele: Node3D
 var pattes: Array = []               # [pivot, phase] des modèles faits par le code
 var tete: Node3D = null
+var corps_modele: Node3D = null     # corps du modèle découpé (bascule en vol)
 var ailes: Array = []
 var phase := 0.0
 var _mats := {}
@@ -330,16 +332,24 @@ const Effets = preload("res://scripts/effets.gd")
 func _construire() -> void:
 	modele = Node3D.new()
 	add_child(modele)
+	var m := ModeleUtil.charger("res://modeles/animaux/%s.scn" % kind)
+	if m:
+		modele.add_child(m)
+		ap = ModeleUtil.anim_player(m)
+		if ap:
+			ModeleUtil.boucler(ap, ["Idle", "Idle_2", "Eating", "Walk", "Gallop"])
+			ap.playback_default_blend_time = 0.25
+			return
+		# modèle fixe découpé (outils/godot/normaliser_animaux.gd) : tête et pattes articulées
+		var t := m.find_child("Tete", true, false)
+		if t:
+			tete = t
+		for p in m.find_children("Patte*", "", true, false):
+			pattes.append([p, float(p.get_meta("phase", 0.0))])
+		corps_modele = m.find_child("Corps", true, false)
+		return
 	match kind:
 		"cerf", "biche":
-			var m := ModeleUtil.charger("res://modeles/animaux/%s.scn" % kind)
-			if m:
-				modele.add_child(m)
-				ap = ModeleUtil.anim_player(m)
-				if ap:
-					ModeleUtil.boucler(ap, ["Idle", "Idle_2", "Eating", "Walk", "Gallop"])
-					ap.playback_default_blend_time = 0.25
-				return
 			_quadrupede(Color(0.55, 0.38, 0.22), 1.0, 0.95)
 		"sanglier":
 			_quadrupede(Color(0.38, 0.3, 0.22), 0.62, 1.0)
@@ -486,6 +496,19 @@ func _animer(delta: float) -> void:
 	# modèles faits par le code : pattes qui balancent, corps qui oscille, tête qui broute
 	phase += delta * (v * (9.0 if kind in ["lapin", "faisan"] else 5.0) + 0.001)
 	var amp := clampf(v * 0.25, 0.0, 0.8)
+	if corps_modele:
+		# modèle découpé : pattes courtes, angles plus petits ; le faisan replie les pattes et bascule en vol
+		amp = clampf(v * 0.12, 0.0, 0.45 if kind == "lapin" else 0.6)
+		if kind == "faisan":
+			var incl := -0.35 if vol else 0.0
+			modele.rotation.x = lerpf(modele.rotation.x, incl, minf(1.0, delta * 5.0))
+			modele.position.y = absf(sin(phase)) * 0.02 * float(not vol)
+			for pa in pattes:
+				pa[0].rotation.x = lerpf(pa[0].rotation.x, 1.1, minf(1.0, delta * 8.0)) if vol else sin(phase + pa[1]) * amp
+			if tete:
+				var picore := 1.0 if (broute and etat == Etat.PAIT and v < 0.3) else 0.0
+				tete.rotation.x = -0.5 * picore * maxf(0.0, sin(Time.get_ticks_msec() * 0.006)) + sin(phase) * 0.12 * float(v > 0.3)
+			return
 	if kind == "lapin":
 		# bonds : tout le corps saute, pattes arrière ensemble
 		modele.position.y = absf(sin(phase * 0.5)) * clampf(v * 0.05, 0.0, 0.25)
@@ -497,7 +520,7 @@ func _animer(delta: float) -> void:
 			pa[0].rotation.x = sin(phase + pa[1]) * amp
 	if tete:
 		var bas := 1.0 if (broute and etat == Etat.PAIT and v < 0.3) else 0.0
-		tete.rotation.x = lerpf(tete.rotation.x, -0.6 * bas + sin(phase * 0.3) * 0.05 * bas, minf(1.0, delta * 4.0))
+		tete.rotation.x = lerpf(tete.rotation.x, (-0.35 if corps_modele else -0.6) * bas + sin(phase * 0.3) * 0.05 * bas, minf(1.0, delta * 4.0))
 	for a in ailes:
 		var cible: float = a[1] * (-1.35 if not vol else sin(Time.get_ticks_msec() * 0.03) * 0.9)
 		a[0].rotation.z = lerpf(a[0].rotation.z, cible, minf(1.0, delta * 12.0))

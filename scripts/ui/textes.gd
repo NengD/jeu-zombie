@@ -90,7 +90,7 @@ const GUIDE := """[b]LES BASES[/b]
   quand un camp est entièrement nettoyé. Viens la toucher chez un marchand.
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
-• Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0.
+• Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; sanglier, lapin et faisan : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Train, tentes et tours de garde : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer et bus scolaire : Poly by Google ; camion militaire : Alex Safayan (CC BY 3.0, via Poly Pizza).
 • Équipement porté : sacs (Quaternius, Voxel_dev, accidentallyc), lunettes (iPoly3D) — CC0 ; casque intégral (CreativeTechLab), casque de chantier (Poly by Google), masque à gaz (Marisha), sac de chasse, bonnet et casquette (J-Toastie), casquette de police (Casey Tumbers) — CC BY 3.0, via Poly Pizza ; casque militaire (hc, OpenGameArt, CC BY 3.0).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.

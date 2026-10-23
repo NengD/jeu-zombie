@@ -60,7 +60,10 @@ Décor (tous CC0 — domaine public) :
    (glb dans outils/sources_props ; conversion : outils/godot/normaliser_props.gd)
 — Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius (https://quaternius.com), licence CC0
    (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_animaux.gd).
-   Sanglier, lapin, faisan, arc et flèches : modèles construits par le code du jeu.
+— Sanglier « Boar » (https://poly.pizza/m/57fSWum6F1P), lapin « Rabbit » (https://poly.pizza/m/9OBTRVYUSmt)
+   et faisan « Pheasant ring-necked » (https://poly.pizza/m/emvqBiIhl-C) : Poly by Google, licence CC BY 3.0
+   (découpés en tête et pattes animées par outils/godot/normaliser_animaux.gd).
+   Arc et flèches : modèles construits par le code du jeu.
 — Textures photo (asphalte, béton, briques, carrelage, écorce, enduit, herbe, métal, parpaing, parquet, planches,
    roche, terre, toit, tôle, trottoir, tuiles) : Poly Haven (https://polyhaven.com), licence CC0, en 2k
    (outils/godot/installer_textures.gd ; anciennes textures générées dans outils/textures_generees/).
