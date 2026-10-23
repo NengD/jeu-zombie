@@ -89,6 +89,16 @@ class Cadre extends Control:
 			draw_polyline(losange, Color.BLACK, 1.5)
 			draw_string_outline(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
 			draw_string(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.75, 0.4))
+		# ma base : petite maison bleue
+		var base := Game.position_base()
+		if base != Vector3.INF:
+			var bp := vers_ecran(Vector2(base.x, base.z))
+			if vue.grow(40.0).has_point(bp):
+				draw_rect(Rect2(bp + Vector2(-7, -3), Vector2(14, 10)), Color(0.45, 0.7, 1.0))
+				draw_colored_polygon(PackedVector2Array([bp + Vector2(-10, -3), bp + Vector2(0, -12), bp + Vector2(10, -3)]), Color(0.3, 0.5, 0.9))
+				draw_rect(Rect2(bp + Vector2(-7, -3), Vector2(14, 10)), Color.BLACK, false, 1.5)
+				draw_string_outline(font, bp + Vector2(13, 6), "Ma base", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, 4, Color.BLACK)
+				draw_string(font, bp + Vector2(13, 6), "Ma base", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.6, 0.8, 1.0))
 		var p = Game.player
 		if p:
 			var pp2 := vers_ecran(Vector2(p.global_position.x, p.global_position.z))
@@ -105,10 +115,55 @@ class Cadre extends Control:
 
 
 class MapView extends Control:
+	var legende := true   # [L] : afficher / masquer la légende
+	const LEGENDE := [
+		["rond", Color(0.95, 0.95, 0.95), "Ville"],
+		["rond", Color(0.9, 0.7, 0.45), "Village, ferme, campagne"],
+		["rond", Color(0.4, 0.9, 0.5), "Campement de marchands (sûr)"],
+		["rond", Color(0.95, 0.2, 0.15), "Bandits, zone infestée"],
+		["rond", Color(0.6, 0.8, 0.3), "Militaire"],
+		["rond", Color(0.35, 0.55, 1.0), "Police"],
+		["rond", Color(1.0, 0.35, 0.35), "Hôpital"],
+		["rond", Color(1.0, 0.9, 0.3), "Station-service"],
+		["rond", Color(1.0, 0.75, 0.3), "Commerce"],
+		["rond", Color(0.4, 0.65, 0.95), "Eau"],
+		["rond", Color(0.45, 0.45, 0.45), "Lieu déjà fouillé"],
+		["losange", Color(1.0, 0.55, 0.1), "Mon marqueur (clic droit)"],
+		["maison", Color(0.45, 0.7, 1.0), "Ma base"],
+		["fleche", Color(1, 0.95, 0.3), "Toi"],
+	]
+
+	func _dessiner_legende(cadre: Control, font: Font) -> void:
+		var lg := 250.0
+		var h := 34.0 + LEGENDE.size() * 22.0
+		# à droite de la carte s'il y a la place, sinon dans son coin haut droit
+		var o := cadre.position + Vector2(cadre.size.x + 18.0, 0)
+		if o.x + lg > size.x - 8.0:
+			o = cadre.position + Vector2(cadre.size.x - lg - 8.0, 8.0)
+		draw_rect(Rect2(o, Vector2(lg, h)), Color(0, 0, 0, 0.6))
+		draw_string(font, o + Vector2(10, 22), "LÉGENDE  [L]", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.95, 0.9, 0.7))
+		for i in LEGENDE.size():
+			var e: Array = LEGENDE[i]
+			var c := o + Vector2(20, 44 + i * 22.0)
+			var col: Color = e[1]
+			match e[0]:
+				"rond":
+					draw_circle(c, 6.0, col)
+				"losange":
+					draw_colored_polygon(PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 0), c + Vector2(0, 8), c + Vector2(-6, 0)]), col)
+				"maison":
+					draw_rect(Rect2(c + Vector2(-6, -2), Vector2(12, 8)), col)
+					draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -2), c + Vector2(0, -9), c + Vector2(8, -2)]), Color(0.3, 0.5, 0.9))
+				"fleche":
+					draw_colored_polygon(PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 6), c + Vector2(-6, 6)]), col)
+			draw_string(font, c + Vector2(16, 5), e[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
+
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.8))
 		var font := ThemeDB.fallback_font
-		var titre := "CARTE  —  [M] fermer   molette : zoom   clic maintenu : déplacer   clic droit : poser / retirer un marqueur   [Espace] : recentrer"
+		if legende and get_child_count() > 0:
+			_dessiner_legende(get_child(0), font)
+		var titre := "CARTE  —  [M] fermer   molette : zoom   clic maintenu : déplacer   clic droit : poser / retirer un marqueur   [Espace] : recentrer   [L] : légende"
 		var cadre: Control = get_child(0)
 		draw_string_outline(font, cadre.position + Vector2(0, -12), titre, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 4, Color.BLACK)
 		draw_string(font, cadre.position + Vector2(0, -12), titre, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.9, 0.7))
@@ -157,6 +212,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif view.visible and event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_SPACE:
 		_recentrer()
+		get_viewport().set_input_as_handled()
+	elif view.visible and event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo and (event as InputEventKey).keycode == KEY_L:
+		view.legende = not view.legende
 		get_viewport().set_input_as_handled()
 
 

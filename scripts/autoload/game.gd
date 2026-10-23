@@ -130,6 +130,36 @@ var marqueurs: Array = []        # marqueurs personnels de la carte : {nom, x, z
 var lieux_fouilles := {}         # cle_lieu(poi) -> true : lieux dont presque tout a été fouillé
 
 
+## Centre de la base du joueur (sa plus grande construction, au moins 3 pièces), Vector3.INF s'il n'en a pas.
+## Recalculé au plus toutes les 2 s (carte et boussole l'appellent à chaque image).
+var _base_cache := Vector3.INF
+var _base_t := -100.0
+
+
+func position_base() -> Vector3:
+	var t := Time.get_ticks_msec() / 1000.0
+	if t - _base_t < 2.0:
+		return _base_cache
+	_base_t = t
+	_base_cache = Vector3.INF
+	var meilleure: Node = null
+	var nb := 2
+	for b in get_tree().get_nodes_in_group("base_construction"):
+		if is_instance_valid(b) and b.get_child_count() > nb:
+			nb = b.get_child_count()
+			meilleure = b
+	if meilleure:
+		var c := Vector3.ZERO
+		var n := 0
+		for piece in meilleure.get_children():
+			if piece is Node3D:
+				c += (piece as Node3D).global_position
+				n += 1
+		if n > 0:
+			_base_cache = c / n
+	return _base_cache
+
+
 func cle_lieu(poi: Dictionary) -> String:
 	return "%s@%d,%d" % [poi.name, int(poi.pos.x), int(poi.pos.z)]
 

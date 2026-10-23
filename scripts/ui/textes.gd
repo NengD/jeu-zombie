@@ -209,7 +209,8 @@ const GUIDE := """[b]LES BASES[/b]
 • La région fait 5 × 5 km : [b]Bellerive[/b] (ville principale), [b]Valmont[/b] (au nord-est, avec sa zone industrielle),
   quatre villages (Saint-Aubin, Hameau des Sources, les Granges, Pont-Rouge), fermes, stations-service, motels.
   Sur la carte : molette pour zoomer, clic maintenu pour la déplacer, [Espace] pour recentrer sur toi
-  (les boutiques et bâtiments des villes ne sont nommés qu'en zoomant fort).
+  (les boutiques et bâtiments des villes ne sont nommés qu'en zoomant fort) ; [L] affiche ou masque la légende.
+  Ta base (ta plus grande construction) apparaît en maison bleue « Ma base » sur la carte et la boussole.
 • Les villes ont un [b]centre dense[/b] (immeubles hauts, bureaux) et des [b]quartiers pavillonnaires[/b] sur le pourtour ;
   chacune a un [b]lotissement neuf[/b] en périphérie (des Tilleuls, du Moulin-Neuf) : maisons identiques, vite fouillées.
 • En ville : [b]centre commercial[/b] (six boutiques autour d'une galerie), [b]pharmacie[/b] (soins), [b]garage auto[/b]
