@@ -63,7 +63,8 @@ Décor (tous CC0 — domaine public) :
 — Sanglier « Boar » (https://poly.pizza/m/57fSWum6F1P), lapin « Rabbit » (https://poly.pizza/m/9OBTRVYUSmt)
    et faisan « Pheasant ring-necked » (https://poly.pizza/m/emvqBiIhl-C) : Poly by Google, licence CC BY 3.0
    (découpés en tête et pattes animées par outils/godot/normaliser_animaux.gd).
-   Arc et flèches : modèles construits par le code du jeu.
+— Arc recourbé « Wooden Bow » (https://poly.pizza/m/QnpqjLSKFU) et flèche « Arrow » (https://poly.pizza/m/Rt48KEPDGt) :
+   Quaternius, licence CC0 (conversion : outils/godot/normaliser_arc.gd ; corde tendue par le jeu).
 — Objets au sol (conserve, bandage, trousse de soin, jerrican) : « Survival Pack » de Quaternius ; bouteille et barre
    chocolatée : « Ultimate Food » de Quaternius — licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ;
    conversion : outils/godot/normaliser_objets.gd).

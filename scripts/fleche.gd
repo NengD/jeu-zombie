@@ -5,6 +5,7 @@ extends Node3D
 
 const Effets = preload("res://scripts/effets.gd")
 const GRAVITE := 4.5
+const MAILLAGE: ArrayMesh = preload("res://modeles/armes/fleche.res")
 const LONGUEUR := 0.72
 const MAX_PLANTEES := 40
 
@@ -42,55 +43,16 @@ func _ready() -> void:
 	_orienter()
 
 
-## Modèle : pointe à l'origine, fût vers +Z (l'avant de la flèche est -Z).
+## Modèle : pointe à l'origine, fût vers +Z (l'avant de la flèche est -Z). « Arrow » de Quaternius (CC0),
+## converti par outils/godot/normaliser_arc.gd : encoche à l'origine, pointe vers +Y.
 func _construire() -> void:
-	var bois := StandardMaterial3D.new()
-	bois.albedo_color = Color(0.62, 0.48, 0.3)
-	var fut := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.0045
-	cm.bottom_radius = 0.0045
-	cm.height = LONGUEUR
-	cm.radial_segments = 5
-	cm.rings = 1
-	fut.mesh = cm
-	fut.material_override = bois
-	fut.rotation.x = PI / 2.0
-	fut.position.z = LONGUEUR / 2.0
-	fut.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(fut)
-	var pointe := MeshInstance3D.new()
-	var pm := CylinderMesh.new()
-	pm.top_radius = 0.0
-	pm.bottom_radius = 0.011
-	pm.height = 0.05
-	pm.radial_segments = 4
-	pm.rings = 1
-	pointe.mesh = pm
-	var acier := StandardMaterial3D.new()
-	acier.albedo_color = Color(0.5, 0.5, 0.52)
-	acier.metallic = 0.7
-	pointe.material_override = acier
-	pointe.rotation.x = -PI / 2.0
-	pointe.position.z = 0.0
-	add_child(pointe)
-	var plume := StandardMaterial3D.new()
-	plume.albedo_color = Color(0.85, 0.2, 0.15)
-	plume.cull_mode = BaseMaterial3D.CULL_DISABLED
-	for k in 3:
-		var p := MeshInstance3D.new()
-		var q := QuadMesh.new()
-		q.size = Vector2(0.11, 0.025)
-		p.mesh = q
-		p.material_override = plume
-		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# trois pennes autour du fût, chacune dans un plan qui contient l'axe
-		var piv := Node3D.new()
-		piv.rotation.z = k * TAU / 3.0
-		add_child(piv)
-		p.rotation = Vector3(0, PI / 2.0, 0)
-		p.position = Vector3(0, 0.012, LONGUEUR - 0.08)
-		piv.add_child(p)
+	var m := MeshInstance3D.new()
+	m.mesh = MAILLAGE
+	var k := (LONGUEUR + 0.05) / float(MAILLAGE.get_meta("longueur"))
+	m.basis = Basis(Vector3.RIGHT, -PI / 2.0).scaled(Vector3.ONE * k)
+	m.position.z = LONGUEUR + 0.05
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(m)
 
 
 func _orienter() -> void:
