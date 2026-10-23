@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 7 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 8 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -1633,9 +1633,9 @@ func _military_base(c: Vector3) -> void:
 	var cas2 := _building(c + Vector3(10, 0, 30), 24.0, 10.0, 4.0, Color(0.45, 0.47, 0.38), ["n"], "militaire", "Caserne", false, 8, Color(0.35, 0.42, 0.28))
 	var arm := _building(c + Vector3(-35, 0, -25), 12.0, 10.0, 4.0, Color(0.32, 0.35, 0.28), ["e"], "armurerie_mil", "Armurerie militaire", false, 6, Color(0.6, 0.7, 0.3))
 	# camions et sacs de sable
-	_car(c + Vector3(30, 0, 5), false, Color(0.28, 0.32, 0.2), "voiture_suv")
-	_car(c + Vector3(36, 0, 8), false, Color(0.28, 0.32, 0.2), "voiture_suv")
-	_car(c + Vector3(-10, 0, -5), true, Color(0.28, 0.32, 0.2), "voiture_suv")
+	_modele_ou_voiture("camion_mil", c + Vector3(30, 0, 5), 0.0, "voiture_suv", Color(0.28, 0.32, 0.2))
+	_modele_ou_voiture("camion_mil", c + Vector3(37, 0, 8), 0.1, "voiture_suv", Color(0.28, 0.32, 0.2))
+	_modele_ou_voiture("camion_mil", c + Vector3(-10, 0, -5), PI / 2.0, "voiture_suv", Color(0.28, 0.32, 0.2))
 	for p in [Vector3(42, 0, -8), Vector3(42, 0, 8), Vector3(10, 0, 0), Vector3(-15, 0, 10), Vector3(-30, 0, -8)]:
 		_box(c + p + Vector3(0, 0.6, 0), Vector3(1.2, 1.2, 5.0), Color(1.1, 1.0, 0.8), true, "terre")
 	cur_mat = mat_avant
@@ -3665,7 +3665,10 @@ func _grillage(a: Vector2, b: Vector2, h: float, trou := 0.0) -> void:
 		var mid := (p0 + p1) / 2.0
 		var lg := p0.distance_to(p1)
 		var t := Vector3(lg, h, 0.05) if absf(dir.x) > 0.5 else Vector3(0.05, h, lg)
-		_box(Vector3(mid.x, h / 2.0, mid.y), t, Color(0.55, 0.58, 0.6), true, "metal")
+		_box(Vector3(mid.x, h / 2.0, mid.y), t, Color.WHITE, true, "invisible")
+		for k in 6:   # fils tendus (on voit à travers), le dernier en barbelé
+			var y := 0.25 + k * (h - 0.25) / 5.0
+			_box(Vector3(mid.x, y, mid.y), Vector3(lg, 0.03, 0.03) if absf(dir.x) > 0.5 else Vector3(0.03, 0.03, lg), Color(0.5, 0.52, 0.55), false, "metal")
 		var s := 0.0
 		while s <= lg:
 			var q := p0 + dir * s
@@ -3799,8 +3802,10 @@ func _camp_refugies(p: Vector3) -> void:
 	for i in 3:
 		var cr := _container(p + Vector3(-50.0 + i * 4.0, 0, 44.0), Vector3(1.2, 0.8, 0.8), Color(0.85, 0.85, 0.82), "Caisse humanitaire", "magasin", 3)
 		cr.set_texture("metal_peint")
-	_car(p + Vector3(48.0, 0, 8.0), false, Color(0.28, 0.32, 0.2), "voiture_suv")
-	_car(p + Vector3(48.0, 0, -6.0), false, Color(0.28, 0.32, 0.2), "voiture_suv")
+	_modele_ou_voiture("camion_mil", p + Vector3(48.0, 0, 10.0), 0.1, "voiture_suv", Color(0.28, 0.32, 0.2))
+	_modele_ou_voiture("camion_mil", p + Vector3(50.0, 0, -8.0), -0.15, "voiture_suv", Color(0.28, 0.32, 0.2))
+	for e in [Vector3(-55.0, 0, -45.0), Vector3(-55.0, 0, 45.0)]:   # tours de garde aux coins
+		_prop("tour_garde", p + e, 0.0, true, 1.2, 320.0)
 	_guards(p, 50, Vector2(55.0, 45.0), ["civil", "civil", "civil", "civil", "militaire"], 45.0)
 	_poi("Camp de réfugiés (zone infestée)", p, Color(1.0, 0.25, 0.2))
 	Game.map_rects.append({"rect": Rect2(p.x - 62.0, p.z - 52.0, 124.0, 104.0), "color": Color(0.8, 0.1, 0.1, 0.25)})
@@ -3815,6 +3820,8 @@ func _tente_grande(c: Vector3, col: Color, table: String) -> void:
 	var h := 2.4
 	var ct := _container(c, _taille_ab(u, v, lu, lv, h), col, "Tente", table, 2)
 	ct.mesh_i.visible = false
+	if _prop("tente_mil", c, 0.0, false, 1.0, 200.0):
+		return
 	var f0 := c - v * lv / 2.0 + Vector3(0, h, 0)
 	var f1 := c + v * lv / 2.0 + Vector3(0, h, 0)
 	var g0 := c - u * lu / 2.0 - v * lv / 2.0
@@ -3826,6 +3833,14 @@ func _tente_grande(c: Vector3, col: Color, table: String) -> void:
 	for e in [[g0, d0, f0], [g1, d1, f1]]:
 		_tri(e[0], e[1], e[2], col.darkened(0.2), "uni")
 		_tri(e[1], e[0], e[2], col.darkened(0.2), "uni")
+
+
+## Véhicule ou décor en modèle 3D si disponible, sinon voiture (id_secours) comme avant.
+func _modele_ou_voiture(id: String, c: Vector3, ang: float, id_secours: String, col: Color) -> void:
+	if Decor.existe(id):
+		_prop(id, c, ang, true, 1.0, 240.0)
+	else:
+		_car(c, absf(sin(ang)) > 0.5, col, id_secours)
 
 
 # ---------------------------------------------------------------- crash d'hélicoptère
@@ -4031,6 +4046,9 @@ func _colonie(p: Vector3) -> void:
 	for k in 3:
 		var ca := _container(Vector3(lc.x + 6.0 + k * 2.2, 0, rive + 3.0), Vector3(0.9, 0.45, 4.2), [Color(0.85, 0.3, 0.15), Color(0.2, 0.45, 0.75), Color(0.9, 0.75, 0.2)][k], "Canoë", "camping", 1)
 		ca.set_texture("planches")
+	# bus scolaires sur le parking
+	for e in [Vector3(-63.0, 0, 30.0), Vector3(62.0, 0, 28.0)]:
+		_modele_ou_voiture("bus_scolaire", p + e, rng.randf_range(-0.15, 0.15), "voiture_suv", Color(0.9, 0.75, 0.15))
 	# mât et foyer
 	_box(p + Vector3(20.0, 4.0, 22.0), Vector3(0.15, 8.0, 0.15), Color(0.75, 0.75, 0.75), false, "metal")
 	_box(p + Vector3(20.8, 7.3, 22.0), Vector3(1.4, 0.9, 0.04), Color(0.2, 0.4, 0.8), false, "uni")

@@ -76,6 +76,10 @@ const CFG := {
 	"avion_leger": ["avion_leger", "", "", 4.0, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 	"helico": ["helico", "", "", 4.4, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 	"bulldozer": ["bulldozer", "", "", 3.3, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"tente_mil": ["tente_mil", "", "", 2.4, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"tour_garde": ["tour_garde", "", "", 7.5, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"bus_scolaire": ["bus_scolaire", "", "", 3.2, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	"camion_mil": ["camion_mil", "", "", 3.4, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]

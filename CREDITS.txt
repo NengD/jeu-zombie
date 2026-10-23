@@ -54,6 +54,9 @@ Décor (tous CC0 — domaine public) :
 — Petit avion « Small Airplane » : Vojtěch Balák (https://poly.pizza/m/7cvx6ex-xfL), licence CC BY 3.0.
 — Hélicoptère « Helicopter » : Zsky (https://poly.pizza/m/hG2Qr0A3zR), licence CC BY 3.0.
 — Bulldozer « Bulldozer » : Poly by Google (https://poly.pizza/m/ddxtaegI3HQ), licence CC BY 3.0.
+— Tente « Tent » et tour de garde « Guard Tower » : Quaternius, licence CC0 — via Poly Pizza.
+— Bus scolaire « Schoolbus » : Poly by Google (https://poly.pizza/m/8xacyNqdJ3t), licence CC BY 3.0.
+— Camion militaire « Military Truck - 2D/3D Collab » : Alex Safayan (https://poly.pizza/m/3XAD5t0Djqv), licence CC BY 3.0.
    (glb dans outils/sources_props ; conversion : outils/godot/normaliser_props.gd)
 — Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius (https://quaternius.com), licence CC0
    (récupérés via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_animaux.gd).
