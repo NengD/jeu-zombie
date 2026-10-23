@@ -4,6 +4,7 @@ extends CanvasLayer
 ## Les petits lieux ne sont nommés qu'en zoomant (villes, villages et base toujours nommés).
 
 class Cadre extends Control:
+	var ui
 	var zoom := 3.0
 	var centre := Vector2.ZERO        # point du monde (x, z) au centre du cadre
 	var glisse := false
@@ -23,6 +24,8 @@ class Cadre extends Control:
 				_zoomer(0.8, mb.position)
 			elif mb.button_index == MOUSE_BUTTON_LEFT:
 				glisse = mb.pressed
+			elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+				ui.clic_droit(centre + (mb.position - size / 2.0) / _echelle(), mb.position)
 			accept_event()
 		elif event is InputEventMouseMotion and glisse:
 			centre -= (event as InputEventMouseMotion).relative / _echelle()
@@ -64,13 +67,28 @@ class Cadre extends Control:
 			var moyen := grand or nom.begins_with("Village") or nom.begins_with("Hameau") or nom.begins_with("Forêt") or nom.begins_with("Bois ") or nom == "Base militaire"
 			# lieux dans une ville (boutiques, église…) : petit point, nommés seulement de près
 			var en_ville: bool = not moyen and Game.in_city(poi.pos)
-			draw_circle(pp, 9.0 if grand else (4.5 if en_ville else 6.0), poi.color)
+			# lieu déjà fouillé : grisé
+			var fouille := Game.lieux_fouilles.has(Game.cle_lieu(poi))
+			draw_circle(pp, 9.0 if grand else (4.5 if en_ville else 6.0), Color(0.45, 0.45, 0.45, 0.8) if fouille else poi.color)
+			if fouille:
+				nom += " (fouillé)"
 			# noms : villes et villages toujours, le reste en zoomant (camps de bandits et lieux de ville encore plus près)
 			var montrer := moyen or zoom >= (4.5 if nom == "Camp de bandits" else (5.0 if en_ville else 2.6))
 			if montrer:
 				var taille := 24 if grand else (18 if moyen else 15)
 				draw_string_outline(font, pp + Vector2(11, 6), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, 4, Color.BLACK)
-				draw_string(font, pp + Vector2(11, 6), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, Color.WHITE)
+				draw_string(font, pp + Vector2(11, 6), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, Color(0.7, 0.7, 0.7) if fouille else Color.WHITE)
+		# marqueurs personnels (losanges orange)
+		for mq in Game.marqueurs:
+			var mp := vers_ecran(Vector2(mq.x, mq.z))
+			if not vue.grow(40.0).has_point(mp):
+				continue
+			var losange := PackedVector2Array([mp + Vector2(0, -10), mp + Vector2(8, 0), mp + Vector2(0, 10), mp + Vector2(-8, 0)])
+			draw_colored_polygon(losange, Color(1.0, 0.55, 0.1))
+			losange.append(losange[0])
+			draw_polyline(losange, Color.BLACK, 1.5)
+			draw_string_outline(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
+			draw_string(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.75, 0.4))
 		var p = Game.player
 		if p:
 			var pp2 := vers_ecran(Vector2(p.global_position.x, p.global_position.z))
@@ -90,10 +108,20 @@ class MapView extends Control:
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.8))
 		var font := ThemeDB.fallback_font
-		var titre := "CARTE  —  [M] fermer   molette : zoom   clic maintenu : déplacer   [Espace] : recentrer   (nord en haut)"
+		var titre := "CARTE  —  [M] fermer   molette : zoom   clic maintenu : déplacer   clic droit : poser / retirer un marqueur   [Espace] : recentrer"
 		var cadre: Control = get_child(0)
 		draw_string_outline(font, cadre.position + Vector2(0, -12), titre, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 4, Color.BLACK)
 		draw_string(font, cadre.position + Vector2(0, -12), titre, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.95, 0.9, 0.7))
+		# campement de marchands le plus proche : distance et direction
+		var p = Game.player
+		if p:
+			var mc := Game.marchand_proche(p.global_position)
+			if not mc.is_empty():
+				var v := Vector2(mc.pos.x - p.global_position.x, mc.pos.z - p.global_position.z)
+				var t := "Marchands les plus proches : %s — %d m au %s" % [mc.name, int(v.length()), Game.cardinal(v)]
+				var bas := cadre.position + Vector2(0, cadre.size.y + 26)
+				draw_string_outline(font, bas, t, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, 4, Color.BLACK)
+				draw_string(font, bas, t, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.55, 1.0, 0.6))
 
 
 var view: MapView
@@ -110,6 +138,7 @@ func _ready() -> void:
 	cadre = Cadre.new()
 	cadre.clip_contents = true
 	cadre.mouse_filter = Control.MOUSE_FILTER_STOP
+	cadre.ui = self
 	view.add_child(cadre)
 
 
@@ -131,7 +160,46 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Clic droit : retire le marqueur sous la souris, sinon demande un nom pour en poser un.
+var saisie: LineEdit = null
+var saisie_pos := Vector2.ZERO
+
+
+func clic_droit(monde: Vector2, ecran: Vector2) -> void:
+	for mq in Game.marqueurs:
+		if cadre.vers_ecran(Vector2(mq.x, mq.z)).distance_to(ecran) < 12.0:
+			Game.marqueurs.erase(mq)
+			Game.msg("Marqueur retiré : %s" % mq.nom)
+			return
+	if Game.marqueurs.size() >= 40:
+		Game.msg("Trop de marqueurs (40 au plus).")
+		return
+	_fermer_saisie()
+	saisie_pos = monde
+	saisie = LineEdit.new()
+	saisie.placeholder_text = "Nom du marqueur (Entrée)"
+	saisie.max_length = 28
+	saisie.add_theme_font_size_override("font_size", 16)
+	saisie.custom_minimum_size = Vector2(240, 0)
+	saisie.position = (cadre.position + ecran + Vector2(12, -14)).min(view.size - Vector2(250, 40))
+	view.add_child(saisie)
+	saisie.text_submitted.connect(func(t: String):
+		var nom := t.strip_edges()
+		Game.marqueurs.append({"nom": nom if nom != "" else "Marqueur %d" % (Game.marqueurs.size() + 1), "x": saisie_pos.x, "z": saisie_pos.y})
+		_fermer_saisie())
+	saisie.focus_exited.connect(_fermer_saisie)
+	saisie.grab_focus()
+
+
+func _fermer_saisie() -> void:
+	if saisie and is_instance_valid(saisie):
+		var s := saisie
+		saisie = null
+		s.queue_free()
+
+
 func _fermer() -> void:
+	_fermer_saisie()
 	view.visible = false
 	Game.ui_open = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

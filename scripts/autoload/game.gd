@@ -108,6 +108,71 @@ func reset() -> void:
 	time_hours = 8.0
 	day = 1
 	player = null
+	marqueurs.clear()
+	lieux_fouilles.clear()
+
+
+# ---------------------------------------------------------------- carte : marqueurs, lieux fouillés, marchands
+var marqueurs: Array = []        # marqueurs personnels de la carte : {nom, x, z} (sauvegardés)
+var lieux_fouilles := {}         # cle_lieu(poi) -> true : lieux dont presque tout a été fouillé
+
+
+func cle_lieu(poi: Dictionary) -> String:
+	return "%s@%d,%d" % [poi.name, int(poi.pos.x), int(poi.pos.z)]
+
+
+## Lieux trop vastes pour être « fouillés » (villes, villages, forêts…).
+func lieu_vaste(nom: String) -> bool:
+	return nom in ["Bellerive", "Valmont"] or nom.begins_with("Village") or nom.begins_with("Hameau") \
+			or nom.begins_with("Forêt") or nom.begins_with("Bois ") or nom == "Camp de bandits"
+
+
+## Après une fouille en `pos` : le lieu le plus proche (60 m) est marqué fouillé quand 80 % de ses meubles
+## (à 40 m de son centre) l'ont été.
+func maj_lieu_fouille(pos: Vector3) -> void:
+	var best: Dictionary = {}
+	var dmin := 60.0
+	for poi in pois:
+		if poi.get("marchand", false) or lieu_vaste(poi.name):
+			continue
+		var d := Vector2(poi.pos.x - pos.x, poi.pos.z - pos.z).length()
+		if d < dmin:
+			dmin = d
+			best = poi
+	if best.is_empty() or lieux_fouilles.has(cle_lieu(best)):
+		return
+	var total := 0
+	var faits := 0
+	for c in get_tree().get_nodes_in_group("conteneurs"):
+		if c.is_storage or c.is_in_group("tas_sol"):
+			continue
+		var cp: Vector3 = c.global_position
+		if Vector2(cp.x - best.pos.x, cp.z - best.pos.z).length() < 40.0:
+			total += 1
+			if c.searched:
+				faits += 1
+	if total >= 2 and faits >= ceili(total * 0.8):
+		lieux_fouilles[cle_lieu(best)] = true
+		msg("Lieu fouillé : %s" % best.name)
+
+
+## Campement de marchands le plus proche : {name, pos} (vide s'il n'y en a pas).
+func marchand_proche(from: Vector3) -> Dictionary:
+	var best: Dictionary = {}
+	var dmin := INF
+	for poi in pois:
+		if poi.get("marchand", false):
+			var d := Vector2(poi.pos.x - from.x, poi.pos.z - from.z).length()
+			if d < dmin:
+				dmin = d
+				best = poi
+	return best
+
+
+## Direction cardinale (N, NE, E…) d'un vecteur (x, z) du monde ; le nord est -Z.
+static func cardinal(v: Vector2) -> String:
+	var a := fposmod(rad_to_deg(atan2(v.x, -v.y)), 360.0)
+	return ["N", "NE", "E", "SE", "S", "SO", "O", "NO"][int(round(a / 45.0)) % 8]
 
 
 # ---------------------------------------------------------------- touches

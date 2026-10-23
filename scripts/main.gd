@@ -164,7 +164,7 @@ func _camps_autour(centre: Vector3, ch: float, vers_pt: Vector3, metiers: Array,
 		var nom: String = noms[absi(Game.graine_monde + n * 3) % noms.size()]
 		camp.construire_marchand(metiers[k], nom, rng)
 		camps_marchands.append(camp)
-		Game.pois.append({"name": "Camp %s (%s)" % [titres[metiers[k]], nom], "pos": places[k], "color": Color(0.4, 0.9, 0.5)})
+		Game.pois.append({"name": "Camp %s (%s)" % [titres[metiers[k]], nom], "pos": places[k], "color": Color(0.4, 0.9, 0.5), "marchand": true})
 
 
 ## Terrain sec, plutôt plat et sans bâtiment dans un rayon donné (camps).

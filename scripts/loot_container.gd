@@ -129,6 +129,8 @@ func interact(player: Node) -> void:
 			mat.albedo_color = mat.albedo_color.darkened(0.35)
 		Game.make_noise(global_position, 5.0)
 		Game.play_ui("fouille", -4.0)
+		if not is_storage:
+			Game.maj_lieu_fouille(global_position)
 	ensure_contents()
 	player.open_storage(self)
 

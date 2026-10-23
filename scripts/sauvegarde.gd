@@ -140,6 +140,8 @@ static func sauver(main: Node) -> bool:
 		if is_instance_valid(pt) and pt.ouverte:
 			ouvertes.append(pt.idx)
 	d["portes"] = ouvertes
+	d["marqueurs"] = Game.marqueurs
+	d["lieux_fouilles"] = Game.lieux_fouilles.keys()
 	var f := FileAccess.open(FICHIER, FileAccess.WRITE)
 	if f == null:
 		return false
@@ -179,6 +181,12 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 			pt.basculer(ouv.has(pt.idx), true)
 	Game.day = int(d.get("jour", 1))
 	Game.time_hours = float(d.get("heure", 8.0))
+	Game.marqueurs.clear()
+	for mq in d.get("marqueurs", []):
+		Game.marqueurs.append({"nom": str(mq.get("nom", "")), "x": float(mq.get("x", 0.0)), "z": float(mq.get("z", 0.0))})
+	Game.lieux_fouilles.clear()
+	for k in d.get("lieux_fouilles", []):
+		Game.lieux_fouilles[str(k)] = true
 
 
 static func appliquer_zombies(main: Node, d: Dictionary) -> void:

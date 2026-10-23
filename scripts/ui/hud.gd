@@ -4,6 +4,69 @@ const Fleche = preload("res://scripts/fleche.gd")
 ## Interface en jeu : réticule, jauges, arme, barre rapide, messages,
 ## heure, aide (F1), pause (Échap), écran de mort.
 
+## Boussole en haut de l'écran : directions (N, NE, E…) sur ±90° autour du regard, marqueurs personnels,
+## campement de marchands le plus proche et lieux à moins de 300 m (avec la distance).
+class Boussole extends Control:
+	const LARGEUR := 640.0
+	const CHAMP := 180.0     # degrés visibles
+
+	func _draw() -> void:
+		var p = Game.player
+		if p == null or p.camera == null:
+			return
+		var fwd: Vector3 = -p.camera.global_basis.z
+		var cap := rad_to_deg(atan2(fwd.x, -fwd.z))
+		var font := ThemeDB.fallback_font
+		var x0 := (size.x - LARGEUR) / 2.0
+		draw_rect(Rect2(x0, 6, LARGEUR, 28), Color(0, 0, 0, 0.4))
+		var noms := {0: "N", 45: "NE", 90: "E", 135: "SE", 180: "S", 225: "SO", 270: "O", 315: "NO"}
+		for deg in range(0, 360, 15):
+			var dx := wrapf(deg - cap, -180.0, 180.0)
+			if absf(dx) > CHAMP / 2.0:
+				continue
+			var x := size.x / 2.0 + dx / CHAMP * LARGEUR
+			if noms.has(deg):
+				var t: String = noms[deg]
+				var fs := 20 if t.length() == 1 else 15
+				var col := Color(1.0, 0.45, 0.35) if t == "N" else Color.WHITE
+				draw_string_outline(font, Vector2(x - 6.0 * t.length(), 28), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color.BLACK)
+				draw_string(font, Vector2(x - 6.0 * t.length(), 28), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+			else:
+				draw_line(Vector2(x, 10), Vector2(x, 16), Color(1, 1, 1, 0.6), 1.5)
+		draw_line(Vector2(size.x / 2.0, 4), Vector2(size.x / 2.0, 36), Color(1.0, 0.85, 0.3), 2.0)
+		# repères : marqueurs, marchands, lieux proches
+		var pos: Vector3 = p.global_position
+		var reperes: Array = []
+		for mq in Game.marqueurs:
+			reperes.append([Vector2(mq.x, mq.z), mq.nom, Color(1.0, 0.6, 0.15)])
+		var mc := Game.marchand_proche(pos)
+		if not mc.is_empty():
+			reperes.append([Vector2(mc.pos.x, mc.pos.z), "Marchands", Color(0.45, 1.0, 0.55)])
+		for poi in Game.pois:
+			if poi.get("marchand", false):
+				continue
+			var d2 := Vector2(poi.pos.x - pos.x, poi.pos.z - pos.z).length()
+			if d2 < 300.0 and d2 > 15.0 and not Game.in_city(poi.pos):
+				reperes.append([Vector2(poi.pos.x, poi.pos.z), poi.name, Color(0.85, 0.85, 0.85, 0.85)])
+		for r in reperes:
+			var v: Vector2 = r[0] - Vector2(pos.x, pos.z)
+			var dist := v.length()
+			if dist < 4.0:
+				continue
+			var dx := wrapf(rad_to_deg(atan2(v.x, -v.y)) - cap, -180.0, 180.0)
+			var hors := absf(dx) > CHAMP / 2.0
+			var x := size.x / 2.0 + clampf(dx, -CHAMP / 2.0, CHAMP / 2.0) / CHAMP * LARGEUR
+			var col: Color = r[2]
+			if hors:
+				col.a *= 0.45
+			draw_colored_polygon(PackedVector2Array([Vector2(x, 36), Vector2(x - 6, 44), Vector2(x + 6, 44)]), col)
+			if not hors:
+				var t := "%s %s" % [r[1], ("%d m" % int(dist)) if dist < 1000.0 else ("%.1f km" % (dist / 1000.0))]
+				var w := font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+				draw_string_outline(font, Vector2(x - w / 2.0, 58), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
+				draw_string(font, Vector2(x - w / 2.0, 58), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+
+
 class Crosshair extends Control:
 	var spread := 6.0
 	var hit := 0.0
@@ -70,6 +133,7 @@ var gain_xp := 0
 var gain_comp := ""
 var prog_connecte := false
 var cross: Crosshair
+var boussole: Boussole
 var bars := {}
 var lbl_weapon: Label
 var lbl_ammo: Label
@@ -111,6 +175,10 @@ func _ready() -> void:
 	cross.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(cross)
+	boussole = Boussole.new()
+	boussole.set_anchors_preset(Control.PRESET_FULL_RECT)
+	boussole.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(boussole)
 	# jauges
 	var bar_box := VBoxContainer.new()
 	bar_box.name = "Jauges"
@@ -400,6 +468,9 @@ func _process(delta: float) -> void:
 	cross.ennemi = _vise_ennemi(p, float(ws.get("range", 3.0)) if not cross.melee else 3.5)
 	cross.bloque = Vector2(-1, -1) if cross.melee else _point_bloque(p, float(ws.get("range", 80.0)))
 	cross.visible = p.alive and not Game.ui_open
+	boussole.visible = p.alive and not Game.ui_open
+	if boussole.visible:
+		boussole.queue_redraw()
 	cross.vise = false   # 3e personne : réticule toujours affiché
 	cross.queue_redraw()
 
@@ -598,7 +669,7 @@ func _maj_boss(p) -> void:
 		boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		boss_box.alignment = BoxContainer.ALIGNMENT_CENTER
 		boss_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		boss_box.position = Vector2(-260, 18)
+		boss_box.position = Vector2(-260, 60)
 		boss_box.custom_minimum_size = Vector2(520, 0)
 		root.add_child(boss_box)
 		var l := Label.new()
@@ -624,7 +695,7 @@ func _maj_boss(p) -> void:
 		boss_box.add_child(boss_barre)
 	boss_box.visible = true
 	boss_box.position.x = root.get_viewport_rect().size.x / 2.0 - 260.0
-	boss_box.position.y = 18.0
+	boss_box.position.y = 60.0
 	boss_barre.value = boss.health
 
 
