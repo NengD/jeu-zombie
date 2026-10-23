@@ -349,10 +349,27 @@ var _sfx := {}
 func sfx(sound: String) -> AudioStream:
 	if _sfx.has(sound):
 		return _sfx[sound]
-	var path := "res://sons/%s.wav" % sound
-	var s: AudioStream = load(path) if ResourceLoader.exists(path) else null
+	var s: AudioStream = null
+	for ext in ["wav", "ogg"]:
+		var path := "res://sons/%s.%s" % [sound, ext]
+		if ResourceLoader.exists(path):
+			s = load(path)
+			break
 	_sfx[sound] = s
 	return s
+
+
+var _nb_variantes := {}
+
+
+## Nombre de variantes d'un son numéroté (zv_grogne1, zv_grogne2…).
+func variantes(prefixe: String) -> int:
+	if not _nb_variantes.has(prefixe):
+		var n := 0
+		while sfx("%s%d" % [prefixe, n + 1]) != null:
+			n += 1
+		_nb_variantes[prefixe] = n
+	return _nb_variantes[prefixe]
 
 
 ## Dégâts infligés par le joueur (ses coups partent de sa position, ou de sa grenade) : chiffres
@@ -378,7 +395,7 @@ func sfx_boucle(sound: String) -> AudioStream:
 
 
 ## Son spatialisé (zombies, impacts…)
-func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_dist := 60.0) -> void:
+func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_dist := 60.0, pitch := 1.0) -> void:
 	var s := sfx(sound)
 	var scene := get_tree().current_scene
 	if s == null or scene == null:
@@ -386,7 +403,7 @@ func play_3d(sound: String, pos: Vector3, vol_db := 0.0, pitch_var := 0.1, max_d
 	var a := AudioStreamPlayer3D.new()
 	a.stream = s
 	a.volume_db = vol_db
-	a.pitch_scale = randf_range(1.0 - pitch_var, 1.0 + pitch_var)
+	a.pitch_scale = pitch * randf_range(1.0 - pitch_var, 1.0 + pitch_var)
 	a.max_distance = max_dist
 	a.unit_size = 8.0
 	scene.add_child(a)

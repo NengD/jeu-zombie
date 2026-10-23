@@ -9,7 +9,11 @@ Icônes des objets (nourriture, soins, matériaux, munitions, vêtements, sacs, 
 
 Icônes des armes : rendues à partir des modèles 3D du jeu.
 Modèles 3D (personnages, zombies, armes) : créés pour le jeu avec Blender (outils/blender/generer_modeles.py).
-Sons : générés pour le jeu.
+Sons : générés pour le jeu (outils/sons/generer_sons.py), sauf les voix des zombies :
+— « Zombies Sound Pack » par artisticdude, licence CC0 — https://opengameart.org/content/zombies-sound-pack
+  (sons/zv_grogne1-8, zv_cri*, zv_attaque*, zv_douleur*, zv_mort*)
+— « Zombie noises and moans » par ianzazz, licence CC0 — https://opengameart.org/content/zombie-noises-and-moans
+  (sons/zv_grogne9-11.ogg, zv_coureur1.ogg)
 Moteur : Godot Engine (https://godotengine.org), licence MIT.
 
 Armes à feu, accessoires, grenade RGD-5, hachette, couteaux KM2000 et M9 :

@@ -122,11 +122,12 @@ for k in range(0):
         fond[i:i + m] += ch[: len(fond) - i]
 sauver("amb_campagne", boucle(fond), 0.5)
 
-# nuit : grillons
+# nuit : souffle grave seul (les grillons, tons purs à 4,4 kHz, faisaient des bips ;
+# sons/amb_nuit.wav est désormais fait sans numpy, même principe)
 n = int(SR * dur)
 tt = np.arange(n) / SR
 x = passe_bas(bruit(n), 200) * 0.2
-for k in range(4):
+for k in range(0):
     f = rng.uniform(4200, 5200)
     rythme = rng.uniform(2.5, 4.0)
     porte = (np.sin(2 * np.pi * rythme * tt + rng.uniform(0, 6)) > 0.3).astype(float)

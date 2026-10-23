@@ -426,7 +426,7 @@ var horde_grogne_t := 0.0
 func annoncer_horde(base: Node3D) -> void:
 	if player.global_position.distance_to(_centre_base(base)) > 90.0:
 		Game.msg("!! ALERTE : une horde attaque ta base au loin !")
-		Game.play_ui("grogne2", 0.0, 0.05, 0.6)
+		Game.play_ui("zv_cri1", -2.0, 0.05, 0.8)
 		declencher_horde(base)
 		return
 	horde_base = base
@@ -434,8 +434,8 @@ func annoncer_horde(base: Node3D) -> void:
 	horde_angle = randf() * TAU
 	horde_grogne_t = 6.0
 	Game.msg("!! ALERTE : une horde approche de ta base par %s ! Arrivée dans %d secondes." % [_nom_direction(horde_angle), int(HORDE_DELAI)])
-	Game.play_ui("grogne1", 4.0, 0.05, 0.55)
-	Game.play_ui("grogne3", 0.0, 0.05, 0.7)
+	Game.play_ui("zv_cri2", 0.0, 0.05, 0.75)
+	Game.play_ui("zv_grogne1", -4.0, 0.05, 0.85)
 
 
 func _compte_horde(delta: float) -> void:
@@ -446,7 +446,7 @@ func _compte_horde(delta: float) -> void:
 	for rappel in [45.0, 30.0, 15.0, 5.0]:
 		if avant > rappel and horde_compte <= rappel:
 			Game.msg("!! La horde arrive par %s dans %d secondes !" % [_nom_direction(horde_angle), int(rappel)])
-			Game.play_ui("grogne%d" % randi_range(1, 3), 2.0, 0.1, 0.6)
+			Game.play_ui("zv_cri%d" % randi_range(1, Game.variantes("zv_cri")), -2.0, 0.1, 0.8)
 	# grognements lointains venant du côté où la horde arrivera, de plus en plus souvent
 	horde_grogne_t -= delta
 	if horde_grogne_t <= 0.0 and horde_base and is_instance_valid(horde_base) and not is_nan(horde_angle):
@@ -454,7 +454,7 @@ func _compte_horde(delta: float) -> void:
 		var c := _centre_base(horde_base)
 		var d := Vector3(cos(horde_angle), 0.0, sin(horde_angle))
 		var loin := lerpf(22.0, 45.0, horde_compte / HORDE_DELAI)
-		Game.play_3d("grogne%d" % randi_range(1, 3), c + d * loin + Vector3.UP, 4.0, 0.15, 90.0)
+		Game.play_3d("zv_grogne%d" % randi_range(1, Game.variantes("zv_grogne")), c + d * loin + Vector3.UP, 2.0, 0.12, 90.0, 0.85)
 	if horde_compte <= 0.0:
 		horde_compte = -1.0
 		if horde_base and is_instance_valid(horde_base):
@@ -517,7 +517,7 @@ func declencher_horde(base: Node3D) -> void:
 		poses += 1
 	if poses > 0:
 		Game.msg("Une horde de %d zombies marche sur ta base !" % poses)
-		Game.play_ui("grogne1", 2.0, 0.1, 0.7)
+		Game.play_ui("zv_cri3", -2.0, 0.1, 0.8)
 
 
 ## Joueur absent : la horde abîme la base ; les pièges autour réduisent les dégâts (et s'usent).

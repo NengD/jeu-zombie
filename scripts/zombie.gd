@@ -37,6 +37,9 @@ var anim_image := 0
 var dead_t := 0.0
 var searched := false
 var groan_t := randf_range(1.0, 14.0)   # (décalé : pas tous les zombies à la fois au chargement)
+var voix := 1.0          # hauteur de la voix de ce zombie (selon le type, un peu au hasard)
+var douleur_cd := 0.0
+var etait_chasse := false
 var echelle := 1.0          # taille du modèle (le boss est un géant)
 var est_boss := false
 var charge_t := 0.0         # boss : temps de charge restant
@@ -126,6 +129,7 @@ func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
 			damage = 35.0
 			run_speed = 3.4
 			echelle = 1.8
+	voix = randf_range(0.92, 1.08) * float({"coureur": 1.16, "gros": 0.8, "rampant": 1.05, "patient": 1.04, "boss": 0.68}.get(kind, 1.0))
 	if est_boss:
 		walk_speed = 1.0
 		return
@@ -418,7 +422,7 @@ func _physics_process(delta: float) -> void:
 			lunge = 1.0
 			if not rampant:
 				_anim("attaque", 1.0, 0.8)
-			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
+			_voix("attaque", -2.0, 30.0)
 			p.take_damage(damage, self)
 	# attaque d'un bandit
 	if state == State.CHASE and proie and is_instance_valid(proie) and proie.state != 3:
@@ -428,14 +432,26 @@ func _physics_process(delta: float) -> void:
 			lunge = 1.0
 			if not rampant:
 				_anim("attaque", 1.0, 0.8)
-			Game.play_3d("attaque_zombie", global_position + Vector3.UP * 1.5, 0.0, 0.15, 30.0)
+			_voix("attaque", -2.0, 30.0)
 			proie.take_hit(damage, proie.global_position + Vector3.UP * 1.2, global_position)
 	# bruit de grognement (attire les autres de près)
 	groan_t -= delta
+	douleur_cd -= delta
+	var chasse := state == State.CHASE
+	if chasse and not etait_chasse and dist < 60.0:
+		# cri en se lançant à la poursuite
+		_voix("cri", 0.0, 60.0)
+		groan_t = maxf(groan_t, randf_range(1.5, 3.0))
+	etait_chasse = chasse
 	if groan_t <= 0.0:
-		groan_t = randf_range(6.0, 14.0) if state != State.CHASE else randf_range(2.5, 5.0)
+		groan_t = randf_range(6.0, 14.0) if not chasse else (randf_range(1.6, 3.2) if kind == "coureur" else randf_range(2.5, 5.0))
 		if dist < 45.0:
-			Game.play_3d("grogne%d" % randi_range(1, 3), global_position + Vector3.UP * 1.6, -6.0 if state != State.CHASE else -1.0, 0.2, 45.0)
+			if not chasse:
+				_voix("grogne", -8.0, 40.0)
+			elif kind == "coureur" and randf() < 0.6:
+				_voix("coureur", -3.0, 45.0)   # râle haletant
+			else:
+				_voix("cri" if randf() < 0.35 else "grogne", -3.0, 45.0)
 		if state == State.CHASE:
 			Game.make_noise(global_position, 10.0)
 
@@ -746,11 +762,21 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	else:
 		state = State.CHASE
 		lost_t = 0.0
+	if not killed and douleur_cd <= 0.0:
+		douleur_cd = 0.7
+		_voix("douleur", -3.0, 35.0)
 	if not killed and anim_lock <= 0.0:
 		_anim("touche", 1.0, 0.35)
 	Game.hit_confirmed.emit(headshot, killed)
 	if killed:
 		_die()
+
+
+## Voix du zombie : une variante au hasard de zv_<type> (sons/), à la hauteur propre à ce zombie.
+func _voix(type: String, vol_db: float, portee: float, haut := 1.6) -> void:
+	var n := Game.variantes("zv_" + type)
+	if n > 0:
+		Game.play_3d("zv_%s%d" % [type, randi_range(1, n)], global_position + Vector3.UP * haut * echelle, vol_db, 0.04, portee, voix)
 
 
 func take_damage(amount: float, _from: Node = null) -> void:
@@ -769,12 +795,14 @@ func _die() -> void:
 		if est_boss:
 			Game.player.prog.gagner("exploration", 200)
 			Game.msg("Le Colosse est tombé ! Fouille son corps et la cache au fond de la grotte.")
-			Game.play_3d("grogne1", global_position + Vector3.UP * 2.5, 6.0, 0.0, 120.0)
+			_voix("mort", 6.0, 120.0, 1.4)
 			remove_from_group("boss")
 	charge_t = 0.0
 	slam_t = -1.0
 	get_tree().create_timer(0.9).timeout.connect(func(): if is_instance_valid(self): Effets.flaque(get_parent(), global_position))
 	get_tree().create_timer(0.5).timeout.connect(func(): if is_instance_valid(self): _lacher_arme())
+	if state != State.DEAD and not est_boss:
+		_voix("mort", -2.0, 40.0)
 	state = State.DEAD
 	if pieds_ik:
 		pieds_ik.active = false
@@ -930,14 +958,14 @@ func _boss_update(delta: float, p) -> void:
 		charge_touche = false
 		charge_dir = to_p.normalized()
 		rotation.y = atan2(-charge_dir.x, -charge_dir.z)
-		Game.play_3d("grogne2", global_position + Vector3.UP * 2.5, 6.0, 0.0, 90.0)
+		_voix("cri", 6.0, 90.0, 1.4)
 		_anim("course", 1.6)
 	elif dist < 3.6 and slam_cd <= 0.0:
 		slam_cd = randf_range(5.0, 8.0)
 		slam_t = 0.7
 		charge_dir = Vector3.ZERO
 		_anim("attaque", 0.7, 1.1)
-		Game.play_3d("grogne3", global_position + Vector3.UP * 2.5, 6.0, 0.0, 90.0)
+		_voix("attaque", 6.0, 90.0, 1.4)
 
 
 

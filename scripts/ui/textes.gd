@@ -79,6 +79,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 • Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0.
+• Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), manger, boire, se soigner et encaisser des coups (Survie).
