@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 8 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 9 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -1695,7 +1695,7 @@ func _trees() -> void:
 	# collisions des troncs : un corps par case de 128 m (un seul corps à 10 000 formes est très lent à construire)
 	var corps_cases := {}
 	var feuillus := ["arbre_0", "arbre_1", "arbre_2", "arbre_3"]
-	var sapins := ["sapin_0", "sapin_1"]
+	var sapins := ["sapin_0", "sapin_1", "sapin_2"]
 	var modeles_ok := ResourceLoader.exists("res://modeles/arbres/arbre_0.res")
 	# regroupement par variante et par zone de 128 m (chaque groupe est masqué hors du champ de vision)
 	var groupes := {}
@@ -1707,6 +1707,12 @@ func _trees() -> void:
 		# plus de sapins sur les hauteurs
 		var p_sapin := 0.35 + smoothstep(6.0, 22.0, p.y) * 0.5
 		var id: String = feuillus[rng.randi() % feuillus.size()] if (en_ville or rng.randf() > p_sapin) else sapins[rng.randi() % sapins.size()]
+		# variété hors des villes : arbres morts et jeunes arbres
+		var r_var := rng.randf()
+		if not en_ville and r_var < 0.05:
+			id = "mort_0" if r_var < 0.03 else "mort_1"
+		elif not en_ville and r_var < 0.14 and id in feuillus:
+			id = "jeune_0"
 		var cle := "%s|%d|%d" % [id, floori(p.x / 128.0), floori(p.z / 128.0)]
 		if not groupes.has(cle):
 			groupes[cle] = []
@@ -1749,7 +1755,8 @@ func _vegetation() -> void:
 	if not Decor.existe("buisson"):
 		return
 	var m := Game.map_half - 15.0
-	var choix := [["buisson", false], ["buisson2", false], ["rocher", true], ["souche", true], ["tronc_mort", true], ["buisson", false]]
+	var choix := [["buisson", false], ["buisson2", false], ["rocher", true], ["souche", true], ["tronc_mort", true], ["buisson", false],
+			["buisson_fleuri_0", false], ["buisson_fleuri_1", false]]
 	for i in 3000:
 		var p := Vector3(rng.randf_range(-m, m), 0, rng.randf_range(-m, m))
 		if absf(p.x) < half + 12 and absf(p.z) < half + 12:
@@ -1765,7 +1772,7 @@ func _vegetation() -> void:
 	# buissons dans les parcs et le long des maisons
 	for t in trees:
 		if absf(t.x) < half and absf(t.z) < half and rng.randf() < 0.6:
-			_prop("buisson" if rng.randf() < 0.5 else "buisson2", t + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-3, 3)), rng.randf() * TAU, false, rng.randf_range(0.6, 1.0), 150.0)
+			_prop(["buisson", "buisson2", "buisson_fleuri_0", "buisson_fleuri_1"][rng.randi() % 4], t + Vector3(rng.randf_range(-3, 3), 0, rng.randf_range(-3, 3)), rng.randf() * TAU, false, rng.randf_range(0.6, 1.0), 150.0)
 
 
 
