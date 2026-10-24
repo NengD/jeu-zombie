@@ -65,6 +65,8 @@ Décor (tous CC0 — domaine public) :
    (découpés en tête et pattes animées par outils/godot/normaliser_animaux.gd).
 — Arc recourbé « Wooden Bow » (https://poly.pizza/m/QnpqjLSKFU) et flèche « Arrow » (https://poly.pizza/m/Rt48KEPDGt) :
    Quaternius, licence CC0 (conversion : outils/godot/normaliser_arc.gd ; corde tendue par le jeu).
+— Intérieurs : lits, baignoire, WC, lavabo, lave-linge : « Ultimate Home Interior » et « Furniture » de Quaternius,
+   licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_props.gd).
 — Objets au sol (conserve, bandage, trousse de soin, jerrican) : « Survival Pack » de Quaternius ; bouteille et barre
    chocolatée : « Ultimate Food » de Quaternius — licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ;
    conversion : outils/godot/normaliser_objets.gd).

@@ -80,6 +80,13 @@ const CFG := {
 	"tour_garde": ["tour_garde", "", "", 7.5, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 	"bus_scolaire": ["bus_scolaire", "", "", 3.2, Vector3.ZERO, 6000, "", Color.WHITE, 0],
 	"camion_mil": ["camion_mil", "", "", 3.4, Vector3.ZERO, 6000, "", Color.WHITE, 0],
+	# --- intérieurs (Ultimate Home Interior / Furniture, Quaternius CC0)
+	"lit_simple": ["lit_simple", "", "", 0.65, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"lit_double": ["lit_double", "", "", 0.7, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"baignoire": ["baignoire", "", "", 0.6, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"wc": ["wc", "", "", 0.8, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"lave_linge": ["lave_linge", "", "", 0.85, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"lavabo": ["lavabo", "", "", 0.9, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]

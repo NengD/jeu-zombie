@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 9 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 10 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -33,7 +33,7 @@ const CAR_COLORS := [Color(0.5, 0.1, 0.1), Color(0.15, 0.2, 0.35), Color(0.6, 0.
 
 # [nom, taille (long. le long du mur, hauteur, profondeur), couleur, table de butin (facultative, sinon le type du bâtiment)]
 const FURN := {
-	"maison": [["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18)], ["Commode", Vector3(1.0, 0.9, 0.5), Color(0.45, 0.32, 0.2)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)], ["Réfrigérateur", Vector3(0.8, 1.9, 0.7), Color(0.85, 0.85, 0.82)],
+	"maison": [["Armoire", Vector3(1.2, 2.0, 0.6), Color(0.4, 0.28, 0.18)], ["Commode", Vector3(1.0, 0.9, 0.5), Color(0.45, 0.32, 0.2)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)], ["Réfrigérateur", Vector3(0.8, 1.9, 0.7), Color(0.85, 0.85, 0.82)], ["Lave-linge", Vector3(0.65, 0.85, 0.65), Color(0.9, 0.9, 0.9)],
 		["Table de chevet", Vector3(0.5, 0.6, 0.45), Color(0.45, 0.32, 0.2)], ["Bibliothèque", Vector3(1.0, 1.9, 0.4), Color(0.42, 0.3, 0.2)]],
 	"pharmacie": [["Armoire à pharmacie", Vector3(1.0, 1.9, 0.5), Color(0.85, 0.85, 0.88)], ["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.8, 0.8, 0.78)], ["Étagère", Vector3(2.0, 1.8, 0.5), Color(0.5, 0.5, 0.52)]],
 	"bar": [["Comptoir", Vector3(2.2, 1.0, 0.7), Color(0.4, 0.3, 0.22)], ["Frigo vitré", Vector3(1.6, 2.0, 0.7), Color(0.6, 0.7, 0.75)], ["Placard de cuisine", Vector3(1.8, 0.95, 0.6), Color(0.75, 0.73, 0.68)]],
@@ -78,7 +78,8 @@ const MODELES_MEUBLES := {
 	"Vitrine": ["etagere_bois"], "Râtelier": ["etagere_murale"], "Armoire à armes": ["casier"],
 	"Caisse militaire": ["caisse_bois"], "Casier militaire": ["casier_mil"], "Caisse de munitions": ["caisse_mil"],
 	"Râtelier militaire": ["etagere_metal"], "Caisse en bois": ["caisse_bois"], "Établi de ferme": ["table_bois"],
-	"Coffre": ["caisse_mil"], "Table de chevet": ["chevet"], "Bibliothèque": ["etagere_bois"],
+	"Coffre": ["caisse_mil"], "Table de chevet": ["chevet"],
+	"Lave-linge": ["lave_linge"], "Bibliothèque": ["etagere_bois"],
 	"Rayonnage de livres": ["etagere_bois"], "Classeur": ["classeur"], "Établi": ["table_bois"], "Portant": ["etagere_metal"],
 }
 
@@ -2473,9 +2474,11 @@ func _petite_forme(s: Shape3D) -> bool:
 # ================================================================ quartiers et nouveaux lieux
 ## Décor non fouillable posé dans les pièces : [modèle, nombre par étage], selon le type de bâtiment.
 const DECO_PIECES := {
-	"maison": [["canape", 1], ["table_bois", 1]], "ferme": [["table_bois", 1], ["canape", 1]],
-	"bureau": [["bureau_ecole", 3]], "bibliotheque": [["table_bois", 3]], "bar": [["table_bois", 4]],
-	"police": [["bureau_ecole", 2]], "hopital": [["bureau_ecole", 1]],
+	# [modèle, nombre, chance par pièce (1 si absente)]
+	"maison": [["canape", 1], ["table_bois", 1], ["lit_double", 1, 0.35], ["lit_simple", 1, 0.2], ["baignoire", 1, 0.12], ["lavabo", 1, 0.15], ["wc", 1, 0.12]],
+	"ferme": [["table_bois", 1], ["canape", 1], ["lit_double", 1, 0.3], ["baignoire", 1, 0.1]],
+	"bureau": [["bureau_ecole", 3]], "bibliotheque": [["table_bois", 3]], "bar": [["table_bois", 4], ["wc", 1, 0.3]],
+	"police": [["bureau_ecole", 2]], "hopital": [["bureau_ecole", 1], ["lit_simple", 3, 0.8]], "motel": [["lit_double", 1, 0.8], ["lavabo", 1, 0.4]],
 }
 
 
@@ -2486,6 +2489,8 @@ func _deco_piece(zone: Dictionary, kind: String, placed: Array) -> void:
 	for e in DECO_PIECES.get(kind, []):
 		var id: String = e[0]
 		var t := Decor.taille(id)
+		if e.size() > 2 and rng.randf() > float(e[2]):
+			continue
 		for i in int(e[1]):
 			for essai in 6:
 				var quart := rng.randi_range(0, 3)
