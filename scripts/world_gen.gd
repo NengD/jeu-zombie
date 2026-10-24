@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 11 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 12 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -2225,14 +2225,24 @@ func _cabane_peche(l: Dictionary) -> void:
 	var long := p0.distance_to(p1)
 	var le_long_x := absf(dir.x) > absf(dir.y)
 	var taille := Vector3(long, 0.2, 2.2) if le_long_x else Vector3(2.2, 0.2, long)
-	_box(Vector3(mid.x, 0.18, mid.y), taille, bois, true, "planches")
+	# ponton droit le long de l'axe dominant (le caisson est une boîte alignée sur les axes)
+	var dd := p1 - p0
+	var ax := Vector2(signf(dd.x), 0) if le_long_x else Vector2(0, signf(dd.y))
+	p0 = mid - ax * long / 2.0
+	p1 = mid + ax * long / 2.0
+	_box(Vector3(mid.x, 0.14, mid.y), taille, bois.darkened(0.45), true, "planches")
+	_planches(p0, p1, 2.2, 0.26, bois)
 	for t in 5:
 		var pp := p0.lerp(p1, t / 4.0)
 		for sd in [-1.0, 1.0]:
 			var off := Vector2(0, sd * 1.0) if le_long_x else Vector2(sd * 1.0, 0)
 			_box(Vector3(pp.x + off.x, -1.0, pp.y + off.y), Vector3(0.2, 2.4, 0.2), bois.darkened(0.3), false, "planches")
-	var barque := _container(Vector3(p1.x + (0.0 if le_long_x else 2.2), 0.3, p1.y + (2.2 if le_long_x else 0.0)), Vector3(1.2, 0.5, 0.7), Color(0.35, 0.3, 0.25), "Caisse du pêcheur", "ferme", 3)
-	barque.set_texture("planches")
+	# barque amarrée le long du ponton (« Boat » de Quaternius), fouillable
+	var pb := p0.lerp(p1, 0.7) + (Vector2(0, 2.3) if le_long_x else Vector2(2.3, 0))
+	var barque := _container(Vector3(pb.x, -0.3, pb.y), Vector3(3.2, 0.75, 1.75) if le_long_x else Vector3(1.75, 0.75, 3.2), Color(0.35, 0.3, 0.25), "Barque du pêcheur", "ferme", 3)
+	barque.set_modele("barque", PI / 2.0 if le_long_x else 0.0)
+	if barque.modele == null:
+		barque.set_texture("planches")
 	reserved.append(Rect2(minf(p0.x, p1.x) - 3, minf(p0.y, p1.y) - 3, absf(p1.x - p0.x) + 6, absf(p1.y - p0.y) + 6))
 
 
@@ -4061,13 +4071,16 @@ func _colonie(p: Vector3) -> void:
 		_residents(z, 0.9, 3)
 	# ponton et canoës
 	var rive := lc.z + r * 1.32
-	_box(Vector3(lc.x, 0.18, rive - 6.0), Vector3(2.4, 0.2, 14.0), bois, true, "planches")
+	_box(Vector3(lc.x, 0.14, rive - 6.0), Vector3(2.4, 0.2, 14.0), bois.darkened(0.45), true, "planches")
+	_planches(Vector2(lc.x, rive + 1.0), Vector2(lc.x, rive - 13.0), 2.4, 0.26, bois)
 	for t in 4:
 		for sd in [-1.0, 1.0]:
 			_box(Vector3(lc.x + sd * 1.1, -1.0, rive + 0.5 - t * 4.0), Vector3(0.2, 2.4, 0.2), bois.darkened(0.3), false, "planches")
 	for k in 3:
-		var ca := _container(Vector3(lc.x + 6.0 + k * 2.2, 0, rive + 3.0), Vector3(0.9, 0.45, 4.2), [Color(0.85, 0.3, 0.15), Color(0.2, 0.45, 0.75), Color(0.9, 0.75, 0.2)][k], "Canoë", "camping", 1)
-		ca.set_texture("planches")
+		var ca := _container(Vector3(lc.x + 6.0 + k * 2.6, 0, rive + 3.0), Vector3(1.75, 0.75, 3.2), [Color(0.85, 0.3, 0.15), Color(0.2, 0.45, 0.75), Color(0.9, 0.75, 0.2)][k], "Barque", "camping", 1)
+		ca.set_modele("barque" if k < 2 else "canot", 0.0)
+		if ca.modele == null:
+			ca.set_texture("planches")
 	# bus scolaires sur le parking
 	for e in [Vector3(-63.0, 0, 30.0), Vector3(62.0, 0, 28.0)]:
 		_modele_ou_voiture("bus_scolaire", p + e, rng.randf_range(-0.15, 0.15), "voiture_suv", Color(0.9, 0.75, 0.15))
@@ -4417,3 +4430,17 @@ func _nid_zombies(p: Vector3) -> void:
 		guards.append({"pos": q, "kind": ["civil", "civil", "civil", "police", "militaire"][rng.randi() % 5], "radius": 28.0})
 	_poi("Nid de zombies (zone infestée)", p, Color(1.0, 0.25, 0.2))
 	Game.map_rects.append({"rect": Rect2(p.x - 25.0, p.z - 25.0, 50.0, 50.0), "color": Color(0.8, 0.1, 0.1, 0.25)})
+
+
+## Platelage d'un ponton : planches en travers (avec jours) posées sur le caisson, de p0 à p1 (plan XZ).
+func _planches(p0: Vector2, p1: Vector2, larg: float, pas: float, bois: Color) -> void:
+	var d := p1 - p0
+	var long := d.length()
+	var le_long_x := absf(d.x) > absf(d.y)
+	var nb := int(long / pas)
+	for i in nb:
+		var q := p0.lerp(p1, (i + 0.5) / nb)
+		var taille := Vector3(pas - 0.04, 0.05, larg) if le_long_x else Vector3(larg, 0.05, pas - 0.04)
+		var teinte := bois * (0.9 + 0.2 * float((i * 7) % 5) / 4.0)
+		teinte.a = 1.0
+		_box(Vector3(q.x, 0.265, q.y), taille, teinte, false, "planches")

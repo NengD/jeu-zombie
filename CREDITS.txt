@@ -65,6 +65,7 @@ Décor (tous CC0 — domaine public) :
    (découpés en tête et pattes animées par outils/godot/normaliser_animaux.gd).
 — Arc recourbé « Wooden Bow » (https://poly.pizza/m/QnpqjLSKFU) et flèche « Arrow » (https://poly.pizza/m/Rt48KEPDGt) :
    Quaternius, licence CC0 (conversion : outils/godot/normaliser_arc.gd ; corde tendue par le jeu).
+— Barque « Boat » et canot « Lifeboat » : « Ships » de Quaternius, licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models).
 — Véhicules : pick-up « Pickup Truck » (https://poly.pizza/m/qn4grQgHm8) et ambulance (« Public Transport ») : Quaternius, CC0 ;
    camionnette « Van » (https://poly.pizza/m/aT_24cDaW1a), tracteur « Tractor » (https://poly.pizza/m/5TGoA5N14c5) et moto
    « Motorcycle » (https://poly.pizza/m/dse64pqMKAR) : Poly by Google, licence CC BY 3.0.

@@ -93,6 +93,9 @@ const CFG := {
 	"voiture_camionnette": ["camionnette", "", "", 2.1, Vector3.ZERO, 5000, "", Color.WHITE, 0],
 	"voiture_tracteur": ["tracteur", "", "", 2.8, Vector3.ZERO, 5000, "", Color.WHITE, 0],
 	"voiture_moto": ["moto", "", "", 1.15, Vector3.ZERO, 5000, "", Color.WHITE, 0],
+	# --- bateaux (« Ships », Quaternius CC0)
+	"barque": ["barque", "", "", 0.75, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"canot": ["canot", "", "", 0.85, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]

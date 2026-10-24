@@ -92,6 +92,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
 • Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; sanglier, lapin et faisan : Poly by Google (CC BY 3.0, via Poly Pizza).
+• Barques et canot : « Ships » de Quaternius (CC0).
 • Pick-up et ambulance : Quaternius (CC0) ; camionnette, tracteur et moto : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Lits, baignoires, WC, lavabos, lave-linge : « Ultimate Home Interior » et « Furniture » de Quaternius, licence CC0.
 • Objets au sol (conserve, bandage, trousse, jerrican, bouteille, barre) : « Survival Pack » et « Ultimate Food » de Quaternius, licence CC0.
