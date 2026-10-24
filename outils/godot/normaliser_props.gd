@@ -87,6 +87,12 @@ const CFG := {
 	"wc": ["wc", "", "", 0.8, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 	"lave_linge": ["lave_linge", "", "", 0.85, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 	"lavabo": ["lavabo", "", "", 0.9, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	# --- véhicules en plus (Quaternius CC0 : pick-up, ambulance ; Poly by Google CC BY : camionnette, tracteur, moto)
+	"voiture_pickup": ["pickup", "", "", 1.75, Vector3.ZERO, 5000, "", Color.WHITE, 0],
+	"voiture_ambulance": ["ambulance", "", "", 2.5, Vector3.ZERO, 5000, "", Color.WHITE, 0],
+	"voiture_camionnette": ["camionnette", "", "", 2.1, Vector3.ZERO, 5000, "", Color.WHITE, 0],
+	"voiture_tracteur": ["tracteur", "", "", 2.8, Vector3.ZERO, 5000, "", Color.WHITE, 0],
+	"voiture_moto": ["moto", "", "", 1.15, Vector3.ZERO, 5000, "", Color.WHITE, 0],
 }
 const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]

@@ -69,3 +69,26 @@ static func distance(n: Node, d: float) -> void:
 	for g in n.find_children("*", "GeometryInstance3D", true, false):
 		g.visibility_range_end = d
 		g.visibility_range_end_margin = d * 0.1
+
+
+static var _vieux := {}
+
+
+## Épave : toutes les surfaces tirées vers une couleur (rouille, carcasse brûlée), matériaux partagés en cache.
+static func vieillir(n: Node, couleur: Color, f: float) -> void:
+	for g in n.find_children("*", "MeshInstance3D", true, false):
+		var mi: MeshInstance3D = g
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(s)
+			if m == null:
+				m = mi.mesh.surface_get_material(s)
+			if not m is StandardMaterial3D:
+				continue
+			var cle := "%d_%s_%.2f" % [m.get_instance_id(), couleur.to_html(), f]
+			if not _vieux.has(cle):
+				var c: StandardMaterial3D = m.duplicate()
+				c.albedo_color = c.albedo_color.lerp(couleur, f)
+				c.metallic = 0.0
+				c.roughness = 1.0
+				_vieux[cle] = c
+			mi.set_surface_override_material(s, _vieux[cle])

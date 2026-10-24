@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 10 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 11 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -428,7 +428,8 @@ func _mobilier_urbain(o: Vector3 = Vector3.ZERO, nb: int = NB) -> void:
 			_prop("cone", p + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4)), rng.randf() * TAU, false, 1.0, 80.0)
 
 
-const VOITURES := ["voiture1", "voiture2", "voiture_suv", "voiture_taxi", "voiture_sport", "voiture1", "voiture2"]
+const VOITURES := ["voiture1", "voiture2", "voiture_suv", "voiture_taxi", "voiture_sport", "voiture1", "voiture2",
+		"voiture_pickup", "voiture_camionnette", "voiture_moto"]
 
 
 ## Objet de décor (modèle 3D) posé au sol, avec collision en boîte si « solide ».
@@ -474,6 +475,12 @@ func _car(c: Vector3, along_x: bool, col: Color, id := "") -> void:
 		var v := _prop(id, c, ang, true, 1.0, 220.0)
 		if v and id != "voiture_police" and id != "voiture_taxi":
 			Decor.peindre(v, col)
+		# épaves : rouillées ou brûlées
+		var r_ep := rng.randf()
+		if v and r_ep < 0.22:
+			Decor.vieillir(v, Color(0.42, 0.24, 0.12), 0.7)
+		elif v and r_ep < 0.3:
+			Decor.vieillir(v, Color(0.07, 0.06, 0.055), 0.88)
 		return
 	var body := Vector3(4.3, 0.9, 1.9) if along_x else Vector3(1.9, 0.9, 4.3)
 	var cab := Vector3(2.2, 0.7, 1.75) if along_x else Vector3(1.75, 0.7, 2.2)
@@ -1257,6 +1264,8 @@ func _hospital(bc: Vector3) -> void:
 	_box(bc + Vector3(0, 5.5, 13.2), Vector3(3.0, 0.8, 0.1), Color(0.8, 0.1, 0.1), false)
 	_box(bc + Vector3(0, 5.5, 13.2), Vector3(0.8, 3.0, 0.1), Color(0.8, 0.1, 0.1), false)
 	_poi("Hôpital", bc, Color(1.0, 0.35, 0.35))
+	for sx in [-4.0, 4.0]:
+		_prop("voiture_ambulance", bc + Vector3(sx, 0, 17.5), PI / 2.0 + rng.randf_range(-0.2, 0.2), true, 1.0, 220.0)
 	for i in 7:
 		guards.append({"pos": _random_in(z, 1.0), "kind": "patient", "radius": 6.0})
 	for i in 4:
@@ -1557,6 +1566,7 @@ func _gas_station(c: Vector3) -> void:
 
 func _farm(c: Vector3, hx: float, hz: float, label: String) -> void:
 	var house := _building(c, 12.0, 10.0, 6.6, Color(0.66, 0.6, 0.5), ["s"], "ferme", label, false, 6, Color(0.6, 0.45, 0.3))
+	_prop("voiture_tracteur", c + Vector3(-9.0, 0, 8.0), rng.randf() * TAU, true, 1.0, 220.0)
 	var barn := _building(c + Vector3(20, 0, -2), 16.0, 20.0, 8.0, Color(0.5, 0.18, 0.13), ["w", "e"], "grange", "Grange", false, 7, Color(0.6, 0.25, 0.2))
 	_residents(house, 0.7, 2)
 	_residents(barn, 0.8, 3)
