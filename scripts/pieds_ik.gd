@@ -17,6 +17,8 @@ var _ecart := {"_l": 0.0, "_r": 0.0}   # décalage vertical lissé de chaque pie
 var _normale := {"_l": Vector3.UP, "_r": Vector3.UP}
 var _bassin := 0.0
 var penche := 0.0                  # se pencher (A / E) : inclinaison du buste en radians (+ = à droite), pieds au sol
+var flexion := 0.0                 # bassin abaissé, jambes fléchies (m) : réglé par le propriétaire (atterrissage)
+var flexion_image := 0.0           # idem, remis à 0 après chaque image (boiterie, pas de pivot : corps_vivant.gd)
 var _vertebres: Array[int] = []
 
 
@@ -25,6 +27,8 @@ func _ready() -> void:
 	if sk == null:
 		return
 	_os["pelvis"] = sk.find_bone("pelvis")
+	# os abaissé avec le bassin : « Body » (parent du bassin et des cuisses des personnages modulaires), sinon le bassin
+	_os["bas"] = sk.find_bone("Body") if sk.find_bone("Body") >= 0 else _os["pelvis"]
 	for n in ["spine_01", "spine_02", "spine_03"]:
 		if sk.find_bone(n) >= 0:
 			_vertebres.append(sk.find_bone(n))
@@ -74,14 +78,16 @@ func _process_modification_with_delta(delta: float) -> void:
 		for v in _vertebres:
 			var gv := sk.get_bone_global_pose(v)
 			sk.set_bone_global_pose(v, Transform3D(Basis(axe, penche / _vertebres.size()) * gv.basis, gv.origin))
-	if not talon and absf(_bassin) < 0.002 and absf(_ecart._l) < 0.002 and absf(_ecart._r) < 0.002:
+	var flex := maxf(flexion, flexion_image) if au_sol else 0.0
+	flexion_image = 0.0
+	if not talon and flex < 0.002 and absf(_bassin) < 0.002 and absf(_ecart._l) < 0.002 and absf(_ecart._r) < 0.002:
 		return
 	var haut_sk := (inv_sk.basis * Vector3.UP)   # 1 m vers le haut dans l'espace du squelette (échelle comprise)
 	var avant_sk := (inv_sk.basis * -corps.global_basis.z).normalized()
 	var cibles := {}
 	for c in ["_l", "_r"]:
 		cibles[c] = (pieds_monde[c] as Vector3) + Vector3.UP * float(_ecart[c])
-	var bassin := _bassin
+	var bassin := _bassin - flex
 	if talon:
 		# coup de talon : pied levé, écrasé sur la cible, puis reposé (bassin un peu fléchi)
 		var hanche: Vector3 = xf_sk * sk.get_bone_global_pose(_os.thigh_r).origin
@@ -104,9 +110,9 @@ func _process_modification_with_delta(delta: float) -> void:
 			pied = t.lerp(cibles._r, smoothstep(0.0, 1.0, (p - 0.75) / 0.25))
 		cibles._r = pied
 		bassin += -0.1 * sin(clampf(p, 0.0, 1.0) * PI)
-	var gp := sk.get_bone_global_pose(_os.pelvis)
+	var gp := sk.get_bone_global_pose(_os.bas)
 	gp.origin += haut_sk * bassin
-	sk.set_bone_global_pose(_os.pelvis, gp)
+	sk.set_bone_global_pose(_os.bas, gp)
 	for c in ["_l", "_r"]:
 		var n_sol: Vector3 = Vector3.UP if (talon and c == "_r") else _normale[c]
 		_jambe(sk, c, inv_sk * (cibles[c] as Vector3), avant_sk, (inv_sk.basis * n_sol).normalized(), haut_sk.normalized())

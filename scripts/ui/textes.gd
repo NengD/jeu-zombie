@@ -41,6 +41,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
 • Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras.
+• Ton personnage bouge avec naturel : pas de côté et à reculons en visant, corps penché dans les virages, jambes fléchies à l'atterrissage, tête tournée vers ce que tu regardes, souffle court quand tu es épuisé, dos voûté et boiterie quand tu es gravement blessé, buste secoué selon le côté où tu es touché.
+• En eau profonde (centre des lacs), tu nages : lentement, sans courir, sauter ni t'accroupir.
 • Chaque coup affiche ses [b]dégâts[/b] au-dessus de la cible (orange : tir à la tête, doré : coup critique) ;
   une petite [b]barre de vie[/b] apparaît au-dessus des ennemis touchés ou visés, puis s'efface.
 
@@ -90,7 +92,7 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Primes[/b] : chaque marchand indique où sont les camps et paie une prime (80 € + 30 € par bandit)
   quand un camp est entièrement nettoyé. Viens la toucher chez un marchand.
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
-• Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
+• Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0. Animations : « Universal Animation Library » 1 et 2 de Quaternius (CC0).
 • Cerf, biche, loup, chien, vache et chevaux : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; mouton : Quaternius (CC0) ; sanglier, lapin, faisan et corbeau : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Barques et canot : « Ships » de Quaternius (CC0).
 • Pick-up et ambulance : Quaternius (CC0) ; camionnette, tracteur et moto : Poly by Google (CC BY 3.0, via Poly Pizza).

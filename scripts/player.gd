@@ -144,6 +144,14 @@ var arme_prete_t := 0.0             # vient de finir de recharger (HUD : munitio
 var chargeur_main: Node3D = null  # chargeur porté par la main gauche pendant le rechargement
 var pts_bras := {}                 # points de prise de l'arme tenue (FpsArms.hand_points)
 var pieds_ik: Node = null           # pieds posés au sol + coup de talon (scripts/pieds_ik.gd)
+var corps_vivant: Node = null       # hanches, penché, regard, souffle, coups reçus (scripts/corps_vivant.gd)
+var marche_arriere := false         # on recule : la marche est jouée à l'envers
+var yaw_prec := 0.0
+var flex_amp := 0.0                 # flexion des jambes à l'atterrissage (m)
+var flex_t := 9.0
+var nage := false                   # en eau profonde : on nage
+var air_t := 0.0                    # temps passé en l'air
+const SURFACE_EAU := -0.9           # relief.NIVEAU_EAU
 
 
 func _ready() -> void:
@@ -239,12 +247,17 @@ func _build_rig() -> void:
 			modele.remove_child(hand)
 			prise.add_child(hand)
 			hand.transform = Transform3D.IDENTITY
+			# corps vivant d'abord (hanches, buste, tête), puis les pieds (le bassin peut descendre), puis les bras
+			corps_vivant = preload("res://scripts/corps_vivant.gd").new()
+			corps_vivant.corps = self
+			sk.add_child(corps_vivant)
 			# pieds posés sur le sol (avant les bras : le bassin peut descendre)
 			pieds_ik = preload("res://scripts/pieds_ik.gd").new()
 			var pieds = pieds_ik
 			pieds.corps = self
 			pieds.masque = Game.LAYER_WORLD
 			sk.add_child(pieds)
+			corps_vivant.pieds = pieds
 			bras_ik =preload("res://scripts/bras_ik.gd").new()
 			bras_ik.corps = self
 			sk.add_child(bras_ik)
@@ -459,6 +472,13 @@ func _move(delta: float, can_act: bool) -> void:
 	var mouille := Game.dans_eau(global_position)
 	if mouille:
 		speed = minf(speed, WALK * 0.55)
+	# eau profonde (plus de 1,3 m) : on nage, le buste à la surface
+	nage = mouille and _profondeur_eau() > 1.3
+	if nage:
+		speed = minf(speed, WALK * 0.5)
+		sprinting = false
+		if crouching:
+			_set_crouch(false)
 	if arc_tension > 0.0:
 		speed = minf(speed, AIM_SPEED)
 		sprinting = false
@@ -473,7 +493,9 @@ func _move(delta: float, can_act: bool) -> void:
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
-	if is_on_floor():
+	if nage:
+		velocity.y = clampf((SURFACE_EAU - 0.95 - global_position.y) * 5.0, -3.0, 2.0)
+	elif is_on_floor():
 		if can_act and Input.is_action_just_pressed("sauter") and stamina > 4.0:
 			if crouching:
 				_set_crouch(false)
@@ -483,6 +505,7 @@ func _move(delta: float, can_act: bool) -> void:
 	else:
 		velocity.y -= GRAVITY * delta
 	move_and_slide()
+	air_t = 0.0 if (is_on_floor() or nage) else air_t + delta
 	# bruit des pas
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and hspeed > 0.5:
@@ -657,6 +680,7 @@ func _update_camera(delta: float) -> void:
 	if pap == null:
 		modele.scale.y = move_toward(modele.scale.y, 0.7 if crouching else 1.0, delta * 3.0)
 	else:
+		_maj_corps(delta)
 		_update_player_anim(delta)
 	_set_model_shadow_only(false)
 	hand.visible = true
@@ -680,6 +704,10 @@ func _update_camera(delta: float) -> void:
 	sprint_k = move_toward(sprint_k, 1.0 if (sprinting and hs > 3.0 and is_on_floor() and reload_t <= 0.0) else 0.0, delta * 5.0)
 	# atterrissage : petite secousse
 	if is_on_floor() and air_vy < -3.0:
+		flex_amp = clampf(0.08 + (-air_vy - 3.0) * 0.035, 0.08, 0.36)
+		flex_t = 0.0
+		if air_vy < -9.0 and perso_ual:
+			_p_anim("reception", 1.3, 0.45)   # grosse chute : réception accroupie, mains au sol
 		rec_rvel += Vector3(clampf(air_vy * 0.25, -3.0, 0.0), 0, 0)
 	air_vy = velocity.y if not is_on_floor() else 0.0
 	# ressort du recul (petits pas de temps : stable même à faible nombre d'images par seconde)
@@ -1683,6 +1711,8 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 		impacts_recus.append([src, 1.2])
 		if impacts_recus.size() > 6:
 			impacts_recus.pop_front()
+		if corps_vivant:
+			corps_vivant.coup(src, clampf(amount / 20.0, 0.3, 1.2))
 	# parade réussie si l'attaquant est devant soi
 	if bloque and _from is Node3D:
 		var vers: Vector3 = (_from as Node3D).global_position - global_position
@@ -1728,6 +1758,16 @@ func _hurt(amount: float) -> void:
 
 func _die() -> void:
 	alive = false
+	# chute (deux variantes : côté gauche ou droit), les bras ne tiennent plus l'arme
+	if perso_ual and pap:
+		p_lock = 0.0
+		_p_anim(["mort", "mort_miroir"].pick_random(), 1.0, 99.0)
+		if bras_ik:
+			bras_ik.active = false
+		if corps_vivant:
+			corps_vivant.active = false
+		if pieds_ik:
+			pieds_ik.active = false
 	cancel_placement()
 	var tw := create_tween()
 	tw.tween_property(head, "position:y", 0.35, 0.8)
@@ -2680,17 +2720,25 @@ func _update_player_anim(delta: float) -> void:
 	var is_gun: bool = Items.info(current_weapon()).get("type", "") == "gun"
 	if perso_ual:
 		# vitesses naturelles des animations UAL : marche 0,94 m/s, jogging 2,4, sprint 3,1, accroupi 0,77
-		if crouching:
+		# à reculons : la même animation jouée à l'envers (les hanches se tournent pour les pas de côté : _maj_corps)
+		var sens := -1.0 if marche_arriere else 1.0
+		if sur_echelle:
+			_p_anim("escalade", clampf(absf(velocity.y) / 1.6, 0.0, 1.3))
+		elif nage:
+			_p_anim("nage" if hs > 0.3 else "nage_place", _cadence(maxf(hs, 0.5), 0.9))
+		elif not is_on_floor() and air_t > 0.35:
+			_p_anim("saut_air")
+		elif crouching:
 			if hs > 0.3:
-				_p_anim("accroupi_marche", _cadence(hs, 0.77))
+				_p_anim("accroupi_marche", _cadence(hs, 0.77) * sens)
 			else:
 				_p_anim("accroupi")
 		elif hs > 4.6:
 			_p_anim("course", _cadence(hs, 3.1))
 		elif hs > 1.9:
-			_p_anim("jogging", _cadence(hs, 2.4))
+			_p_anim("jogging", _cadence(hs, 2.4) * sens)
 		elif hs > 0.3:
-			_p_anim("marche", _cadence(hs, 0.94))
+			_p_anim("marche", _cadence(hs, 0.94) * sens)
 		elif bloque:
 			_p_anim("parade")
 		elif is_gun and reload_t > 0.0 and reload_total > 0.0:
@@ -2855,3 +2903,47 @@ func _maj_equipement_visible() -> void:
 		if c != hand and c.has_meta("modele"):
 			EquipVisuel.appliquer(c, equipped)
 			EquipVisuel.armes_rangees(c, armes)
+
+
+## Profondeur de l'eau sous le joueur (m), 0 hors de l'eau.
+func _profondeur_eau() -> float:
+	if Game.relief == null or not Game.relief.dans_eau(global_position.x, global_position.z):
+		return 0.0
+	return maxf(0.0, SURFACE_EAU - Game.relief.hauteur(global_position.x, global_position.z))
+
+
+## Corps vivant (scripts/corps_vivant.gd) : hanches vers la marche, penché dans les virages, regard,
+## souffle, blessure, flexion à l'atterrissage.
+func _maj_corps(delta: float) -> void:
+	var cv = corps_vivant
+	if cv == null:
+		return
+	var vl := global_basis.inverse() * velocity
+	vl.y = 0.0
+	var hs := vl.length()
+	cv.vitesse = hs if is_on_floor() else 0.0
+	var h := 0.0
+	marche_arriere = false
+	if hs > 0.3 and not sprinting and not sur_echelle and not nage and is_on_floor():
+		var ang := atan2(-vl.x, -vl.z)       # 0 = droit devant, + = vers la gauche
+		if absf(ang) > 1.95:
+			marche_arriere = true
+			ang = wrapf(ang + PI, -PI, PI)
+		h = clampf(ang, -1.1, 1.1)
+	cv.hanches_cible = h
+	cv.pivot_actif = is_on_floor() and not sur_echelle and not nage and p_lock <= 0.0
+	# virage en courant : le corps penche vers l'intérieur
+	var yaw := global_rotation.y
+	var vit_yaw := wrapf(yaw - yaw_prec, -PI, PI) / maxf(delta, 0.001)
+	yaw_prec = yaw
+	cv.inclinaison_cible = clampf(-vit_yaw * hs * 0.03, -0.28, 0.28) if (hs > 2.5 and is_on_floor()) else 0.0
+	# regard : vers là où vise la caméra (l'arme tenue en joue s'en charge déjà : bras_ik)
+	var en_joue := ads > 0.3 or arc_vise > 0.3
+	cv.regard = Vector3.INF if (en_joue or sur_echelle) else camera.global_position - camera.global_basis.z * 25.0
+	cv.souffle = clampf((0.45 - stamina / prog.endurance_max()) / 0.45, 0.0, 1.0)
+	cv.blessure = clampf((0.35 - health / prog.sante_max()) / 0.35, 0.0, 1.0)
+	# atterrissage : jambes fléchies, d'autant plus que la chute était haute
+	flex_t += delta
+	if pieds_ik:
+		var p := minf(flex_t / 0.5, 1.0)
+		pieds_ik.flexion = flex_amp * sin(minf(p * 3.0, 1.0) * PI * 0.5) * (1.0 - smoothstep(0.25, 1.0, p))
