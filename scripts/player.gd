@@ -27,8 +27,8 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(2.0, 1.0, 0.9), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25), "lit": Vector3(1.0, 0.5, 2.0)}
-const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche"]   # se posent n'importe où
+const PLACE_SIZES := {"etabli": Vector3(1.2, 1.05, 1.1), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25), "lit": Vector3(1.0, 0.5, 2.0), "piege_machoires": Vector3(0.7, 0.2, 0.8), "recuperateur_eau": Vector3(1.2, 1.6, 1.2), "sechoir": Vector3(1.6, 1.6, 0.8)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche", "piege_machoires", "recuperateur_eau", "sechoir"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0

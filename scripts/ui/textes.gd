@@ -99,7 +99,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Arc recourbé et flèches : « Wooden Bow » et « Arrow » de Quaternius, licence CC0.
 • Train, tentes et tours de garde : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer et bus scolaire : Poly by Google ; camion militaire : Alex Safayan (CC BY 3.0, via Poly Pizza).
 • Équipement porté : sacs (Quaternius, Voxel_dev, accidentallyc), lunettes (iPoly3D) — CC0 ; casque intégral (CreativeTechLab), casque de chantier (Poly by Google), masque à gaz (Marisha), sac de chasse, bonnet et casquette (J-Toastie), casquette de police (Casey Tumbers) — CC BY 3.0, via Poly Pizza ; casque militaire (hc, OpenGameArt, CC BY 3.0).
-• Télévisions et meuble télé : Kenney (CC0), seau : Kenney (CC0) ; abribus : Zsky (CC BY 3.0, via Poly Pizza).
+• Télévisions et meuble télé : Kenney (CC0), seau et établi : Kenney (CC0) ; bûches du feu de camp et piège à mâchoires : Quaternius (CC0) ; lit de camp : Steve B (CC BY 3.0, via Poly Pizza) ; abribus : Zsky (CC BY 3.0, via Poly Pizza).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
@@ -142,6 +142,9 @@ const GUIDE := """[b]LES BASES[/b]
   Vaches, chevaux et moutons errent près des fermes : de la viande, du cuir (et de la laine pour le tissu) faciles à prendre.
 • Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
 • Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
+• Récupérateur d'eau de pluie (établi) : se remplit sous la pluie, [F] pour prendre les bouteilles. Séchoir à viande (planches, clous) :
+  [F] pour y suspendre la viande crue, elle devient de la viande séchée (légère, sans danger). Piège à mâchoires (établi) :
+  immobilise et blesse le premier zombie qui marche dessus ; [F] pour le réarmer.
 
 [b]RÉCOLTE : HACHE ET PIOCHE[/b]
 • Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,

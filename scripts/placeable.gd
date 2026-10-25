@@ -18,14 +18,8 @@ func setup(p_kind: String) -> void:
 	match kind:
 		"etabli":
 			add_to_group("workbench")
-			_part(Vector3(0, 0.9, 0), Vector3(2.0, 0.1, 0.9), wood)
-			for x in [-0.9, 0.9]:
-				for z in [-0.38, 0.38]:
-					_part(Vector3(x, 0.43, z), Vector3(0.1, 0.86, 0.1), wood.darkened(0.2))
-			_part(Vector3(0, 0.25, 0), Vector3(1.8, 0.05, 0.8), wood.darkened(0.1))
-			_part(Vector3(0.7, 1.05, 0.25), Vector3(0.25, 0.2, 0.2), Color(0.3, 0.3, 0.35))  # étau
-			_part(Vector3(-0.5, 0.98, -0.1), Vector3(0.5, 0.06, 0.3), Color(0.4, 0.4, 0.42))  # outils
-			_shape(Vector3(0, 0.5, 0), Vector3(2.0, 1.0, 0.9))
+			_modele("etabli", Vector3.ZERO, Vector3.ONE * 1.1)   # établi à outils (Kenney, CC0)
+			_shape(Vector3(0, 0.52, 0), Vector3(1.2, 1.05, 1.1))
 		"feu_camp":
 			# cercle de pierres, bûches croisées, braises, flammes et lumière vacillante
 			add_to_group("feu_camp")
@@ -36,9 +30,7 @@ func setup(p_kind: String) -> void:
 				var a := k * TAU / 9.0
 				var pi := _part(Vector3(cos(a) * 0.48, 0.07, sin(a) * 0.48), Vector3(0.2, 0.14, 0.16), pierre.lightened(randf() * 0.15))
 				pi.rotation.y = -a
-			for k in 4:
-				var b := _part(Vector3(0, 0.14, 0), Vector3(0.09, 0.09, 0.62), wood.darkened(0.45))
-				b.rotation = Vector3(0.5, k * PI / 4.0, 0)
+			_modele("feu_bois", Vector3.ZERO, Vector3.ONE * 0.45)   # bûches (Quaternius, CC0)
 			_part(Vector3(0, 0.03, 0), Vector3(0.5, 0.04, 0.5), Color(0.15, 0.08, 0.04))
 			var mf := StandardMaterial3D.new()
 			mf.albedo_texture = Effets._texture("flamme")
@@ -97,13 +89,7 @@ func setup(p_kind: String) -> void:
 			# lit de camp : cadre en bois, matelas, oreiller, couverture
 			add_to_group("lits")
 			health = 120.0
-			_part(Vector3(0, 0.3, 0), Vector3(0.95, 0.08, 1.95), wood)
-			for x in [-0.42, 0.42]:
-				for z in [-0.9, 0.9]:
-					_part(Vector3(x, 0.15, z), Vector3(0.07, 0.3, 0.07), wood.darkened(0.2))
-			_part(Vector3(0, 0.4, 0), Vector3(0.88, 0.12, 1.85), Color(0.72, 0.7, 0.62))
-			_part(Vector3(0, 0.5, -0.75), Vector3(0.6, 0.1, 0.32), Color(0.9, 0.9, 0.86))
-			_part(Vector3(0, 0.47, 0.25), Vector3(0.9, 0.06, 1.2), Color(0.3, 0.38, 0.5))
+			_modele("lit_camp", Vector3.ZERO, Vector3(1.75, 1.1, 1.7))   # lit de camp et sac de couchage (Steve B, CC BY)
 			_shape(Vector3(0, 0.25, 0), Vector3(1.0, 0.5, 2.0))
 		"plan_couture":
 			# table, rouleau de tissu, peau tendue sur un cadre, ciseaux
@@ -145,12 +131,62 @@ func setup(p_kind: String) -> void:
 			lapin_pris = Node3D.new()
 			lapin_pris.visible = false
 			add_child(lapin_pris)
-			var corps := _part(Vector3(0, 0.07, -0.05), Vector3(0.14, 0.12, 0.26), Color(0.52, 0.44, 0.36))
-			corps.reparent(lapin_pris, false)
-			var oreille := _part(Vector3(0.03, 0.08, -0.25), Vector3(0.04, 0.02, 0.12), Color(0.58, 0.5, 0.42))
-			oreille.reparent(lapin_pris, false)
+			if ResourceLoader.exists("res://modeles/animaux/lapin.scn"):
+				# lapin pris au collet, couché sur le flanc
+				var la: Node3D = load("res://modeles/animaux/lapin.scn").instantiate()
+				la.position = Vector3(0, 0.08, -0.05)
+				la.rotation = Vector3(0, 0.4, PI / 2.0)
+				lapin_pris.add_child(la)
 			collet_t = randf_range(150.0, 400.0)
 			_shape(Vector3(0, 0.15, 0), Vector3(0.5, 0.3, 0.5))
+		"piege_machoires":
+			# piège à mâchoires (Quaternius, CC0) : blesse et immobilise le premier zombie qui marche dessus ; [F] pour le réarmer
+			health = 80.0
+			collision_layer = Game.LAYER_INTERACT
+			machoires = _modele("piege_machoires", Vector3.ZERO, Vector3.ONE * 1.1)
+			_shape(Vector3(0, 0.08, 0), Vector3(0.7, 0.16, 0.8))
+			_zone_piege(Vector3(0.8, 1.0, 0.8))
+		"recuperateur_eau":
+			# fût bleu sous un entonnoir de bâche tendu sur quatre piquets : se remplit sous la pluie
+			health = 120.0
+			_modele("baril_bleu", Vector3.ZERO, Vector3.ONE * 0.95)
+			for x in [-0.55, 0.55]:
+				for z in [-0.55, 0.55]:
+					_part(Vector3(x, 0.75, z), Vector3(0.05, 1.5, 0.05), wood.darkened(0.25))
+			var bache := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.8
+			cone.bottom_radius = 0.12
+			cone.height = 0.45
+			cone.radial_segments = 4
+			cone.cap_top = false
+			bache.mesh = cone
+			var mb := StandardMaterial3D.new()
+			mb.albedo_color = Color(0.25, 0.38, 0.3)
+			mb.roughness = 0.8
+			mb.cull_mode = BaseMaterial3D.CULL_DISABLED
+			bache.material_override = mb
+			bache.position = Vector3(0, 1.32, 0)
+			bache.rotation.y = PI / 4.0
+			add_child(bache)
+			niveau_eau = _part(Vector3(0, 0.0, 0), Vector3(0.48, 0.02, 0.48), Color(0.3, 0.42, 0.5))
+			_maj_visuel_stock()
+			_shape(Vector3(0, 0.6, 0), Vector3(0.75, 1.2, 0.75))
+		"sechoir":
+			# séchoir à viande : chevalet en bois, perche, lanières de viande suspendues (selon le stock)
+			health = 100.0
+			for sx in [-0.7, 0.7]:
+				for sz in [-1.0, 1.0]:
+					var pied := _part(Vector3(sx, 0.75, sz * 0.22), Vector3(0.06, 1.6, 0.06), wood.darkened(0.2))
+					pied.rotation.x = sz * 0.28
+			_part(Vector3(0, 1.48, 0), Vector3(1.6, 0.05, 0.05), wood.darkened(0.1))
+			_part(Vector3(0, 0.03, 0), Vector3(1.2, 0.04, 0.5), Color(0.2, 0.12, 0.06))   # cendres du fumage
+			for k in 6:
+				var la := _part(Vector3(-0.55 + k * 0.22, 1.24, 0), Vector3(0.1, 0.45, 0.03), Color(0.45, 0.13, 0.1))
+				la.rotation.z = randf_range(-0.1, 0.1)
+				lanieres.append(la)
+			_maj_visuel_stock()
+			_shape(Vector3(0, 0.8, 0), Vector3(1.6, 1.6, 0.6))
 		"barricade":
 			add_to_group("barricade")
 			for y in [0.4, 1.15, 1.9]:
@@ -281,9 +317,110 @@ func get_prompt() -> String:
 			return "[F] Projecteur : %s" % ("automatique (s'allume la nuit)" if mode == 0 else MODES[mode])
 		"torche":
 			return "Torche"
+		"recuperateur_eau":
+			return "[F] Récupérateur d'eau : %d / %d bouteilles%s" % [stock, EAU_MAX, " (il pleut)" if Game.pluie > 0.3 else ""]
+		"sechoir":
+			return "[F] Séchoir à viande : %d / %d sèche(s)" % [secs, stock] if stock > 0 else "[F] Séchoir à viande : mettre de la viande crue à sécher"
+		"piege_machoires":
+			return "Piège à mâchoires (armé)" if armee else "[F] Réarmer le piège à mâchoires"
 		"lit":
 			return "[F] Dormir jusqu'au matin" if Game.is_night() else "Lit de camp (on n'y dort que la nuit, après 20 h 30)"
 	return "Barricade (%d PV)" % int(health)
+
+
+const Decor = preload("res://scripts/decor.gd")
+
+
+## Modèle de décor (modeles/props) posé dans l'objet.
+func _modele(id: String, pos: Vector3, k: Vector3, rot_y := 0.0) -> Node3D:
+	var n := Decor.instance(id)
+	if n == null:
+		return null
+	n.position = pos
+	n.rotation.y = rot_y
+	n.scale = k
+	add_child(n)
+	return n
+
+
+# ---------------------------------------------------------------- récupérateur d'eau, séchoir, piège à mâchoires
+const EAU_MAX := 4                  # bouteilles d'eau stockées au plus
+const PLUIE_PAR_BOUTEILLE := 90.0   # secondes de pluie franche par bouteille
+const SECHAGE := 240.0              # secondes pour sécher une lanière de viande
+const SECHOIR_MAX := 6
+var stock := 0                       # bouteilles (récupérateur) ou viandes mises à sécher (séchoir)
+var minuteur := 0.0
+var secs := 0                        # séchoir : viandes déjà sèches
+var armee := true                    # piège à mâchoires armé
+var machoires: Node3D = null
+var niveau_eau: MeshInstance3D = null
+var lanieres: Array = []
+
+
+func _maj_visuel_stock() -> void:
+	if niveau_eau:
+		niveau_eau.visible = stock > 0
+		niveau_eau.position.y = 0.15 + 0.7 * float(stock) / EAU_MAX
+	for k in lanieres.size():
+		var la: MeshInstance3D = lanieres[k]
+		la.visible = k < stock
+		if la.visible:
+			(la.material_override as StandardMaterial3D).albedo_color = Color(0.32, 0.17, 0.1) if k < secs else Color(0.6, 0.16, 0.13)
+	if machoires:
+		machoires.scale.y = 1.1 if armee else 0.5
+
+
+## Le temps passe pour les objets « lents » (pluie récoltée, viande qui sèche).
+func _maj_lent(delta: float) -> void:
+	if kind == "recuperateur_eau" and stock < EAU_MAX and Game.pluie > 0.3:
+		minuteur += delta * Game.pluie
+		if minuteur >= PLUIE_PAR_BOUTEILLE:
+			minuteur = 0.0
+			stock += 1
+			_maj_visuel_stock()
+	elif kind == "sechoir" and secs < stock:
+		minuteur += delta * (1.5 if Game.pluie < 0.2 else 0.5)   # sèche mal sous la pluie
+		if minuteur >= SECHAGE:
+			minuteur = 0.0
+			secs += 1
+			_maj_visuel_stock()
+
+
+func _interagir_stock(player: Node) -> void:
+	match kind:
+		"recuperateur_eau":
+			if stock <= 0:
+				Game.msg("Le fût est vide : il se remplit quand il pleut.")
+				return
+			player.add_item("eau", stock)
+			Game.msg("Eau de pluie récupérée : %d bouteille(s)." % stock)
+			stock = 0
+			Game.play_ui("fouille", -6.0, 0.1, 1.2)
+		"sechoir":
+			if secs > 0:
+				player.add_item("viande_sechee", secs)
+				Game.msg("Viande séchée récupérée : %d." % secs)
+				stock -= secs
+				secs = 0
+			elif stock < SECHOIR_MAX and player.count("viande_crue") > 0:
+				var n := mini(SECHOIR_MAX - stock, player.count("viande_crue"))
+				player.remove_item("viande_crue", n)
+				stock += n
+				Game.msg("%d viande(s) crue(s) mise(s) à sécher." % n)
+			elif stock > 0:
+				Game.msg("La viande sèche encore (%d / %d prête)." % [secs, stock])
+				return
+			else:
+				Game.msg("Il faut de la viande crue à faire sécher.")
+				return
+			Game.play_ui("fouille", -6.0, 0.1, 0.9)
+		"piege_machoires":
+			if not armee:
+				armee = true
+				health = maxf(health, 30.0)
+				Game.play_3d("impact_metal", global_position, -8.0, 0.1, 20.0)
+				Game.msg("Piège réarmé.")
+	_maj_visuel_stock()
 
 
 # ---------------------------------------------------------------- pièges
@@ -329,6 +466,9 @@ func _maj_projecteur() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if kind == "recuperateur_eau" or kind == "sechoir":
+		_maj_lent(delta)
+		return
 	if lapin_pris:
 		_maj_collet(delta)
 		return
@@ -346,7 +486,24 @@ func _physics_process(delta: float) -> void:
 	piege_t -= delta
 	if piege_t > 0.0:
 		return
-	piege_t = 0.5
+	piege_t = 0.5 if kind != "piege_machoires" else 0.15
+	if kind == "piege_machoires":
+		if not armee:
+			return
+		for z in zone.get_overlapping_bodies():
+			if z.has_method("take_hit") and z.get("state") != 3:
+				# les mâchoires se referment : grosse blessure, zombie cloué sur place
+				armee = false
+				z.take_hit(45.0, z.global_position + Vector3.UP * 0.3, global_position)
+				if z.has_method("ralentir"):
+					z.ralentir(7.0, 0.0)
+				health -= 15.0
+				Game.play_3d("impact_metal", global_position, 0.0, 0.1, 35.0, 0.7)
+				_maj_visuel_stock()
+				break
+		if health <= 0.0:
+			queue_free()
+		return
 	var touche := false
 	for z in zone.get_overlapping_bodies():
 		if not z.has_method("take_hit") or z.get("state") == 3:   # 3 = mort
@@ -372,6 +529,8 @@ func interact(player: Node) -> void:
 		player.open_inventory()
 	elif kind == "lit":
 		player.dormir()
+	elif kind in ["recuperateur_eau", "sechoir", "piege_machoires"]:
+		_interagir_stock(player)
 	elif kind == "collet" and lapin_pris.visible:
 		lapin_pris.visible = false
 		collet_t = randf_range(200.0, 450.0)

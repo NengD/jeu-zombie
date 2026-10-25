@@ -101,3 +101,6 @@ Décor (tous CC0 — domaine public) :
    (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_animaux.gd).
 — Mouton « Sheep » : Quaternius (https://poly.pizza/m/C39AUXUUes), licence CC0.
 — Corbeau « Crow » : Poly by Google (https://poly.pizza/m/1MIvWQ5Q3R9), licence CC BY 3.0.
+— Établi « Workbench » : « Survival Kit » de Kenney (https://kenney.nl), licence CC0 (recoloré en bois).
+— Bûches du feu de camp « Bonfire » et piège à mâchoires « Bear Trap » : « Survival Pack » de Quaternius, licence CC0.
+— Lit de camp « camp bed » : Steve B (https://poly.pizza/m/b0BOXw7svtJ), licence CC BY 3.0 (recoloré).

@@ -118,7 +118,7 @@ static func sauver(main: Node) -> bool:
 			else:
 				caisses.append(item)
 		elif n is Placeable:
-			objets.append({"type": n.kind, "pos": _v(n.global_position), "rot": n.rotation.y, "pv": n.health})
+			objets.append({"type": n.kind, "pos": _v(n.global_position), "rot": n.rotation.y, "pv": n.health, "s": n.stock, "m": n.minuteur, "sec": n.secs, "arm": n.armee})
 	d["tas"] = tas
 	d["caisses"] = caisses
 	d["objets"] = objets
@@ -272,6 +272,11 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 		pl.rotation.y = float(o.get("rot", 0.0))
 		pl.health = float(o.get("pv", pl.health))
 		pl.health_max = maxf(pl.health_max, pl.health)
+		pl.stock = int(o.get("s", 0))
+		pl.minuteur = float(o.get("m", 0.0))
+		pl.secs = int(o.get("sec", 0))
+		pl.armee = bool(o.get("arm", true))
+		pl._maj_visuel_stock()
 	for c in d.get("caisses", []):
 		var crate = LootContainer.new()
 		crate.setup("Caisse de stockage", "", Vector3(1.2, 0.8, 0.8), Color(0.45, 0.32, 0.18))

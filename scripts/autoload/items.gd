@@ -40,6 +40,7 @@ const DB := {
 	"os": {"name": "Os", "type": "material", "weight": 0.2, "desc": "Pointes de flèches, outils, bouillon."},
 	"graisse": {"name": "Graisse animale", "type": "material", "weight": 0.2, "desc": "Sert au tannage et à la cuisine."},
 	"viande_cuite": {"name": "Viande cuite", "type": "food", "food": 45.0, "weight": 0.35, "desc": "Cuite au feu : nourrissante et sans danger."},
+	"viande_sechee": {"name": "Viande séchée", "type": "food", "food": 32.0, "weight": 0.15, "desc": "Séchée au séchoir : légère, se garde, sans danger."},
 	"bouillon": {"name": "Bouillon d'os", "type": "drink", "water": 35.0, "food": 15.0, "weight": 0.5, "desc": "Os mijotés dans l'eau : désaltère et nourrit un peu."},
 	"ragout": {"name": "Ragoût de chasse", "type": "food", "food": 85.0, "water": 15.0, "weight": 0.7, "desc": "Plat complet : rassasie longtemps."},
 	# --- munitions
@@ -133,6 +134,9 @@ const DB := {
 	"lit": {"name": "Lit de camp (à placer)", "type": "placeable", "weight": 6.0, "desc": "À poser dans ta base : [F] la nuit pour dormir jusqu'au matin, si aucun zombie ne rôde."},
 	"torche": {"name": "Torche (à planter)", "type": "placeable", "weight": 0.5, "desc": "Se plante n'importe où : éclaire les alentours la nuit."},
 	"collet": {"name": "Collet à lapin (piège à placer)", "type": "placeable", "weight": 0.2, "desc": "À poser dehors, loin de la ville : un lapin s'y prend au bout de quelques minutes si personne ne rôde autour."},
+	"piege_machoires": {"name": "Piège à mâchoires (à placer)", "type": "placeable", "weight": 3.0, "desc": "Se referme sur le premier zombie qui marche dessus : grosse blessure, immobilisé 7 s. [F] pour le réarmer."},
+	"recuperateur_eau": {"name": "Récupérateur d'eau de pluie (à placer)", "type": "placeable", "weight": 5.0, "desc": "À poser dehors : se remplit quand il pleut (jusqu'à 4 bouteilles d'eau)."},
+	"sechoir": {"name": "Séchoir à viande (à placer)", "type": "placeable", "weight": 4.0, "desc": "[F] pour y suspendre la viande crue : elle sèche en quelques minutes (moins vite sous la pluie)."},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
 	"point_rouge": {"name": "Point rouge Holosun HS403R", "type": "accessoire", "desc": "Viseur point rouge compact : visée bien plus précise."},
 	"viseur_reflex": {"name": "Viseur reflex Holosun 510C", "type": "accessoire", "desc": "Viseur ouvert à large fenêtre (va aussi sur les pistolets à plaque optique)."},
@@ -221,6 +225,9 @@ const RECIPES := [
 	{"out": "barricade", "qty": 1, "needs": {"planche": 3, "clous": 4}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
 	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
 	{"out": "lit", "qty": 1, "needs": {"planche": 4, "clous": 4, "tissu": 4}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 0},
+	{"out": "recuperateur_eau", "qty": 1, "needs": {"ferraille": 3, "tissu": 2, "planche": 2}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 1},
+	{"out": "sechoir", "qty": 1, "needs": {"planche": 4, "clous": 2}, "cat": "construction", "station": "", "duree": 6.0, "niv": 0},
+	{"out": "piege_machoires", "qty": 1, "needs": {"ferraille": 5, "clous": 3}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 2},
 	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 0},
 	{"out": "barbeles", "qty": 1, "needs": {"ferraille": 4, "clous": 2}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 1},
 	{"out": "projecteur", "qty": 1, "needs": {"ferraille": 3, "ruban": 1, "tissu": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 3},
