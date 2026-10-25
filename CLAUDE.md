@@ -74,6 +74,9 @@
   - **Paramètres** : `scripts/ui/parametres_ui.gd` (PanelContainer, signal `ferme`), utilisé par `menu.gd` (`_build_settings`) et le menu pause (`hud._ouvrir_parametres`). Réglages `Game` (`parametres.cfg`, section `jeu`) : `mouse_sens`, `sens_visee`, `fov` (caméra du joueur), `taille_texte` (`root.content_scale_factor`), `ramassage_auto`, `volume` + bus `Effets` / `Voix` (sons `zv_*`) / `Ambiance` (créés par `appliquer_son_et_texte`, sons routés dans `play_3d` / `play_tir` / `play_ui`, `main._ambience`, `meteo`), `qualite`. Touches : `Game.TOUCHES_MODIFIABLES`, `changer_touche` (section `touches`, touche physique ou bouton souris), `touches_par_defaut`, `texte_touche` (lettre réelle du clavier).
   - Marchands : `boutique_ui.bric_a_brac` (doublons d'armes / vêtements, munitions sans arme, matériaux inutiles ; jamais une case verrouillée) + `ConfirmationDialog`. Repos : placeable `lit` (groupe `lits`), `player.dormir()` (nuit seulement, refusé si zombie / bandit à 30 m, jusqu'à 7 h, faim et soif à demi-vitesse).
 
+## Tests en fenêtre
+- Toujours lancer le jeu de test avec la variable d'environnement **`JZ_TEST=1`** (ex. `JZ_TEST=1 "/e/_jeu perso/godot/Godot_v4.7.2-stable_win64_console.exe" --path . --screen 0 -s res://outils/godot/_test.gd`) : la fenêtre ne prend jamais le focus et la souris n'est jamais capturée (`Game.mode_test`), pour ne pas gêner l'utilisateur. L'ouvrir sur l'écran de Claude (vérifier le numéro, voir la mémoire), jamais sur l'écran où il joue.
+
 ## Pièges connus
 - Les scripts avec `class_name` ne sont reconnus qu'après un import dans l'éditeur : préférer `const X = preload("res://…")`.
 - Les scènes de modèles ne doivent pas dépendre de fichiers de `outils/` (exclu de l'export).

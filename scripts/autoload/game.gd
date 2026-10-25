@@ -100,10 +100,25 @@ signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
 
 
+## Mode test (variable d'environnement JZ_TEST=1, pour les sessions de développement qui ouvrent le jeu) :
+## la fenêtre ne prend jamais le focus et la souris n'est jamais capturée, pour ne pas gêner l'utilisateur.
+var mode_test := false
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	mode_test = OS.get_environment("JZ_TEST") != ""
+	set_process(mode_test)
+	if mode_test and DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	_setup_inputs()
 	load_settings()
+
+
+func _process(_delta: float) -> void:
+	# mode test : le jeu (joueur, menus) capture la souris à plusieurs endroits ; on la relâche aussitôt
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	blood_mat = StandardMaterial3D.new()
 	blood_mat.albedo_color = Color(0.35, 0.02, 0.02)
 	blood_mat.roughness = 0.4
