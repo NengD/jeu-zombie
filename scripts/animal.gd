@@ -347,6 +347,8 @@ func interact(player: Node) -> void:
 		Game.msg("Il te faut un couteau (ou une machette, une hache) pour dépecer.")
 		return
 	depece = true
+	if player.has_method("geste"):
+		player.geste("depecage")
 	for id in DEPECAGE[kind]:
 		var r: Array = DEPECAGE[kind][id]
 		var n := randi_range(int(r[0]), int(r[1]))

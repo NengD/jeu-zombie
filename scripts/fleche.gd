@@ -25,6 +25,8 @@ class Ramassage extends StaticBody3D:
 
 	func interact(player: Node) -> void:
 		player.add_item("fleche", 1)
+		if player.has_method("geste"):
+			player.geste("ramasser")
 		Game.play_ui("fouille", -10.0, 0.1, 1.5)
 		get_parent().queue_free()
 

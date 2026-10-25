@@ -3,7 +3,8 @@ extends SceneTree
 ## JZ_TEST=1 godot --path . --screen <écran de Claude, voir CLAUDE.md> --resolution 1600x900 -s res://outils/godot/captures_mouvements.gd -- <image.png> scénario…
 ## scénarios : repos, cote (pas de côté à droite), recul, pivot, virage, atterrissage, chute, coup_gauche,
 ## coup_face, blesse, souffle, regard_haut, nage, echelle, mort, fouille, depecage, bandage, lit, ramasser,
-## zombies (zombies proches qui regardent le joueur), arme (sortie d'arme) ; suffixes « @t » = attendre t s,
+## zombies (zombies proches qui regardent le joueur), arme (sortie d'arme), flanc, roulade, combo, lever,
+## genou ; suffixes « @t » = attendre t s,
 ## « !a » = caméra à l'angle a (rad, 0 = de face, 1,57 = à sa droite).
 
 var g
@@ -91,6 +92,7 @@ func _remettre() -> void:
 	p.alive = true
 	p.health = p.prog.sante_max()
 	p.stamina = p.prog.endurance_max()
+	p.soin_t = 0.0
 	p.velocity = Vector3.ZERO
 	p.global_position = depart
 	p.rotation.y = 0.0
@@ -205,6 +207,48 @@ func _scenario(sc: String) -> Image:
 			await _attendre(attente if attente > 0 else 1.5)
 			g.admin_invisible = true
 			angle = 0.4
+		"bandage":
+			p.soin_t = 4.0
+			p.soin_id = "bandage"
+			await _attendre(attente if attente > 0 else 0.7)
+			angle = 0.5
+		"flanc":
+			p.health = p.prog.sante_max() * 0.1
+			await _attendre(attente if attente > 0 else 1.0)
+			angle = 0.3
+		"lit", "lever":
+			var lit = load("res://scripts/placeable.gd").new()
+			main.world.add_child(lit)
+			lit.setup("lit")
+			lit.global_position = p.global_position + p.global_basis.x * 1.2
+			p.geste("lit", lit)
+			await _attendre(attente if attente > 0 else (0.8 if nom == "lit" else 2.6))
+			angle = 1.0
+			_viser(angle, 3.6, 2.2)
+			await _attendre(0.05)
+			var im0 := root.get_viewport().get_texture().get_image()
+			lit.queue_free()
+			p.geste("")
+			suivre = false
+			cam.clear_current()
+			return im0
+		"roulade":
+			Input.action_press("avancer")
+			Input.action_press("sprint")
+			await _attendre(0.7)
+			p._roulade()
+			await _attendre(attente if attente > 0 else 0.3)
+			angle = PI / 2
+		"combo":
+			for i in 3:
+				p.cooldown = 0.0
+				p._melee(p.arme_stats(p.current_weapon()))
+				await _attendre(p._duree_coup(p.arme_stats(p.current_weapon())) + 0.12 if i < 2 else (attente if attente > 0 else 0.2))
+			angle = 0.8
+		"arme":
+			p._select_slot(1 if p.slot == 0 else 0)
+			await _attendre(attente if attente > 0 else 0.15)
+			angle = 2.6
 		_:
 			if p.has_method("geste"):
 				p.geste(nom)

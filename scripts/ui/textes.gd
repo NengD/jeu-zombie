@@ -43,6 +43,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras.
 • Ton personnage bouge avec naturel : pas de côté et à reculons en visant, corps penché dans les virages, jambes fléchies à l'atterrissage, tête tournée vers ce que tu regardes, souffle court quand tu es épuisé, dos voûté et boiterie quand tu es gravement blessé, buste secoué selon le côté où tu es touché.
 • En eau profonde (centre des lacs), tu nages : lentement, sans courir, sauter ni t'accroupir.
+• [b]Roulade d'esquive[/b] : accroupis-toi en plein sprint ; les coups au corps à corps passent à côté pendant la roulade (12 d'endurance).
+• Trois coups de mêlée donnés coup sur coup s'enchaînent (le 3e est un estoc, ou un crochet à mains nues). Ton personnage fouille penché ou à genoux, dépèce à genoux, se bande le bras, se couche sur le lit de camp et va chercher l'arme choisie là où elle était rangée.
 • Chaque coup affiche ses [b]dégâts[/b] au-dessus de la cible (orange : tir à la tête, doré : coup critique) ;
   une petite [b]barre de vie[/b] apparaît au-dessus des ennemis touchés ou visés, puis s'efface.
 

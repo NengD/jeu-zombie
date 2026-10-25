@@ -19,6 +19,10 @@ var souffle := 0.0                   # 0 = calme, 1 = à bout de souffle
 var blessure := 0.0                  # 0 = en forme, 1 = gravement blessé
 var vitesse := 0.0                   # vitesse au sol (m/s) : rythme de la boiterie
 var pivot_actif := true              # jambes en retard sur le buste à l'arrêt
+var main_flanc := 0.0                # 0..1 : main gauche pressée sur le flanc (gravement blessé)
+var bandage := 0.0                   # 0..1 : main droite qui enroule un bandage autour de l'avant-bras gauche
+var sortie := -1.0                   # sortie / rangement d'arme : progression 0..1 (-1 = aucun)
+var sortie_lieu := "dos"             # où la main droite va chercher l'arme : "dos", "cuisse", "hanche"
 
 var _hanches := 0.0
 var _inclinaison := 0.0
@@ -38,7 +42,8 @@ func _ready() -> void:
 	var sk := get_skeleton()
 	if sk == null:
 		return
-	for n in ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "clavicle_r"]:
+	for n in ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "clavicle_r",
+			"upperarm_l", "lowerarm_l", "hand_l", "upperarm_r", "lowerarm_r", "hand_r"]:
 		_os[n] = sk.find_bone(n)
 	var corps_os := sk.find_bone("Body")
 	_racines.append(corps_os if corps_os >= 0 else sk.find_bone("pelvis"))
@@ -147,6 +152,7 @@ func _process_modification_with_delta(delta: float) -> void:
 	if pieds and blessure > 0.05 and vitesse > 0.3:
 		_phase_boite += delta * vitesse * 1.15
 		pieds.flexion_image = maxf(pieds.flexion_image, blessure * 0.05 * maxf(0.0, sin(_phase_boite * PI)))
+	_gestes_bras(sk, haut, avant, droite)
 	# --- tête : vers le point regardé, sinon droit devant ; secouée par les coups
 	var cible := Vector2.ZERO
 	if regard != Vector3.INF and _os.Head >= 0:
@@ -180,3 +186,75 @@ static func _descend_de(sk: Skeleton3D, b: int, ancetre: int) -> bool:
 			return true
 		p = sk.get_bone_parent(p)
 	return false
+
+
+## Gestes des bras (avant bras_ik, qui reprend la main quand une arme à feu est tenue en joue).
+func _gestes_bras(sk: Skeleton3D, haut: Vector3, avant: Vector3, droite: Vector3) -> void:
+	if _os.get("hand_r", -1) < 0 or _os.get("hand_l", -1) < 0:
+		return
+	var bassin := sk.get_bone_global_pose(_os.pelvis).origin
+	var poitrine := sk.get_bone_global_pose(_os.spine_02).origin
+	# main gauche : sur le flanc (blessé) ou avant-bras replié devant le ventre (on s'y fait un bandage)
+	var k_g := maxf(main_flanc, bandage)
+	if k_g > 0.01:
+		var flanc := bassin + haut * 0.16 - droite * 0.15 + avant * 0.07
+		var devant := poitrine + avant * 0.3 - droite * 0.04 - haut * 0.04
+		var cible_g := flanc.lerp(devant, bandage / maxf(k_g, 0.001))
+		_bras_vers(sk, "_l", cible_g, k_g, -droite * 0.3 - avant * 0.2)
+	# main droite : tourne autour de l'avant-bras gauche (bandage), ou va chercher / ranger l'arme
+	if bandage > 0.01:
+		var ag := sk.get_bone_global_pose(_os.lowerarm_l).origin
+		var mg := sk.get_bone_global_pose(_os.hand_l).origin
+		var ph := _t * TAU * 1.3
+		var cible_d := ag.lerp(mg, 0.45) + (avant * cos(ph) + haut * sin(ph)) * 0.07
+		_bras_vers(sk, "_r", cible_d, bandage, droite * 0.3 - avant * 0.2)
+	elif sortie >= 0.0 and sortie <= 1.0:
+		var lieu: Vector3
+		match sortie_lieu:
+			"cuisse":
+				lieu = bassin + droite * 0.2 - haut * 0.12 + avant * 0.02
+			"hanche":
+				lieu = bassin - droite * 0.16 + avant * 0.1 - haut * 0.02
+			_:
+				lieu = sk.get_bone_global_pose(_os.spine_03).origin + haut * 0.22 - avant * 0.1 + droite * 0.1
+		var k := sin(clampf(sortie, 0.0, 1.0) * PI)
+		_bras_vers(sk, "_r", lieu, k, droite * 0.35 - avant * 0.15 + haut * 0.1)
+
+
+## Amène la main (côté c) vers `cible` (repère du squelette) avec le poids k : bras et avant-bras
+## par inverse cinématique à deux os, coude poussé vers `pole` ; la main garde son orientation.
+func _bras_vers(sk: Skeleton3D, c: String, cible: Vector3, k: float, pole: Vector3) -> void:
+	var b_h: int = _os["upperarm" + c]
+	var b_b: int = _os["lowerarm" + c]
+	var b_m: int = _os["hand" + c]
+	if b_h < 0 or b_b < 0 or b_m < 0:
+		return
+	var g_h := sk.get_bone_global_pose(b_h)
+	var g_b := sk.get_bone_global_pose(b_b)
+	var g_m := sk.get_bone_global_pose(b_m)
+	var l1 := sk.get_bone_rest(b_b).origin.length() * g_h.basis.get_scale().x
+	var l2 := sk.get_bone_rest(b_m).origin.length() * g_b.basis.get_scale().x
+	var a := g_h.origin
+	var but := g_m.origin.lerp(cible, clampf(k, 0.0, 1.0))
+	var v := but - a
+	var d := clampf(v.length(), 0.05, (l1 + l2) * 0.999)
+	var dir := v.normalized()
+	var vers_pole := (g_b.origin + pole) - a
+	var perp := (vers_pole - dir * vers_pole.dot(dir)).normalized()
+	var cos_a := clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0)
+	var coude := a + dir * (l1 * cos_a) + perp * (l1 * sqrt(1.0 - cos_a * cos_a))
+	var poignet := a + dir * d
+	var n_h := _orienter(g_h.basis, sk.get_bone_rest(b_b).origin, coude - a)
+	sk.set_bone_global_pose(b_h, Transform3D(n_h, a))
+	var n_b := _orienter(sk.get_bone_global_pose(b_b).basis, sk.get_bone_rest(b_m).origin, poignet - coude)
+	sk.set_bone_global_pose(b_b, Transform3D(n_b, coude))
+	var gm := sk.get_bone_global_pose(b_m)
+	sk.set_bone_global_pose(b_m, Transform3D(gm.basis, poignet))
+
+
+static func _orienter(base: Basis, axe_local: Vector3, voulu: Vector3) -> Basis:
+	var actuel := (base * axe_local).normalized()
+	var v := voulu.normalized()
+	if actuel.dot(v) > 0.99999:
+		return base
+	return Basis(Quaternion(actuel, v)) * base

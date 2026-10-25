@@ -152,6 +152,16 @@ var flex_t := 9.0
 var nage := false                   # en eau profonde : on nage
 var air_t := 0.0                    # temps passé en l'air
 const SURFACE_EAU := -0.9           # relief.NIVEAU_EAU
+var geste_nom := ""                 # geste en cours : fouille, genou, depecage, ramasser, lit, lever (geste())
+var geste_t := 0.0
+var lit_geste: Node3D = null        # lit sur lequel on est couché (geste « lit »)
+var sortie_t := -1.0                # sortie de l'arme choisie : temps écoulé (-1 = aucune)
+var sortie_lieu := "dos"
+const SORTIE_DUREE := 0.42
+var combo_n := 0                    # rang du coup dans l'enchaînement de mêlée (0, 1, 2)
+var combo_fin := 0.0                # instant (s) où le dernier coup s'est terminé
+var roulade_t := 0.0                # roulade d'esquive en cours (s restantes)
+const ROULADE_DUREE := 0.75
 
 
 func _ready() -> void:
@@ -338,7 +348,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			use_item(choisi)
 	elif event.is_action_pressed("accroupir"):
-		_set_crouch(not crouching)
+		if sprinting and is_on_floor() and stamina >= 12.0 and perso_ual and roulade_t <= 0.0:
+			_roulade()   # accroupi en plein sprint : roulade d'esquive
+		else:
+			_set_crouch(not crouching)
 	else:
 		for i in 5:
 			if event.is_action_pressed("arme_%d" % (i + 1)):
@@ -490,6 +503,16 @@ func _move(delta: float, can_act: bool) -> void:
 			_appliquer_sang()
 	if _adrenaline():
 		speed *= 1.2
+	if roulade_t > 0.0:
+		# roulade : élan droit devant, qui faiblit en fin de roulade
+		roulade_t -= delta
+		var elan := -global_basis.z * lerpf(3.0, 7.5, clampf(roulade_t / ROULADE_DUREE, 0.0, 1.0))
+		velocity.x = elan.x
+		velocity.z = elan.z
+		sprinting = false
+		velocity.y -= GRAVITY * delta
+		move_and_slide()
+		return
 	var accel := 40.0 if is_on_floor() else 6.0
 	velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -770,7 +793,7 @@ func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: f
 		bras_ik.tension = arc_tension
 		bras_ik.main_g_tendue = false
 		bras_ik.achevement = -1.0
-		bras_ik.poids = move_toward(bras_ik.poids, 1.0 if alive and p_lock <= 0.0 else 0.0, delta * 6.0)
+		bras_ik.poids = move_toward(bras_ik.poids, 1.0 if alive and p_lock <= 0.0 and sortie_t < 0.0 else 0.0, delta * 6.0)
 		bras_ik.cible_visee = _aim_point(80.0)
 		return
 	bras_ik.arc = false
@@ -782,7 +805,7 @@ func _maj_bras(delta: float, cw: String, cwi: Dictionary, is_gun: bool, k_ads: f
 	if achevement_t <= 0.0 and bras_ik.poids <= 0.0:
 		bras_ik.achevement = -1.0
 	var rapide: bool = deux_mains or goupille_t > 0.0 or bras_tendu or bras_ik.achevement >= 0.0
-	var actif: bool = arme_ok and ((is_gun and p_lock <= 0.0) or (deux_mains and (melee_p < 1.0 or charge_actif or bloque)) or goupille_t > 0.0 or bras_tendu or (achevement_t > 0.0 and bras_ik.achevement >= 0.0))
+	var actif: bool = sortie_t < 0.0 and arme_ok and ((is_gun and p_lock <= 0.0) or (deux_mains and (melee_p < 1.0 or charge_actif or bloque)) or goupille_t > 0.0 or bras_tendu or (achevement_t > 0.0 and bras_ik.achevement >= 0.0))
 	bras_ik.main_g_tendue = cwi.get("type", "") == "lancer" and goupille_t <= 0.0   # (garde ce mode pendant le retour)
 	bras_ik.poids = move_toward(bras_ik.poids, 1.0 if actif else 0.0, delta * (12.0 if rapide else 6.0))
 	if bras_ik.arme != hand_weapon:
@@ -1275,6 +1298,9 @@ func _select_slot(i: int) -> void:
 	reload_t = 0.0
 	cooldown = maxf(cooldown, 0.25)
 	_refresh_weapon_model()
+	# la main droite va chercher l'arme là où elle était rangée (dos, cuisse, hanche)
+	sortie_lieu = _lieu_arme(current_weapon())
+	sortie_t = 0.0 if sortie_lieu != "" else -1.0
 	Game.msg("Arme : " + Items.nom(current_weapon()))
 
 
@@ -1465,10 +1491,17 @@ func _melee(w: Dictionary) -> void:
 		dmg *= lerpf(0.6, 1.0, clampf(stamina / cost, 0.0, 1.0))
 	_depenser_endurance(cost)
 	var id := current_weapon()
+	var maintenant := Time.get_ticks_msec() / 1000.0
+	# enchaînement : un coup donné moins de 0,5 s après la fin du précédent passe au coup suivant (3 au plus)
+	combo_n = (combo_n + 1) % 3 if maintenant - combo_fin < 0.5 else 0
 	if id == "poings":
 		cooldown = w.rate
 		coup_gauche = not coup_gauche
-		_anim_corps("coup_poing" if coup_gauche else "coup_poing2", 0.27, 0.12, 0.45)
+		combo_fin = maintenant + float(w.rate)
+		if combo_n == 2:
+			_anim_corps("crochet", 0.5, 0.14, 0.45)   # 3e coup : crochet
+		else:
+			_anim_corps("coup_poing" if coup_gauche else "coup_poing2", 0.27, 0.12, 0.45)
 		Game.play_ui("vent_leger", -10.0, 0.15)
 		_porter_coup(w, dmg)
 		return
@@ -1489,9 +1522,14 @@ func _melee(w: Dictionary) -> void:
 	melee_charge = 0.0
 	# corps du personnage : coup de hache (armes lourdes), sinon frappes d'épée en alternance
 	if float(w.get("weight", 1.0)) >= 1.5:
+		combo_fin = maintenant + duree
 		_anim_corps("hache", 0.17, IMPACT_COUP * duree, duree + 0.1)
 	else:
-		_anim_corps("frappe3" if coup_lateral else "frappe2", 0.5 if coup_lateral else 0.55, IMPACT_COUP * duree, duree + 0.1)
+		combo_fin = maintenant + duree
+		if combo_n == 2:
+			_anim_corps("estoc", 0.3, IMPACT_COUP * duree, duree + 0.1)   # 3e coup de l'enchaînement : estoc
+		else:
+			_anim_corps("frappe3" if (coup_lateral or combo_n == 1) else "frappe2", 0.5 if (coup_lateral or combo_n == 1) else 0.55, IMPACT_COUP * duree, duree + 0.1)
 
 
 ## Animation du corps calée sur le coup : la vitesse est choisie pour que le moment de l'impact
@@ -1705,6 +1743,9 @@ func _finish_reload() -> void:
 func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> void:
 	if not alive:
 		return
+	# roulade : les coups au corps à corps passent à côté pendant le milieu de la roulade
+	if roulade_t > 0.15 and roulade_t < ROULADE_DUREE - 0.1 and _from is Node3D:
+		return
 	# indicateur de direction des dégâts (HUD)
 	var src: Vector3 = (_from as Node3D).global_position if _from is Node3D else origine
 	if src != Vector3.INF:
@@ -1905,6 +1946,9 @@ func open_inventory() -> void:
 
 
 func open_storage(crate: Node) -> void:
+	# geste : à genoux devant un tas au sol, un cadavre ou un meuble bas ; penché sur un meuble haut
+	var bas: bool = crate.is_in_group("zombies") or crate.is_in_group("tas_sol") or float((crate.get("box_size") if crate.get("box_size") != null else Vector3.ONE).y) < 0.9
+	geste("genou" if bas else "fouille")
 	var ui := get_tree().get_first_node_in_group("inventory_ui")
 	if ui:
 		ui.open(crate)
@@ -2091,7 +2135,7 @@ func trier_inventaire(mode: String) -> bool:
 const SOMMEIL_RAYON := 30.0
 
 
-func dormir() -> void:
+func dormir(lit: Node3D = null) -> void:
 	if not Game.is_night():
 		Game.msg("Tu n'as pas sommeil : on ne dort que la nuit (après 20 h 30).")
 		return
@@ -2119,6 +2163,8 @@ func dormir() -> void:
 	hurt_flash = 0.0
 	Game.play_ui("fouille", -10.0, 0.05, 0.7)
 	Game.msg("Tu as dormi %d h. Jour %d, 07:00." % [roundi(heures), Game.day])
+	if lit:
+		geste("lit", lit)   # allongé un instant sur le lit, puis on se relève
 
 
 ## Verrouille / déverrouille une case de la barre rapide : verrouillée, elle garde son objet même
@@ -2721,6 +2767,8 @@ func _update_player_anim(delta: float) -> void:
 	if perso_ual:
 		# vitesses naturelles des animations UAL : marche 0,94 m/s, jogging 2,4, sprint 3,1, accroupi 0,77
 		# à reculons : la même animation jouée à l'envers (les hanches se tournent pour les pas de côté : _maj_corps)
+		if _anim_geste(delta, hs):
+			return
 		var sens := -1.0 if marche_arriere else 1.0
 		if sur_echelle:
 			_p_anim("escalade", clampf(absf(velocity.y) / 1.6, 0.0, 1.3))
@@ -2942,8 +2990,123 @@ func _maj_corps(delta: float) -> void:
 	cv.regard = Vector3.INF if (en_joue or sur_echelle) else camera.global_position - camera.global_basis.z * 25.0
 	cv.souffle = clampf((0.45 - stamina / prog.endurance_max()) / 0.45, 0.0, 1.0)
 	cv.blessure = clampf((0.35 - health / prog.sante_max()) / 0.35, 0.0, 1.0)
+	# gestes des bras : bandage pendant les soins, main sur le flanc quand on est gravement blessé
+	# (sans arme à feu ni coup en cours), sortie de l'arme choisie
+	var soin_bandage: bool = soin_t > 0.0 and soin_id in ["bandage", "trousse"]
+	cv.bandage = move_toward(cv.bandage, 1.0 if soin_bandage else 0.0, delta * 4.0)
+	var mains_libres: bool = Items.info(current_weapon()).get("type", "") != "gun" and p_lock <= 0.0 and cooldown <= 0.0 and not bloque
+	cv.main_flanc = move_toward(cv.main_flanc, 1.0 if (cv.blessure > 0.45 and mains_libres and not soin_bandage) else 0.0, delta * 3.0)
+	if sortie_t >= 0.0:
+		sortie_t += delta
+		cv.sortie = sortie_t / SORTIE_DUREE
+		cv.sortie_lieu = sortie_lieu
+		if hand_weapon and is_instance_valid(hand_weapon):
+			hand_weapon.visible = cv.sortie > 0.5   # l'arme apparaît dans la main une fois saisie
+		if sortie_t >= SORTIE_DUREE:
+			sortie_t = -1.0
+			cv.sortie = -1.0
+			if hand_weapon and is_instance_valid(hand_weapon):
+				hand_weapon.visible = true
 	# atterrissage : jambes fléchies, d'autant plus que la chute était haute
 	flex_t += delta
 	if pieds_ik:
 		var p := minf(flex_t / 0.5, 1.0)
 		pieds_ik.flexion = flex_amp * sin(minf(p * 3.0, 1.0) * PI * 0.5) * (1.0 - smoothstep(0.25, 1.0, p))
+
+
+## Geste du personnage (animation tenue tant que l'action dure) : « fouille » (meuble haut),
+## « genou » (fouille au sol, cadavre, meuble bas), « depecage », « ramasser », « lit » (couché, puis
+## « lever »), « » = aucun. lit : le lit sur lequel s'allonger (geste « lit »).
+func geste(nom: String, lit: Node3D = null) -> void:
+	if not perso_ual or pap == null:
+		return
+	if geste_nom == "lit" or geste_nom == "lever":
+		_quitter_lit()
+	geste_nom = nom
+	geste_t = 0.0
+	p_lock = 0.0
+	p_anim = ""
+	if nom == "lit" and lit:
+		lit_geste = lit
+		if pieds_ik:
+			pieds_ik.active = false
+		# allongé sur le lit de camp, dans sa longueur (première image de « se relever » = couché sur le dos)
+		modele.global_transform = Transform3D(lit.global_basis.orthonormalized() * Basis(Vector3.UP, PI / 2), lit.global_position + Vector3.UP * 0.38)
+
+
+func _quitter_lit() -> void:
+	lit_geste = null
+	modele.transform = Transform3D.IDENTITY
+	if pieds_ik and alive:
+		pieds_ik.active = true
+
+
+## Animation du geste en cours ; renvoie vrai s'il occupe le corps.
+func _anim_geste(delta: float, hs: float) -> bool:
+	if geste_nom == "":
+		return false
+	geste_t += delta
+	var fini := false
+	match geste_nom:
+		"fouille", "genou":
+			fini = geste_t > 0.5 and not Game.ui_open
+		"depecage":
+			fini = geste_t > 1.6
+		"ramasser":
+			fini = geste_t > 0.8
+		"lit":
+			fini = geste_t > 2.0
+		"lever":
+			fini = geste_t > 1.5
+	if hs > 0.6 and geste_nom != "lit" and geste_nom != "lever":
+		fini = true
+	if fini:
+		if geste_nom == "lit":
+			geste_nom = "lever"
+			geste_t = 0.0
+		else:
+			if geste_nom == "lever":
+				_quitter_lit()
+			geste_nom = ""
+			return false
+	match geste_nom:
+		"fouille":
+			_p_anim("fouiller", 0.9)
+		"genou", "depecage":
+			_p_anim("genou")
+		"ramasser":
+			_p_anim("recolter", 2.2)
+		"lit":
+			# couché : première image de « se relever », sans fondu (il ne progresserait pas à vitesse nulle)
+			if p_anim != "relever":
+				pap.play("relever", 0.0)
+				p_anim = "relever"
+			pap.speed_scale = 0.0
+			pap.seek(0.0, true)
+		"lever":
+			_p_anim("relever", 1.1)
+	return true
+
+
+## Où l'arme est rangée sur le personnage (comme EquipVisuel.armes_rangees) : la main va l'y chercher.
+func _lieu_arme(id: String) -> String:
+	var it := Items.info(id)
+	var t: String = it.get("type", "")
+	if t == "gun" and it.get("famille", "") == "pistolet":
+		return "cuisse"
+	if t == "melee" and float(it.get("len", 0.0)) < 0.58:
+		return "hanche"
+	if t in ["gun", "melee", "arc"]:
+		return "dos"
+	return ""
+
+
+## Roulade d'esquive (s'accroupir en plein sprint) : élan vers l'avant, coups évités pendant la
+## partie centrale de la roulade (ROULADE_DUREE), endurance dépensée.
+func _roulade() -> void:
+	roulade_t = ROULADE_DUREE
+	_depenser_endurance(12.0)
+	var duree_anim := pap.get_animation("roulade").length if pap.has_animation("roulade") else 1.0
+	_p_anim("roulade", duree_anim / ROULADE_DUREE, ROULADE_DUREE)
+	Game.play_ui("atterrissage", -10.0, 0.1)
+	Game.make_noise(global_position, 6.0)

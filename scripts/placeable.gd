@@ -526,7 +526,7 @@ func interact(player: Node) -> void:
 	if kind in ["etabli", "feu_camp", "plan_couture"]:
 		player.open_inventory()
 	elif kind == "lit":
-		player.dormir()
+		player.dormir(self)
 	elif kind in ["recuperateur_eau", "sechoir", "piege_machoires"]:
 		_interagir_stock(player)
 	elif kind == "collet" and lapin_pris.visible:
