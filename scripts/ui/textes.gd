@@ -99,7 +99,7 @@ const GUIDE := """[b]LES BASES[/b]
 • Arc recourbé et flèches : « Wooden Bow » et « Arrow » de Quaternius, licence CC0.
 • Train, tentes et tours de garde : Quaternius (CC0) ; petit avion : Vojtěch Balák ; hélicoptère : Zsky ; bulldozer et bus scolaire : Poly by Google ; camion militaire : Alex Safayan (CC BY 3.0, via Poly Pizza).
 • Équipement porté : sacs (Quaternius, Voxel_dev, accidentallyc), lunettes (iPoly3D) — CC0 ; casque intégral (CreativeTechLab), casque de chantier (Poly by Google), masque à gaz (Marisha), sac de chasse, bonnet et casquette (J-Toastie), casquette de police (Casey Tumbers) — CC BY 3.0, via Poly Pizza ; casque militaire (hc, OpenGameArt, CC BY 3.0).
-• Télévisions et meuble télé : Kenney (CC0) ; abribus : Zsky (CC BY 3.0, via Poly Pizza).
+• Télévisions et meuble télé : Kenney (CC0), seau : Kenney (CC0) ; abribus : Zsky (CC BY 3.0, via Poly Pizza).
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
 [b]NIVEAUX ET COMPÉTENCES[/b] (touche K)

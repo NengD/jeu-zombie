@@ -84,6 +84,17 @@ func _go():
 			continue
 		g.player.global_position = cible - avant * dist * 2.0 + Vector3(0, 0.5, 0)   # hors du champ
 		await _attendre(90)
+		if morceaux.size() > 3 and morceaux[3] == "zombies":
+			# poi:<nom>:<distance>:zombies -> les zombies du lieu, vus de près (le plus proche du lieu)
+			var zs: Array = get_nodes_in_group("zombies")
+			zs.sort_custom(func(a, b): return a.global_position.distance_to(cible) < b.global_position.distance_to(cible))
+			if not zs.is_empty():
+				for z in zs:
+					z.set_physics_process(false)
+				cible = zs[0].global_position
+				avant = zs[0].global_basis.z
+				avant.y = 0
+				avant = avant.normalized()
 		var oeil := cible + avant * dist + Vector3(0, absf(dist) * 0.2 + 0.6, 0)
 		cam.look_at_from_position(oeil, cible + Vector3(0, 1.0, 0))
 		cam.current = true

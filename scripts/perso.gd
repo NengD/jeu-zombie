@@ -91,13 +91,14 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 					c = c.darkened(0.3)
 			elif nom == "Eye":
 				c = Color(0.85, 0.8, 0.55) if zombie else c
-			elif a.has("tenue") and (a.tenue.has(String(m3.name) + ":" + nom) or a.tenue.has(nom)):
-				c = a.tenue.get(String(m3.name) + ":" + nom, a.tenue.get(nom))   # tenue imposée (marchands, zombies de métier)
 			else:
-				c = Color(c.r * teinte.r, c.g * teinte.g, c.b * teinte.b)
+				if a.has("tenue") and (a.tenue.has(String(m3.name) + ":" + nom) or a.tenue.has(nom)):
+					c = a.tenue.get(String(m3.name) + ":" + nom, a.tenue.get(nom))   # tenue imposée (marchands, zombies de métier)
+				else:
+					c = Color(c.r * teinte.r, c.g * teinte.g, c.b * teinte.b)
 				if zombie:
 					# vêtements sales et délavés (les déchirures sont peintes par le calque de sang)
-					c = c.lerp(Color(c.v, c.v, c.v), 0.4).lerp(Color(0.28, 0.24, 0.18), 0.25 * a.sale).darkened(0.15)
+					c = c.lerp(Color(c.v, c.v, c.v), 0.4 if not a.has("tenue") else 0.2).lerp(Color(0.28, 0.24, 0.18), 0.25 * a.sale).darkened(0.15)
 			m3.set_surface_override_material(s, _recolore(base, c))
 		if zombie:
 			m3.set_instance_shader_parameter("dechire", clampf(0.35 + a.sale * 0.6, 0.0, 1.0))
@@ -131,6 +132,23 @@ const TENUES := {
 		{"modele": "h_farmer", "tenue": {"Farmer_Body:LightBlue": Color(0.3, 0.27, 0.22), "Beige": Color(0.42, 0.4, 0.32)},
 			"torse": "gilet_militaire", "tete": "casquette"},
 		{"modele": "h_adventurer", "tenue": {}, "torse": "gilet_militaire"}],
+	# zombies selon le lieu (zombie._tenue_du_lieu)
+	"pompier": [
+		{"modele": "h_worker", "tenue": {"Worker_Vest": Color(0.55, 0.45, 0.15), "Worker_Body:Worker_Yellow": Color(0.8, 0.78, 0.4),
+			"LightBrown": Color(0.13, 0.15, 0.22), "Worker_Head:Worker_Yellow": Color(0.62, 0.1, 0.08), "Brown": Color(0.13, 0.15, 0.22), "Brown2": Color(0.1, 0.11, 0.15)}},
+		{"modele": "f_worker", "tenue": {"Worker_Vest": Color(0.55, 0.45, 0.15), "Worker_Body:Worker_Yellow": Color(0.8, 0.78, 0.4),
+			"White": Color(0.13, 0.15, 0.22), "Worker_Head:Worker_Yellow": Color(0.62, 0.1, 0.08), "Brown_02": Color(0.13, 0.15, 0.22), "Brown2": Color(0.1, 0.11, 0.15)}}],
+	"soignant": [
+		{"modele": "h_casual_2", "tenue": {"LightBrown": Color(0.42, 0.62, 0.6), "LightBlue": Color(0.42, 0.62, 0.6), "Red_Dark": Color(0.85, 0.85, 0.85)}},
+		{"modele": "f_casual", "tenue": {"Casual_Body:White": Color(0.42, 0.62, 0.6), "Orange": Color(0.42, 0.62, 0.6), "Grey": Color(0.85, 0.85, 0.85)}},
+		{"modele": "h_suit", "tenue": {"Suit_Body:Suit": Color(0.86, 0.87, 0.85), "Suit_Legs:Suit": Color(0.42, 0.62, 0.6), "Tie": Color(0.42, 0.62, 0.6), "White": Color(0.42, 0.62, 0.6)}}],
+	"ouvrier": [{"modele": "h_worker", "tenue": {}}, {"modele": "h_worker", "tenue": {}}, {"modele": "f_worker", "tenue": {}}],
+	"prisonnier": [
+		{"modele": "h_casual_2", "tenue": {"LightBrown": Color(0.85, 0.4, 0.1), "LightBlue": Color(0.85, 0.4, 0.1)}},
+		{"modele": "h_casual_hoodie", "tenue": {"Casual_Body:Purple": Color(0.85, 0.4, 0.1), "LightBlue": Color(0.85, 0.4, 0.1), "Casual_Feet:Purple": Color(0.2, 0.2, 0.2)}}],
+	"soldat": [
+		{"modele": "h_swat", "tenue": {"Swat": Color(0.3, 0.33, 0.22), "Swat_Black": Color(0.2, 0.21, 0.15)}},
+		{"modele": "f_soldier", "tenue": {"Swat": Color(0.3, 0.33, 0.22), "Black": Color(0.2, 0.21, 0.15)}, "tete": "casque_militaire"}],
 }
 
 

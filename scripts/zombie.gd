@@ -174,11 +174,39 @@ func _ready() -> void:
 		cs.position.y = 0.9 * echelle
 
 
+## Lieux dont les zombies portent la tenue du métier : nom du lieu -> [tenue, rayon (m), part des zombies].
+const TENUES_LIEUX := {
+	"Caserne de pompiers": ["pompier", 30.0, 0.8], "Hôpital": ["soignant", 45.0, 0.6], "Infirmerie de campagne": ["soignant", 25.0, 0.6],
+	"Zone industrielle": ["ouvrier", 75.0, 0.75], "Prison": ["prisonnier", 70.0, 0.7], "Base militaire": ["soldat", 90.0, 0.9],
+}
+
+
+## Tenue imposée par le lieu où le zombie apparaît (pompier, soignant, ouvrier, prisonnier, soldat), sinon "".
+func _tenue_du_lieu() -> String:
+	if not kind in ["civil", "coureur", "patient", "militaire", "police"]:
+		return ""
+	var p := global_position
+	for poi in Game.pois:
+		var t: Array = TENUES_LIEUX.get(poi.name, [])
+		if t.is_empty():
+			continue
+		var d := Vector2(p.x - poi.pos.x, p.z - poi.pos.z).length()
+		if d < float(t[1]):
+			# même tirage pour un même emplacement de départ
+			var h := absi(hash(Vector2i(roundi(home.x / 3.0), roundi(home.z / 3.0)))) % 1000
+			if t[0] == "soldat" and kind == "militaire" or h < int(float(t[2]) * 1000.0):
+				return t[0]
+	return ""
+
+
 func _apply_look() -> void:
 	var m: Node3D = null
 	if Perso.disponible():
 		# personnage réaliste (mannequin UAL habillé par perso.gdshader)
 		aspect = Perso.apparence(kind)
+		var metier := _tenue_du_lieu()
+		if metier != "":
+			Perso.tenue_metier(aspect, metier, RandomNumberGenerator.new())
 		m = Perso.creer(aspect)
 		anim_noms = ANIMS_UAL
 	else:

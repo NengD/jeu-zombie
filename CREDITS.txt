@@ -96,3 +96,4 @@ Décor (tous CC0 — domaine public) :
 — Télévisions (cathodique, écran plat) et meuble télé : « Furniture Kit » de Kenney (https://kenney.nl), licence CC0
    (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; recolorés par outils/godot/normaliser_props.gd).
 — Abribus « Bus Stop » : Zsky (https://poly.pizza/m/OWczicNWhO), licence CC BY 3.0.
+— Seau (étal du quincaillier) : « Survival Kit » de Kenney (https://kenney.nl), licence CC0.
