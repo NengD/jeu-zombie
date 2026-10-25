@@ -315,6 +315,39 @@ func _scenario(sc: String) -> Image:
 			suivre = false
 			cam.clear_current()
 			return im2
+		"animaux":
+			# une ligne d'animaux de chaque sorte, dans des états différents (attente : instant de la capture)
+			var types := ["cerf", "loup", "vache", "sanglier", "lapin", "faisan"]
+			var ans: Array = []
+			var Animal = load("res://scripts/animal.gd")
+			for i in types.size():
+				var a = Animal.new()
+				var pos: Vector3 = p.global_position - p.global_basis.z * 6.0 + p.global_basis.x * (i - 2.5) * 2.4
+				pos.y = g.hauteur(pos.x, pos.z) + 0.05
+				a.preparer(types[i], pos)
+				main.world.add_child(a)
+				ans.append(a)
+			await _attendre(0.5)
+			for i in ans.size():
+				var a = ans[i]
+				match i % 3:
+					0: a._fuir(p.global_position, 10.0)
+					1: a.take_hit(1.0, a.global_position + Vector3.UP * 0.5, p.global_position)
+					2: a.take_hit(9999.0, a.global_position + Vector3.UP * 0.5, p.global_position)
+			await _attendre(attente if attente > 0 else 0.25)
+			cam.global_position = p.global_position - p.global_basis.z * 1.0 + p.global_basis.x * 0.5 + Vector3.UP * 3.0
+			cam.look_at(p.global_position - p.global_basis.z * 7.0 + Vector3.UP * 0.4)
+			cam.fov = 70.0
+			suivre = true
+			cam.make_current()
+			await _attendre(0.05)
+			var im3 := root.get_viewport().get_texture().get_image()
+			for a in ans:
+				if is_instance_valid(a):
+					a.queue_free()
+			suivre = false
+			cam.clear_current()
+			return im3
 		_:
 			if p.has_method("geste"):
 				p.geste(nom)

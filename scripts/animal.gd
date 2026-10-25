@@ -65,6 +65,9 @@ var vitesse_h := 0.0
 var cap := 0.0                       # orientation voulue (rad)
 var ap: AnimationPlayer = null       # cerf / biche
 var anim := ""
+var reaction_t := 0.0               # sursaut quand il est touché (Idle_HitReact), avant de fuir ou de charger
+var repos_anim := "Idle"            # variante de repos (Idle, Idle_2, tête basse), changée de temps en temps
+var repos_t := 0.0
 var modele: Node3D
 var pattes: Array = []               # [pivot, phase] des modèles faits par le code
 var tete: Node3D = null
@@ -287,6 +290,13 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	pv -= dmg
 	Game.spawn_blood(pos, get_parent())
 	var tue := pv <= 0.0
+	if not tue and ap:
+		var reac := "Idle_HitReact%d" % randi_range(1, 2)
+		if ap.has_animation(reac):
+			reaction_t = 0.3
+			anim = reac
+			ap.play(reac, 0.05)
+			ap.speed_scale = 1.4
 	Game.hit_confirmed.emit(false, tue)
 	if tue:
 		_mourir()
@@ -376,7 +386,7 @@ func _construire() -> void:
 		modele.add_child(m)
 		ap = ModeleUtil.anim_player(m)
 		if ap:
-			ModeleUtil.boucler(ap, ["Idle", "Idle_2", "Eating", "Walk", "Gallop"])
+			ModeleUtil.boucler(ap, ["Idle", "Idle_2", "Idle_Headlow", "Idle_2_HeadLow", "Eating", "Walk", "Gallop"])
 			ap.playback_default_blend_time = 0.25
 			return
 		# modèle fixe découpé (outils/godot/normaliser_animaux.gd) : tête et pattes articulées
@@ -525,6 +535,15 @@ func _jouer(nom_anim: String, vitesse := 1.0) -> void:
 func _animer(delta: float) -> void:
 	var v := vitesse_h
 	if ap:
+		if reaction_t > 0.0:
+			reaction_t -= delta
+			return
+		repos_t -= delta
+		if repos_t <= 0.0:
+			repos_t = randf_range(5.0, 10.0)
+			repos_anim = ["Idle", "Idle", "Idle_2", "Idle_Headlow", "Idle_2_HeadLow"].pick_random()
+			if not ap.has_animation(repos_anim):
+				repos_anim = "Idle"
 		if etat == Etat.CHARGE and attaque_t > 0.6:
 			_jouer("Attack" if ap.has_animation("Attack") else "Attack_Headbutt", 1.3)
 		elif v > 4.0:
@@ -532,7 +551,7 @@ func _animer(delta: float) -> void:
 		elif v > 0.3:
 			_jouer("Walk", v / 1.6)
 		else:
-			_jouer("Eating" if broute and etat == Etat.PAIT else "Idle")
+			_jouer("Eating" if broute and etat == Etat.PAIT else repos_anim)
 		return
 	# modèles faits par le code : pattes qui balancent, corps qui oscille, tête qui broute
 	phase += delta * (v * (9.0 if kind in ["lapin", "faisan", "corbeau"] else 5.0) + 0.001)
