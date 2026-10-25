@@ -91,6 +91,8 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 					c = c.darkened(0.3)
 			elif nom == "Eye":
 				c = Color(0.85, 0.8, 0.55) if zombie else c
+			elif a.has("tenue") and (a.tenue.has(String(m3.name) + ":" + nom) or a.tenue.has(nom)):
+				c = a.tenue.get(String(m3.name) + ":" + nom, a.tenue.get(nom))   # tenue imposée (marchands, zombies de métier)
 			else:
 				c = Color(c.r * teinte.r, c.g * teinte.g, c.b * teinte.b)
 				if zombie:
@@ -106,8 +108,46 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 			m3.material_overlay = sang_mat
 			m3.set_instance_shader_parameter("sang", a.sang if zombie else 0.0)
 			m3.set_instance_shader_parameter("graine", a.graine)
-	_equiper_pnj(n, id, a.get("type", ""), r)
+	if a.has("equipement"):
+		load("res://scripts/equipement_visuel.gd").appliquer(n, a.equipement)
+	else:
+		_equiper_pnj(n, id, a.get("type", ""), r)
 	return n
+
+
+## Tenues de métier : modèle + couleurs par matériau (« maillage:matériau » ou « matériau ») + équipement visible.
+const TENUES := {
+	"medecin": [
+		{"modele": "h_suit", "tenue": {"Suit_Body:Suit": Color(0.86, 0.87, 0.85), "Suit_Legs:Suit": Color(0.2, 0.24, 0.3),
+			"Tie": Color(0.3, 0.42, 0.55), "White": Color(0.55, 0.68, 0.8)}},
+		{"modele": "f_suit", "tenue": {"Suit_Body:Black": Color(0.86, 0.87, 0.85), "Suit_Legs:Black": Color(0.2, 0.24, 0.3),
+			"White": Color(0.55, 0.68, 0.8)}}],
+	"quincaillier": [
+		{"modele": "h_worker", "tenue": {"Worker_Vest": Color(0.2, 0.27, 0.36), "Worker_Body:Worker_Yellow": Color(0.62, 0.6, 0.55),
+			"LightBrown": Color(0.55, 0.52, 0.46), "Brown": Color(0.28, 0.26, 0.23), "Brown2": Color(0.22, 0.2, 0.18)}, "tete": "casquette"},
+		{"modele": "f_worker", "tenue": {"Worker_Vest": Color(0.2, 0.27, 0.36), "Worker_Body:Worker_Yellow": Color(0.62, 0.6, 0.55),
+			"Brown_02": Color(0.28, 0.26, 0.23), "Brown2": Color(0.22, 0.2, 0.18)}, "tete": "bonnet"}],
+	"armurier": [
+		{"modele": "h_farmer", "tenue": {"Farmer_Body:LightBlue": Color(0.3, 0.27, 0.22), "Beige": Color(0.42, 0.4, 0.32)},
+			"torse": "gilet_militaire", "tete": "casquette"},
+		{"modele": "h_adventurer", "tenue": {}, "torse": "gilet_militaire"}],
+}
+
+
+## Habille un marchand selon son métier (même tirage pour un même marchand).
+static func tenue_metier(a: Dictionary, metier: String, r: RandomNumberGenerator) -> void:
+	var choix: Array = TENUES.get(metier, [])
+	if choix.is_empty():
+		return
+	var t: Dictionary = choix[r.randi() % choix.size()]
+	a.modele = t.modele
+	a.sexe = "femme" if t.modele.begins_with("f_") else "homme"
+	a.tenue = t.tenue
+	var eq := {}
+	for s in ["tete", "torse"]:
+		if t.has(s):
+			eq[s] = {"id": t[s]}
+	a.equipement = eq
 
 
 static func _recolore(base: Material, c: Color) -> Material:

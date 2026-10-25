@@ -20,6 +20,15 @@ const METIERS := {
 		"veste_cuir", "casque_moto", "masque_gaz"]},
 }
 
+# objets posés sur l'étal (les cases restantes : boîtes colorées)
+const ETAL := {
+	"medecin": ["res://modeles/objets/trousse.scn", "res://modeles/objets/bandage.scn", "res://modeles/objets/eau.scn",
+		"res://modeles/objets/bandage.scn", "res://modeles/objets/conserve.scn", "res://modeles/objets/barre.scn"],
+	"quincaillier": ["res://modeles/props/seau.scn", "res://modeles/objets/essence.scn", "res://modeles/armes/hache.scn"],
+	"armurier": ["res://modeles/armes/glock19.scn", "res://modeles/armes/m45a1.scn", "res://modeles/props/caisse_munitions.scn",
+		"res://modeles/armes/machette.scn"],
+}
+
 var metier := "armurier"
 var nom := "Marc"
 
@@ -57,15 +66,31 @@ func setup(p_metier: String, p_nom: String) -> void:
 	# marchandises sur la table
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(nom + metier)
+	var etal: Array = ETAL.get(metier, [])
 	for k in 6:
+		if k < etal.size():
+			# vrai objet du métier, couché sur la table
+			var ch: String = etal[k]
+			if ResourceLoader.exists(ch):
+				var o: Node3D = load(ch).instantiate()
+				o.position = Vector3(-0.85 + k * 0.34, 0.95, rng.randf_range(-0.15, 0.15))
+				o.rotation.y = rng.randf_range(-0.6, 0.6)
+				if ch.contains("/armes/"):
+					o.rotation = Vector3(0, PI / 2.0 + rng.randf_range(-0.3, 0.3), PI / 2.0)
+					o.position.y += 0.03
+				add_child(o)
+				continue
 		var m := StandardMaterial3D.new()
 		m.albedo_color = Color.from_hsv(rng.randf(), 0.4, rng.randf_range(0.35, 0.8))
 		_boite(Vector3(rng.randf_range(0.12, 0.3), rng.randf_range(0.08, 0.25), rng.randf_range(0.12, 0.25)), Vector3(-0.85 + k * 0.34, 0.98, rng.randf_range(-0.2, 0.2)), m, false)
 	# le vendeur, derrière la table, tourné vers le client
 	if Perso.disponible():
-		var p: Node3D = Perso.creer(Perso.apparence("vendeur"))
+		var a := Perso.apparence("vendeur", rng)
+		Perso.tenue_metier(a, metier, rng)
+		var p: Node3D = Perso.creer(a)
 		p.position = Vector3(0, 0, 0.85)
 		add_child(p)
+		_habit_metier(p)
 		var pap := ModeleUtil.anim_player(p)
 		if pap and pap.has_animation("idle"):
 			ModeleUtil.boucler(pap, ["idle"])
@@ -77,6 +102,65 @@ func setup(p_metier: String, p_nom: String) -> void:
 		cv.shape = cap
 		cv.position = Vector3(0, 0.9, 0.85)
 		add_child(cv)
+
+
+## Pièces de vêtement en plus, suivant le bassin : bas de blouse du médecin, tablier du quincaillier.
+func _habit_metier(p: Node3D) -> void:
+	var sk: Skeleton3D = ModeleUtil.squelette(p)
+	if sk == null or sk.find_bone("pelvis") < 0:
+		return
+	var ba := BoneAttachment3D.new()
+	ba.bone_name = "pelvis"
+	sk.add_child(ba)
+	# repère du bassin ramené à celui du modèle (avant -Z, haut +Y) : les pièces restent droites
+	var piv := Node3D.new()
+	ba.add_child(piv)
+	var rel := Transform3D()
+	var n: Node = sk
+	while n != null and n != p:
+		if n is Node3D:
+			rel = (n as Node3D).transform * rel
+		n = n.get_parent()
+	var os := rel * sk.get_bone_global_rest(sk.find_bone("pelvis"))
+	piv.transform = os.affine_inverse() * Transform3D(Basis(), os.origin)
+	var m := StandardMaterial3D.new()
+	m.roughness = 0.9
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mi := MeshInstance3D.new()
+	match metier:
+		"medecin":
+			# bas de la blouse blanche, ouverte devant (cylindre sans fond, fendu)
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.19
+			cyl.bottom_radius = 0.25
+			cyl.height = 0.5
+			cyl.radial_segments = 10
+			cyl.cap_top = false
+			cyl.cap_bottom = false
+			mi.mesh = cyl
+			mi.position = Vector3(0, -0.2, -0.01)
+			mi.scale = Vector3(1.0, 1.0, 0.8)
+			m.albedo_color = Color(0.86, 0.87, 0.85)
+		"quincaillier":
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.36, 0.55, 0.015)
+			mi.mesh = bm
+			mi.position = Vector3(0, -0.16, -0.15)   # avant du personnage = -Z
+			mi.rotation.x = -0.08
+			m.albedo_color = Color(0.2, 0.27, 0.36)
+			# poche du tablier
+			var po := MeshInstance3D.new()
+			var pm := BoxMesh.new()
+			pm.size = Vector3(0.26, 0.12, 0.02)
+			po.mesh = pm
+			po.position = Vector3(0, 0.0, -0.01)
+			po.material_override = m
+			mi.add_child(po)
+		_:
+			piv.queue_free()
+			return
+	mi.material_override = m
+	piv.add_child(mi)
 
 
 func _boite(taille: Vector3, pos: Vector3, m: Material, ombre: bool) -> MeshInstance3D:

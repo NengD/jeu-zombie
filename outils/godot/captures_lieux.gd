@@ -50,7 +50,17 @@ func _go():
 		var dist := float(morceaux[2]) if morceaux.size() > 2 else 0.0
 		var cible := Vector3.INF
 		var avant := Vector3(0.6, 0, 1).normalized()
-		if morceaux[0] == "poi":
+		if morceaux[0] == "groupe":
+			# groupe:<nom>:<distance>:<n° du nœud>
+			var ns: Array = get_nodes_in_group(morceaux[1])
+			var k := int(morceaux[3]) if morceaux.size() > 3 else 0
+			if k < ns.size():
+				cible = ns[k].global_position
+				avant = ns[k].global_basis.z.normalized()
+				avant.y = 0
+			if dist == 0.0:
+				dist = 3.0
+		elif morceaux[0] == "poi":
 			for p in g.pois:
 				if p.name == morceaux[1] and (cible == Vector3.INF or p.pos.distance_to(w.spawn_point) < cible.distance_to(w.spawn_point)):
 					cible = p.pos
@@ -72,7 +82,7 @@ func _go():
 		if cible == Vector3.INF:
 			print(args[ci], " : introuvable")
 			continue
-		g.player.global_position = cible + Vector3(0, 0.5, 0)
+		g.player.global_position = cible - avant * dist * 2.0 + Vector3(0, 0.5, 0)   # hors du champ
 		await _attendre(90)
 		var oeil := cible + avant * dist + Vector3(0, absf(dist) * 0.2 + 0.6, 0)
 		cam.look_at_from_position(oeil, cible + Vector3(0, 1.0, 0))
