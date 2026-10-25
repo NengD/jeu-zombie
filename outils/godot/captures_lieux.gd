@@ -69,7 +69,7 @@ func _go():
 		else:
 			var best: Node3D = null
 			for n in tous:
-				if n is Node3D and String(n.name).begins_with(morceaux[1]):
+				if n is Node3D and n.scene_file_path.get_file().get_basename() == morceaux[1]:
 					var pn: Vector3 = (n as Node3D).position
 					if best == null or pn.distance_to(w.spawn_point) < best.position.distance_to(w.spawn_point):
 						best = n
@@ -99,9 +99,12 @@ func _go():
 		cam.look_at_from_position(oeil, cible + Vector3(0, 1.0, 0))
 		cam.current = true
 		await _attendre(60)
+		var t0 := Time.get_ticks_usec()
+		await _attendre(120)
+		var fps_moy := 120.0 / ((Time.get_ticks_usec() - t0) / 1000000.0)
 		var img := root.get_texture().get_image()
 		img.resize(960, 540)
 		var nom := args[ci].replace(":", "_").replace(" ", "_").validate_filename()
 		img.save_png(sortie.path_join(nom + ".png"))
-		print(args[ci], " ", cible, " : ", Engine.get_frames_per_second(), " FPS")
+		print(args[ci], " ", cible, " : %.0f FPS (moyenne 120 images)" % fps_moy)
 	quit()

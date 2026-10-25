@@ -104,3 +104,7 @@ Décor (tous CC0 — domaine public) :
 — Établi « Workbench » : « Survival Kit » de Kenney (https://kenney.nl), licence CC0 (recoloré en bois).
 — Bûches du feu de camp « Bonfire » et piège à mâchoires « Bear Trap » : « Survival Pack » de Quaternius, licence CC0.
 — Lit de camp « camp bed » : Steve B (https://poly.pizza/m/b0BOXw7svtJ), licence CC BY 3.0 (recoloré).
+— Mobilier urbain : feux tricolores et panneaux (stop, stationnement interdit, danger) : « Modular Streets » de Quaternius,
+   licence CC0 ; benne à ordures : « Retro Urban Kit » de Kenney, licence CC0 ; boîte aux lettres « Mailbox » : CreativeTrio
+   (https://poly.pizza/m/2olZ0G8iur), licence CC0 ; cabine téléphonique « Phone Booth » : Zsky (https://poly.pizza/m/nx9Cqdzq97),
+   licence CC BY 3.0 ; distributeur « Vending Machine » : J-Toastie (https://poly.pizza/m/ZhziWexNWk), licence CC BY 3.0.

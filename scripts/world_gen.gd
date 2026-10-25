@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 13 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 14 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -362,7 +362,9 @@ func _road(a: Vector2, b: Vector2, width: float, col := C_ASPHALT, lines := true
 const MOBILIER := [["poubelle", 5, true], ["poubelle_rue", 4, true], ["borne_incendie", 3, true],
 	["baril_rouge", 1, true], ["baril_bleu", 1, true], ["cone", 2, false], ["pneu", 2, false],
 	["palette", 2, false], ["carton", 3, false], ["armoire_electrique", 2, true], ["banc", 2, true],
-	["glissiere", 1, true], ["barriere_beton", 1, true]]
+	["glissiere", 1, true], ["barriere_beton", 1, true],
+	# lot 2 : benne, boîte aux lettres, cabine téléphonique, distributeur, poubelle renversée (déchets répandus)
+	["benne", 2, true], ["boite_lettres", 2, true], ["cabine_tel", 1, true], ["distributeur", 1, true], ["poubelle_renversee", 3, false]]
 
 
 ## Mobilier urbain le long des trottoirs, plaques d'égout, barrages abandonnés.
@@ -394,8 +396,13 @@ func _mobilier_urbain(o: Vector3 = Vector3.ZERO, nb: int = NB) -> void:
 								choix = m
 								break
 						var pos := (Vector3(a, 0.0, off) if along_x else Vector3(off, 0.0, a)) + Vector3(o.x, 0.0, o.z)
+						if choix[0] == "poubelle_renversee":
+							_poubelle_renversee(pos)
+							continue
+						if not Decor.existe(choix[0]):
+							continue
 						var t := Decor.taille(choix[0])
-						if _overlaps(Rect2(pos.x - t.x / 2.0, pos.z - t.x / 2.0, t.x, t.x)):
+						if _pres_batiment(pos, 1.4 + t.x / 2.0):   # (la chaussée est réservée : on ne teste que les bâtiments)
 							continue
 						# face vers la route, un peu de désordre
 						var ang := (0.0 if sd < 0 else PI) if along_x else (PI / 2.0 if sd < 0 else -PI / 2.0)
@@ -426,6 +433,46 @@ func _mobilier_urbain(o: Vector3 = Vector3.ZERO, nb: int = NB) -> void:
 			_prop(id, pos, ang, true, 1.0, 150.0)
 		for k in 3:
 			_prop("cone", p + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4)), rng.randf() * TAU, false, 1.0, 80.0)
+
+
+## Un bâtiment (zone intérieure) à moins de « marge » de ce point du trottoir ?
+func _pres_batiment(p: Vector3, marge: float) -> bool:
+	for d in [Vector3.ZERO, Vector3(marge, 0, 0), Vector3(-marge, 0, 0), Vector3(0, 0, marge), Vector3(0, 0, -marge)]:
+		if not Game.find_zone(p + d + Vector3(0, 0.5, 0)).is_empty():
+			return true
+	return false
+
+
+## Poubelle renversée sur le trottoir, sacs et cartons répandus autour.
+func _poubelle_renversee(pos: Vector3) -> void:
+	var t := Decor.taille("poubelle")
+	if _pres_batiment(pos, 2.2):
+		return
+	var ang := rng.randf() * TAU
+	var n := _prop("poubelle", pos + Vector3(0, minf(t.x, t.z) * 0.5, 0), ang, false, 1.0, 90.0)
+	if n:
+		n.rotate_object_local(Vector3.RIGHT, PI / 2.0)
+	var dir := Vector3(sin(ang), 0, cos(ang))
+	for k in rng.randi_range(2, 4):
+		var q := pos + dir * rng.randf_range(0.6, 1.8) + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
+		if rng.randf() < 0.5:
+			_prop("carton", q, rng.randf() * TAU, false, rng.randf_range(0.6, 0.9), 70.0)
+		else:
+			_box(q + Vector3(0, 0.16, 0), Vector3(0.42, 0.32, 0.36), Color(0.08, 0.08, 0.09), false, "uni")   # sac poubelle
+
+
+## Signalisation à un carrefour : feu tricolore (centre-ville) ou panneau (stop, stationnement interdit, danger).
+func _signalisation(p: Vector3, centre: bool) -> void:
+	var quart := rng.randi_range(0, 3) * PI / 2.0
+	if centre and Decor.existe("feu_tricolore"):
+		_prop("feu_tricolore", p, quart, false, 1.0, 200.0)
+		_box(p + Vector3(0, 2.0, 0), Vector3(0.25, 4.0, 0.25), Color.WHITE, true, "invisible")
+	elif rng.randf() < 0.55:
+		var id: String = ["panneau_stop", "panneau_stop", "panneau_interdit", "panneau_danger"][rng.randi() % 4]
+		if Decor.existe(id):
+			# parfois tordu par un choc
+			_prop(id, p, quart + rng.randf_range(-0.2, 0.2), false, 1.0, 150.0)
+			_box(p + Vector3(0, 1.2, 0), Vector3(0.12, 2.4, 0.12), Color.WHITE, true, "invisible")
 
 
 const VOITURES := ["voiture1", "voiture2", "voiture_suv", "voiture_taxi", "voiture_sport", "voiture1", "voiture2",
@@ -1120,6 +1167,8 @@ func _city(o: Vector3 = Vector3.ZERO, nb: int = NB, specials: Dictionary = {}, s
 			else:
 				_box(p + Vector3(0, 3.0, 0), Vector3(0.18, 6.0, 0.18), Color(0.2, 0.2, 0.22))
 				_box(p + Vector3(-0.6, 6.0, 0), Vector3(1.4, 0.15, 0.3), Color(0.2, 0.2, 0.22), false)
+			# coin opposé : feux tricolores au centre, panneaux ailleurs
+			_signalisation(Vector3(ox - hv + i * BLOCK - 6.0, 0, oz - hv + j * BLOCK - 6.0), absf(i - nb / 2.0) <= 1.5 and absf(j - nb / 2.0) <= 1.5)
 	if specials.is_empty() and principale:
 		specials = {
 			Vector2i(2, 2): "police", Vector2i(4, 4): "hopital", Vector2i(4, 2): "supermarche",
