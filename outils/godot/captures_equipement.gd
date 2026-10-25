@@ -1,7 +1,7 @@
 extends SceneTree
 ## Planche de l'équipement porté : une ligne par tenue (modèle de personnage + objets), une colonne par pose ;
 ## images de face, de profil et de dos.
-## godot --path . --screen 1 --resolution 1800x1000 -s res://outils/godot/captures_equipement.gd -- <dossier> [poses…]
+## godot --path . --screen <écran de Claude, voir CLAUDE.md> --resolution 1800x1000 -s res://outils/godot/captures_equipement.gd -- <dossier> [poses…]
 
 const Equip = preload("res://scripts/equipement_visuel.gd")
 const Perso = preload("res://scripts/perso.gd")

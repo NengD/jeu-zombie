@@ -1,5 +1,5 @@
 extends SceneTree
-## Planche des décors : godot --path . --screen 1 -s res://outils/godot/captures_props.gd -- <image.png> id1 id2…
+## Planche des décors : godot --path . --screen <écran de Claude, voir CLAUDE.md> -s res://outils/godot/captures_props.gd -- <image.png> id1 id2…
 ## (id = modeles/props/<id>.scn, ou chemin res:// d'une scène) ; vue de trois quarts avant (+Z), étiquettes.
 
 func _initialize() -> void:

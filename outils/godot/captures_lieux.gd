@@ -1,5 +1,5 @@
 extends SceneTree
-## Captures en jeu devant un lieu ou un décor : godot --path . --screen 1 -s res://outils/godot/captures_lieux.gd -- <dossier> cible…
+## Captures en jeu devant un lieu ou un décor : godot --path . --screen <écran de Claude, voir CLAUDE.md> -s res://outils/godot/captures_lieux.gd -- <dossier> cible…
 ## cible = "poi:<nom du lieu>[:distance]" ou "prop:<id du décor>[:distance]" (le plus proche du départ, vu de face) ;
 ## heure 11 h, graine 12345, FPS affichés.
 
