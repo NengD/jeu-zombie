@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 15 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 16 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -433,6 +433,22 @@ func _mobilier_urbain(o: Vector3 = Vector3.ZERO, nb: int = NB) -> void:
 			_prop(id, pos, ang, true, 1.0, 150.0)
 		for k in 3:
 			_prop("cone", p + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4)), rng.randf() * TAU, false, 1.0, 80.0)
+
+
+## Lanternes de chaque modèle de lampadaire, dans le repère du modèle (eclairage_rues.gd les allume la nuit).
+const TETES_LAMPADAIRE := {
+	"lampadaire": [Vector3(0, 4.25, 0)],
+	"lampadaire_simple": [Vector3(0, 5.25, 0)],
+	"lampadaire_double": [Vector3(0, 5.45, -0.57), Vector3(0, 5.45, 0.57)],
+	"lampadaire_ancien": [Vector3(0, 2.95, 0.51)],
+}
+
+
+func _lampadaire(id: String, p: Vector3, ang: float) -> void:
+	var lp := _prop(id, p, ang, false, 1.0, 200.0)
+	if lp:
+		lp.set_meta("tetes", TETES_LAMPADAIRE.get(id, TETES_LAMPADAIRE.lampadaire))
+		lampadaires.append(lp)
 
 
 ## Un bâtiment (zone intérieure) à moins de « marge » de ce point du trottoir ?
@@ -1218,9 +1234,12 @@ func _city(o: Vector3 = Vector3.ZERO, nb: int = NB, specials: Dictionary = {}, s
 		for j in nb + 1:
 			var p := Vector3(ox - hv + i * BLOCK + 6.0, 0, oz - hv + j * BLOCK + 6.0)
 			if Decor.existe("lampadaire"):
-				var lp := _prop("lampadaire", p, rng.randf() * TAU, false, 1.0, 200.0)
-				if lp:
-					lampadaires.append(lp)
+				# centre-ville : candélabres anciens (simples ou doubles) ; pavillons : lampadaire moderne
+				var centre_ville := absf(i - nb / 2.0) <= 1.5 and absf(j - nb / 2.0) <= 1.5
+				var id := "lampadaire"
+				if centre_ville and Decor.existe("lampadaire_simple"):
+					id = "lampadaire_double" if rng.randf() < 0.45 else "lampadaire_simple"
+				_lampadaire(id, p, rng.randi_range(0, 3) * PI / 2.0 if id == "lampadaire_double" else rng.randf() * TAU)
 				_box(p + Vector3(0, 2.0, 0), Vector3(0.2, 4.0, 0.2), Color.WHITE, true, "invisible")
 			else:
 				_box(p + Vector3(0, 3.0, 0), Vector3(0.18, 6.0, 0.18), Color(0.2, 0.2, 0.22))
@@ -1916,6 +1935,21 @@ func _village(c: Vector3, route: float, nom: String, est_ouest := false) -> void
 	var maisons := 0
 	var speciaux := [["Église", "eglise"], ["Épicerie", "magasin"], ["Mairie", "bureau"], ["Bar du village", "magasin"]]
 	var rues := [[debut + axe * sg * 25.0, axe * sg, absf(c_axe - route) + lg / 2.0 - 30.0], [t1 + trans * 5.0, trans, 130.0]]
+	# lanternes anciennes sur poteau de bois le long des rues, tournées vers la chaussée
+	if Decor.existe("lampadaire_ancien"):
+		for r in rues:
+			var cote_l := Vector3(-r[1].z, 0, r[1].x)
+			var tl := 10.0
+			var s := 1.0
+			while tl < float(r[2]):
+				var pl: Vector3 = r[0] + r[1] * tl + cote_l * s * 5.4
+				if not _pres_batiment(pl, 1.0):   # (la chaussée réservée déborde sur le bas-côté)
+					var d := -cote_l * s
+					_lampadaire("lampadaire_ancien", pl + d * 0.67, atan2(d.x, d.z))
+					_box(pl + Vector3(0, 1.6, 0), Vector3(0.25, 3.2, 0.25), Color.WHITE, true, "invisible")
+					_reserve(Rect2(pl.x - 0.5, pl.z - 0.5, 1.0, 1.0))
+				tl += 34.0
+				s = -s
 	for r in rues:
 		var dep: Vector3 = r[0]
 		var dir: Vector3 = r[1]

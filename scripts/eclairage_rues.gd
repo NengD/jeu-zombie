@@ -17,28 +17,35 @@ func installer(lampadaires: Array, graine: int) -> void:
 			continue
 		var r := rng.randf()
 		var etat := 0 if r < 0.72 else (1 if r < 0.84 else 2)
-		var pos: Vector3 = (l as Node3D).position + Vector3(0, HAUT, 0)   # (décor au repère du monde)
+		# lanternes du modèle (méta « tetes » posée par world_gen._lampadaire), au repère du monde
+		var n3: Node3D = l
+		var tetes: Array = n3.get_meta("tetes", [Vector3(0, HAUT, 0)])
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(1.0, 0.85, 0.6)
 		mat.emission_enabled = true
 		mat.emission = Color(1.0, 0.72, 0.4)
 		mat.emission_energy_multiplier = 0.0
-		var verre := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.2
-		sm.height = 0.14
-		verre.mesh = sm
-		verre.material_override = mat
-		verre.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		verre.position = pos - Vector3(0, 0.1, 0)   # sous la lanterne, visible
-		add_child(verre)
+		var centre := Vector3.ZERO
+		for t in tetes:
+			var pos: Vector3 = n3.position + n3.basis * (t as Vector3)
+			centre += pos / tetes.size()
+			var verre := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.2 if tetes.size() == 1 else 0.16
+			sm.height = 0.14
+			verre.mesh = sm
+			verre.material_override = mat
+			verre.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			verre.position = pos - Vector3(0, 0.1, 0)   # sous la lanterne, visible
+			add_child(verre)
+		# une seule lumière par lampadaire (au milieu des lanternes), portée selon la hauteur
 		var lum := SpotLight3D.new()
-		lum.position = pos - Vector3(0, 0.15, 0)
+		lum.position = centre - Vector3(0, 0.15, 0)
 		lum.rotation.x = -PI / 2.0          # cône vers le sol
-		lum.spot_angle = 50.0
+		lum.spot_angle = 50.0 if tetes.size() == 1 else 62.0
 		lum.spot_angle_attenuation = 0.8
 		lum.light_color = Color(1.0, 0.72, 0.42)
-		lum.spot_range = 9.0
+		lum.spot_range = maxf(9.0, centre.y - n3.position.y + 5.0)
 		lum.spot_attenuation = 0.7
 		lum.light_energy = 0.0
 		lum.light_volumetric_fog_energy = 1.6     # halo dans la brume

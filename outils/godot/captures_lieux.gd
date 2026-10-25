@@ -47,6 +47,9 @@ func _go():
 	root.add_child(cam)
 	for ci in range(1, args.size()):
 		var morceaux: PackedStringArray = args[ci].split(":")
+		if morceaux[0] == "heure":
+			g.time_hours = float(morceaux[1])   # heure:22 -> captures suivantes de nuit
+			continue
 		var dist := float(morceaux[2]) if morceaux.size() > 2 else 0.0
 		var cible := Vector3.INF
 		var avant := Vector3(0.6, 0, 1).normalized()
