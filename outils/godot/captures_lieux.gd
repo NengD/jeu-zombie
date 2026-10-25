@@ -84,9 +84,9 @@ func _go():
 			continue
 		g.player.global_position = cible - avant * dist * 2.0 + Vector3(0, 0.5, 0)   # hors du champ
 		await _attendre(90)
-		if morceaux.size() > 3 and morceaux[3] == "zombies":
+		if morceaux.size() > 3 and morceaux[3] in ["zombies", "animaux"]:
 			# poi:<nom>:<distance>:zombies -> les zombies du lieu, vus de près (le plus proche du lieu)
-			var zs: Array = get_nodes_in_group("zombies")
+			var zs: Array = get_nodes_in_group(morceaux[3])
 			zs.sort_custom(func(a, b): return a.global_position.distance_to(cible) < b.global_position.distance_to(cible))
 			if not zs.is_empty():
 				for z in zs:

@@ -91,7 +91,7 @@ const GUIDE := """[b]LES BASES[/b]
   quand un camp est entièrement nettoyé. Viens la toucher chez un marchand.
 • Décor des camps (brasero, caisse de munitions, jerrican, lanterne) et textures du monde : Poly Haven, licence CC0.
 • Personnages low-poly : « Ultimate Modular Men / Women » de Quaternius, licence CC0.
-• Cerf et biche : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; sanglier, lapin et faisan : Poly by Google (CC BY 3.0, via Poly Pizza).
+• Cerf, biche, loup, chien, vache et chevaux : « Ultimate Animated Animal Pack » de Quaternius, licence CC0 ; mouton : Quaternius (CC0) ; sanglier, lapin, faisan et corbeau : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Barques et canot : « Ships » de Quaternius (CC0).
 • Pick-up et ambulance : Quaternius (CC0) ; camionnette, tracteur et moto : Poly by Google (CC BY 3.0, via Poly Pizza).
 • Lits, baignoires, WC, lavabos, lave-linge : « Ultimate Home Interior » et « Furniture » de Quaternius, licence CC0.
@@ -137,7 +137,9 @@ const GUIDE := """[b]LES BASES[/b]
 • Flèches : 1 planche + 2 plumes (ou 1 tissu) + 1 ferraille, ou 1 os pour la pointe. Plantées dans le décor, on les ramasse
   souvent ([F]) ; dans un animal ou un zombie, on les retrouve parfois en dépeçant ou en fouillant le corps.
 • Animaux : cerfs, biches et sangliers en forêt, faisans et lapins dans les champs. Ils entendent les bruits et te voient de loin :
-  approche accroupi, caché dans les buissons. Le sanglier peut charger !
+  approche accroupi, caché dans les buissons. Le sanglier peut charger ! Les loups (forêts, surtout la nuit) et les chiens sauvages
+  chassent en meute : ils attaquent dès qu'ils te voient. Les corbeaux s'envolent quand tu approches et attirent les zombies.
+  Vaches, chevaux et moutons errent près des fermes : de la viande, du cuir (et de la laine pour le tissu) faciles à prendre.
 • Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
 • Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
 

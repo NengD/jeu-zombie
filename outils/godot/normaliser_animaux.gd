@@ -10,13 +10,18 @@ const SRC := "res://outils/sources_animaux/"
 const OUT := "res://modeles/animaux/"
 # id : [fichier source, hauteur totale visée (m), rotation pour mettre l'avant vers -Z]
 const CFG := {"cerf": ["stag", 2.05, PI], "biche": ["deer", 1.5, PI],
-	"sanglier": ["boar", 0.85, PI], "lapin": ["lapin", 0.3, PI], "faisan": ["pheasant", 0.42, PI]}
+	"sanglier": ["boar", 0.85, PI], "lapin": ["lapin", 0.3, PI], "faisan": ["pheasant", 0.42, PI],
+	# lot 2 : loup, chien, vache, chevaux (Quaternius CC0, animés) ; mouton (Quaternius CC0) et corbeau (Poly by Google CC BY) découpés
+	"loup": ["loup", 0.9, PI], "chien": ["chien", 0.75, PI], "vache": ["vache", 1.5, PI], "cheval": ["cheval", 1.8, PI],
+	"cheval_blanc": ["cheval_blanc", 1.75, PI], "mouton": ["mouton", 0.9, PI, true], "corbeau": ["corbeau", 0.32, PI]}
 # découpage des modèles fixes : sorte, haut des pattes (part de la hauteur),
 # tête = avant du corps (part de la longueur) au-dessus de y_tete (part de la hauteur)
 const DECOUPE := {
 	"sanglier": {"sorte": "quad", "patte": 0.34, "tete": 0.24, "y_tete": 0.0},
 	"lapin": {"sorte": "lapin", "patte": 0.2, "tete": 0.32, "y_tete": 0.35},
 	"faisan": {"sorte": "oiseau", "patte": 0.3, "tete": 0.3, "y_tete": 0.62},
+	"mouton": {"sorte": "quad", "patte": 0.34, "tete": 0.26, "y_tete": 0.3},
+	"corbeau": {"sorte": "oiseau", "patte": 0.25, "tete": 0.3, "y_tete": 0.55},
 }
 
 
@@ -36,6 +41,9 @@ func _initialize() -> void:
 		racine.name = id
 		racine.add_child(modele)
 		modele.rotation.y = CFG[id][2]
+		if CFG[id].size() > 3:
+			# modèle exporté couché (axe haut = +Z) : redressé
+			modele.basis = Basis(Vector3.UP, PI / 2.0) * Basis(Vector3(0, 0, -1), Vector3(0, -1, 0), Vector3(-1, 0, 0)) * Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -PI / 2.0) * modele.basis
 		var k: float = CFG[id][1] / _boite(modele, Transform3D.IDENTITY).size.y
 		modele.scale = Vector3.ONE * k
 		var boite := _boite(modele, Transform3D.IDENTITY)

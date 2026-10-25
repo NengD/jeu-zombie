@@ -15,6 +15,7 @@ const SEUIL_FORET := 22             # arbres par case de 128 m
 var world: Node = null
 var arbres := {}                    # case -> nombre d'arbres
 var champs := {}                    # case -> true (au moins un champ)
+var fermes := {}                    # case -> position de la ferme (bêtes de ferme abandonnées)
 var cases := {}                     # case -> {"jour": int, "restants": Array (types), "vivants": Array}
 var t := 0.0
 
@@ -29,6 +30,9 @@ func installer(w: Node) -> void:
 		for x in range(floori(rr.position.x / CASE), floori(rr.end.x / CASE) + 1):
 			for z in range(floori(rr.position.y / CASE), floori(rr.end.y / CASE) + 1):
 				champs[Vector2i(x, z)] = true
+	for poi in Game.pois:
+		if String(poi.name).begins_with("Ferme"):
+			fermes[_case(poi.pos)] = poi.pos
 
 
 static func _case(p: Vector3) -> Vector2i:
@@ -98,6 +102,15 @@ func _composition(c: Vector2i) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([Game.graine_monde, c.x, c.y, Game.day])
 	var out: Array = []
+	if fermes.has(c):
+		# bêtes abandonnées dans les prés de la ferme
+		for i in rng.randi_range(1, 3):
+			out.append("vache")
+		for i in rng.randi_range(0, 2):
+			out.append("cheval" if rng.randf() < 0.6 else "cheval_blanc")
+		for i in rng.randi_range(2, 5):
+			out.append("mouton")
+		return out
 	match m:
 		"foret":
 			if rng.randf() < 0.5:
@@ -110,6 +123,9 @@ func _composition(c: Vector2i) -> Array:
 			if rng.randf() < 0.4:
 				for i in rng.randi_range(1, 2):
 					out.append("lapin")
+			if rng.randf() < (0.16 if Game.is_night() else 0.09):
+				for i in rng.randi_range(3, 5):
+					out.append("loup")
 		"champs":
 			if rng.randf() < 0.5:
 				for i in rng.randi_range(1, 3):
@@ -119,6 +135,9 @@ func _composition(c: Vector2i) -> Array:
 					out.append("lapin")
 			if rng.randf() < 0.2:
 				out.append("biche" if rng.randf() < 0.6 else "cerf")
+			if rng.randf() < 0.35:
+				for i in rng.randi_range(2, 5):
+					out.append("corbeau")
 		"campagne":
 			if rng.randf() < 0.25:
 				for i in rng.randi_range(1, 2):
@@ -129,6 +148,12 @@ func _composition(c: Vector2i) -> Array:
 				out.append("biche")
 			if rng.randf() < 0.06:
 				out.append("sanglier")
+			if rng.randf() < 0.07:
+				for i in rng.randi_range(2, 4):
+					out.append("chien")
+			if rng.randf() < 0.2:
+				for i in rng.randi_range(2, 4):
+					out.append("corbeau")
 	return out
 
 
@@ -139,6 +164,10 @@ func _peupler(c: Vector2i, e: Dictionary, pp: Vector3) -> int:
 	var centre_groupe := Vector3.INF
 	for essai in 12:
 		var q := _centre(c) + Vector3(rng.randf_range(-54.0, 54.0), 0.0, rng.randf_range(-54.0, 54.0))
+		if fermes.has(c):
+			# dans les prés, devant la ferme (côté opposé à la grange)
+			var fp: Vector3 = fermes[c]
+			q = fp + Vector3(rng.randf_range(-40.0, 20.0), 0.0, signf(fp.z) * rng.randf_range(28.0, 60.0))
 		if _valide(q, pp):
 			centre_groupe = q
 			break

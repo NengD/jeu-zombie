@@ -2,7 +2,9 @@ extends CharacterBody3D
 ## Animaux sauvages : cerf et biche (modèles animés de Quaternius), sanglier, lapin et faisan (modèles Poly by Google
 ## découpés en tête et pattes animées par le code, cf. outils/godot/normaliser_animaux.gd).
 ## Ils paissent autour de leur point de départ, entendent les bruits (Game.make_noise), voient le joueur
-## (moins s'il est accroupi ou caché) et fuient ; le sanglier peut charger. Mort : [F] pour dépecer au couteau.
+## (moins s'il est accroupi ou caché) et fuient ; le sanglier peut charger. Loups et chiens sauvages (Quaternius, animés)
+## chassent en meute ; les corbeaux s'envolent en alertant les zombies ; vaches, chevaux (Quaternius) et moutons dans
+## les fermes, peu farouches. Mort : [F] pour dépecer au couteau.
 ## Placés et retirés par cases autour du joueur (scripts/faune.gd).
 
 enum Etat { PAIT, FUIT, CHARGE, MORT }
@@ -13,7 +15,17 @@ const TYPES := {
 	"biche": {"nom": "Biche", "pv": 100.0, "marche": 1.5, "fuite": 11.5, "vue": 40.0, "ouie": 1.7, "rayon": 0.32, "haut": 1.2},
 	"sanglier": {"nom": "Sanglier", "pv": 170.0, "marche": 1.2, "fuite": 8.5, "vue": 20.0, "ouie": 1.2, "rayon": 0.38, "haut": 0.85},
 	"lapin": {"nom": "Lapin", "pv": 18.0, "marche": 0.9, "fuite": 8.0, "vue": 15.0, "ouie": 1.3, "rayon": 0.14, "haut": 0.3},
-	"faisan": {"nom": "Faisan", "pv": 14.0, "marche": 0.7, "fuite": 9.5, "vue": 17.0, "ouie": 1.4, "rayon": 0.14, "haut": 0.35},
+	"faisan": {"nom": "Faisan", "pv": 14.0, "marche": 0.7, "fuite": 9.5, "vue": 17.0, "ouie": 1.4, "rayon": 0.14, "haut": 0.35, "vole": true},
+	# prédateurs en meute : attaquent dès qu'ils voient le joueur (« degats » par morsure, « charge » = vitesse d'attaque)
+	"loup": {"nom": "Loup", "pv": 90.0, "marche": 1.4, "fuite": 10.0, "vue": 32.0, "ouie": 1.6, "rayon": 0.28, "haut": 0.9, "meute": true, "degats": 10.0, "charge": 9.0},
+	"chien": {"nom": "Chien sauvage", "pv": 60.0, "marche": 1.5, "fuite": 9.0, "vue": 26.0, "ouie": 1.5, "rayon": 0.25, "haut": 0.75, "meute": true, "degats": 9.0, "charge": 8.5},
+	# oiseau qui s'envole quand on approche, en alertant les zombies alentour
+	"corbeau": {"nom": "Corbeau", "pv": 8.0, "marche": 0.5, "fuite": 10.0, "vue": 24.0, "ouie": 1.8, "rayon": 0.12, "haut": 0.3, "vole": true},
+	# bêtes de ferme abandonnées : peu farouches, fuient sur une courte distance
+	"vache": {"nom": "Vache", "pv": 240.0, "marche": 0.9, "fuite": 5.5, "vue": 12.0, "ouie": 1.0, "rayon": 0.45, "haut": 1.4, "ferme": true},
+	"cheval": {"nom": "Cheval", "pv": 190.0, "marche": 1.4, "fuite": 12.0, "vue": 26.0, "ouie": 1.4, "rayon": 0.4, "haut": 1.6, "ferme": true},
+	"cheval_blanc": {"nom": "Cheval", "pv": 190.0, "marche": 1.4, "fuite": 12.0, "vue": 26.0, "ouie": 1.4, "rayon": 0.4, "haut": 1.6, "ferme": true},
+	"mouton": {"nom": "Mouton", "pv": 50.0, "marche": 0.8, "fuite": 6.0, "vue": 16.0, "ouie": 1.2, "rayon": 0.28, "haut": 0.8, "ferme": true},
 }
 # ce que rend le dépeçage : [min, max]
 const DEPECAGE := {
@@ -22,6 +34,13 @@ const DEPECAGE := {
 	"sanglier": {"viande_crue": [3, 5], "peau": [2, 2], "os": [1, 2], "graisse": [2, 3]},
 	"lapin": {"viande_crue": [1, 1], "peau": [1, 1], "os": [0, 1]},
 	"faisan": {"viande_crue": [1, 1], "plume": [4, 8], "os": [0, 1]},
+	"loup": {"viande_crue": [2, 3], "peau": [1, 2], "os": [1, 2], "graisse": [0, 1]},
+	"chien": {"viande_crue": [1, 2], "peau": [1, 1], "os": [1, 1]},
+	"corbeau": {"plume": [3, 6], "os": [0, 1]},
+	"vache": {"viande_crue": [6, 9], "peau": [3, 4], "os": [3, 4], "graisse": [2, 3]},
+	"cheval": {"viande_crue": [5, 8], "peau": [3, 3], "os": [3, 4], "graisse": [1, 2]},
+	"cheval_blanc": {"viande_crue": [5, 8], "peau": [3, 3], "os": [3, 4], "graisse": [1, 2]},
+	"mouton": {"viande_crue": [2, 4], "peau": [1, 2], "tissu": [1, 3], "os": [1, 2], "graisse": [1, 1]},
 }
 const LAMES := ["couteau_km2000", "machette", "hache"]
 const GRAVITE := 18.0
@@ -141,13 +160,16 @@ func _physics_process(delta: float) -> void:
 			var v: Vector3 = p.global_position - global_position
 			v.y = 0.0
 			cap = atan2(-v.x, -v.z)
-			voulu = 8.5
-			if v.length() < 1.5 and attaque_t <= 0.0 and p.alive:
-				attaque_t = 1.6
-				p.take_damage(22.0, self)
-				Game.play_3d("grogne2", global_position, 2.0, 0.1, 40.0)
-				if randf() < 0.45:
+			voulu = float(t.get("charge", 8.5))
+			var meute: bool = t.get("meute", false)
+			if v.length() < (1.3 if meute else 1.5) and attaque_t <= 0.0 and p.alive:
+				attaque_t = 1.5 if meute else 1.6
+				p.take_damage(float(t.get("degats", 22.0)), self)
+				Game.play_3d("grogne2", global_position, 2.0 if not meute else -2.0, 0.1, 40.0, 1.5 if meute else 1.0)
+				if randf() < (0.15 if meute else 0.45):
 					_fuir(p.global_position, 7.0)
+			elif meute and v.length() < 1.6:
+				voulu = 0.0   # au contact : mord sur place
 			if t_etat <= 0.0 or not p.alive:
 				_fuir(p.global_position, 6.0)
 	# rotation progressive, déplacement, gravité
@@ -172,8 +194,9 @@ func _physics_process(delta: float) -> void:
 
 func _voler(delta: float) -> void:
 	vol_t += delta
-	velocity.y = lerpf(velocity.y, 3.2 if vol_t < 1.4 else -1.6, minf(1.0, delta * 3.0))
-	if vol_t > 1.6 and is_on_floor():
+	var montee := 4.0 if kind == "corbeau" else 1.4
+	velocity.y = lerpf(velocity.y, 3.2 if vol_t < montee else -1.6, minf(1.0, delta * 3.0))
+	if vol_t > montee + 0.2 and is_on_floor():
 		vol = false
 
 
@@ -187,7 +210,7 @@ func _percevoir(p: Node, d: float) -> void:
 		portee *= 0.5
 	if p.sprinting:
 		portee *= 1.3
-	if Game.is_night():
+	if Game.is_night() and not TYPES[kind].get("meute", false):
 		portee *= 0.7
 	if d < portee:
 		_alerte(p.global_position, d)
@@ -208,8 +231,13 @@ func _alerte(pos: Vector3, d: float) -> void:
 		return
 	if etat == Etat.CHARGE:
 		return
-	if kind == "sanglier" and d < 16.0 and randf() < 0.55 and Game.player and Game.player.alive:
+	var t: Dictionary = TYPES[kind]
+	if t.get("meute", false) and pv > float(t.pv) * 0.35 and Game.player and Game.player.alive:
 		_charger()
+	elif kind == "sanglier" and d < 16.0 and randf() < 0.55 and Game.player and Game.player.alive:
+		_charger()
+	elif t.get("ferme", false):
+		_fuir(pos, randf_range(2.5, 4.5))
 	else:
 		_fuir(pos, randf_range(6.0, 10.0))
 
@@ -218,19 +246,30 @@ func _fuir(depuis: Vector3, duree: float) -> void:
 	etat = Etat.FUIT
 	menace = depuis
 	t_etat = duree
-	if kind == "faisan" and not vol:
+	if TYPES[kind].get("vole", false) and not vol:
 		vol = true
 		vol_t = 0.0
 		velocity.y = 4.0
 		Game.play_3d("vent_leger", global_position, -6.0, 0.2, 30.0)
+		if kind == "corbeau":
+			# l'envol des corbeaux attire les zombies alentour
+			t_etat = maxf(t_etat, 12.0)
+			Game.make_noise.call_deferred(global_position, 22.0)
 	elif kind in ["cerf", "biche"] and randf() < 0.5:
 		Game.play_3d("souffle", global_position, -10.0, 0.2, 35.0)
 
 
-func _charger() -> void:
+func _charger(propager := true) -> void:
+	var meute: bool = TYPES[kind].get("meute", false)
+	if etat == Etat.CHARGE:
+		return
 	etat = Etat.CHARGE
-	t_etat = 7.0
-	Game.play_3d("grogne1", global_position, 0.0, 0.15, 45.0)
+	t_etat = 14.0 if meute else 7.0
+	Game.play_3d("grogne1", global_position, 0.0 if not meute else -4.0, 0.15, 45.0, 1.45 if meute else 1.0)
+	if meute and propager:
+		for a in get_tree().get_nodes_in_group("animaux"):
+			if a != self and a.kind == kind and a.global_position.distance_to(global_position) < 45.0:
+				a._charger(false)
 
 
 func _calmer() -> void:
@@ -252,6 +291,8 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if tue:
 		_mourir()
 	elif kind == "sanglier" and from.distance_to(global_position) < 30.0 and randf() < 0.7:
+		_charger()
+	elif TYPES[kind].get("meute", false) and pv > float(TYPES[kind].pv) * 0.35:
 		_charger()
 	else:
 		_fuir(from, randf_range(8.0, 12.0))
@@ -486,7 +527,9 @@ func _jouer(nom_anim: String, vitesse := 1.0) -> void:
 func _animer(delta: float) -> void:
 	var v := vitesse_h
 	if ap:
-		if v > 4.0:
+		if etat == Etat.CHARGE and attaque_t > 0.6:
+			_jouer("Attack" if ap.has_animation("Attack") else "Attack_Headbutt", 1.3)
+		elif v > 4.0:
 			_jouer("Gallop", v / 9.0)
 		elif v > 0.3:
 			_jouer("Walk", v / 1.6)
@@ -494,12 +537,12 @@ func _animer(delta: float) -> void:
 			_jouer("Eating" if broute and etat == Etat.PAIT else "Idle")
 		return
 	# modèles faits par le code : pattes qui balancent, corps qui oscille, tête qui broute
-	phase += delta * (v * (9.0 if kind in ["lapin", "faisan"] else 5.0) + 0.001)
+	phase += delta * (v * (9.0 if kind in ["lapin", "faisan", "corbeau"] else 5.0) + 0.001)
 	var amp := clampf(v * 0.25, 0.0, 0.8)
 	if corps_modele:
 		# modèle découpé : pattes courtes, angles plus petits ; le faisan replie les pattes et bascule en vol
 		amp = clampf(v * 0.12, 0.0, 0.45 if kind == "lapin" else 0.6)
-		if kind == "faisan":
+		if TYPES[kind].get("vole", false):
 			var incl := -0.35 if vol else 0.0
 			modele.rotation.x = lerpf(modele.rotation.x, incl, minf(1.0, delta * 5.0))
 			modele.position.y = absf(sin(phase)) * 0.02 * float(not vol)

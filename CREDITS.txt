@@ -97,3 +97,7 @@ Décor (tous CC0 — domaine public) :
    (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; recolorés par outils/godot/normaliser_props.gd).
 — Abribus « Bus Stop » : Zsky (https://poly.pizza/m/OWczicNWhO), licence CC BY 3.0.
 — Seau (étal du quincaillier) : « Survival Kit » de Kenney (https://kenney.nl), licence CC0.
+— Loup, chien (husky), vache et chevaux : « Ultimate Animated Animal Pack » de Quaternius, licence CC0
+   (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_animaux.gd).
+— Mouton « Sheep » : Quaternius (https://poly.pizza/m/C39AUXUUes), licence CC0.
+— Corbeau « Crow » : Poly by Google (https://poly.pizza/m/1MIvWQ5Q3R9), licence CC BY 3.0.
