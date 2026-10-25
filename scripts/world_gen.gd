@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 14 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 15 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -639,6 +639,8 @@ func _building(c: Vector3, w: float, d: float, h: float, col: Color, doors: Arra
 			_sur_facade(along_x, face, sgn, ap, 0.08, 0.16, 0.14, 0.16, 0.26, gris, "metal_peint")   # sabot au pied
 			for yb in range(1, int(sommet / 2.0) + 1):
 				_sur_facade(along_x, face, sgn, ap, yb * 2.0, 0.05, 0.16, 0.05, 0.06, gris.darkened(0.2), "metal_peint")   # colliers
+		# porches, balcons, climatiseurs, graffitis, sacs de sable (lot 2 : boîtes fusionnées par case, quelques Label3D)
+		_details_facade(along_x, face, sgn, a0, a1, nb_rangs, haut_etage if not un_seul else 3.3, kind, has_door, dc)
 	# ---------------------------------------------------------------- cage d'escalier
 	var cage := {}
 	if n > 1:
@@ -980,6 +982,62 @@ func _sur_facade(along_x: bool, face: float, sgn: float, a: float, yc: float, of
 		_box(Vector3(a, yc, face + sgn * off), Vector3(larg, haut, ep), col, solid, m)
 	else:
 		_box(Vector3(face + sgn * off, yc, a), Vector3(ep, haut, larg), col, solid, m)
+
+
+const GRAFFITIS := ["SOS", "AIDE", "FIN", "RIP", "NE PAS ENTRER", "ILS SONT DEDANS", "ZONE MORTE", "PARTIS AU NORD", "VIVANTS ICI ?", "X"]
+const COULEURS_GRAFFITI := [Color(0.9, 0.15, 0.12), Color(0.15, 0.55, 0.9), Color(0.95, 0.85, 0.15), Color(0.2, 0.75, 0.3), Color(0.92, 0.92, 0.9), Color(0.85, 0.3, 0.8)]
+
+
+## Détails d'une façade : porche devant la porte des maisons, balcons et climatiseurs aux étages, graffitis
+## au rez-de-chaussée, sacs de sable devant certaines portes. Boîtes fusionnées par case et matériau (_box).
+func _details_facade(along_x: bool, face: float, sgn: float, a0: float, a1: float, nb_rangs: int, h_et: float, kind: String, porte: bool, dc: float) -> void:
+	var bois := Color(0.55, 0.4, 0.28)
+	var metal := Color(0.22, 0.23, 0.25)
+	if porte and kind in ["maison", "ferme"] and nb_rangs <= 2 and rng.randf() < 0.45:
+		# porche : dalle, deux poteaux, auvent
+		for s in [-1.0, 1.0]:
+			_sur_facade(along_x, face, sgn, dc + s * 1.35, 1.35, 1.55, 0.14, 2.7, 0.14, bois, "planches", true)
+		_sur_facade(along_x, face, sgn, dc, 2.78, 0.85, 3.3, 0.1, 1.8, Color(0.42, 0.3, 0.22), "planches")
+		_sur_facade(along_x, face, sgn, dc, 0.06, 0.85, 3.1, 0.12, 1.7, Color(0.75, 0.74, 0.7), "beton")
+	elif porte and rng.randf() < 0.07:
+		# sacs de sable de part et d'autre de la porte (barricade de fortune)
+		for s in [-1.0, 1.0]:
+			_sur_facade(along_x, face, sgn, dc + s * 1.9, 0.5, 0.7, 1.5, 1.0, 0.8, Color(1.1, 1.0, 0.8), "terre", true)
+	var o := Vector3(0, 0, sgn) if along_x else Vector3(sgn, 0, 0)
+	for k in range(1, nb_rangs):
+		var base := k * h_et
+		var a := a0 + 2.0
+		while a < a1 - 2.0:
+			var r := rng.randf()
+			if r < 0.14 and kind in ["maison", "bureau", "motel"]:
+				# balcon : dalle et garde-corps
+				_sur_facade(along_x, face, sgn, a, base + 0.12, 0.55, 1.9, 0.12, 1.1, Color(0.72, 0.71, 0.68), "beton")
+				_sur_facade(along_x, face, sgn, a, base + 0.62, 1.08, 1.9, 0.9, 0.04, metal, "metal_peint")   # garde-corps plein
+			elif r < 0.22 and kind in ["maison", "bureau", "motel", "magasin"]:
+				# climatiseur sous la fenêtre (caisson, grille sombre)
+				_sur_facade(along_x, face, sgn, a + 0.35, base + 0.62, 0.25, 0.75, 0.5, 0.45, Color(0.78, 0.78, 0.76), "metal_peint")
+				_sur_facade(along_x, face, sgn, a + 0.35, base + 0.62, 0.48, 0.5, 0.36, 0.02, Color(0.2, 0.2, 0.21), "metal")
+			a += 3.6
+	if rng.randf() < 0.04 and OS.get_environment("SANS_FACADES") == "":   # (Label3D : -8 FPS en ville à 14 %)
+		# graffiti au rez-de-chaussée, loin de la porte
+		var ag := rng.randf_range(a0 + 1.0, a1 - 1.0)
+		if not (porte and absf(ag - dc) < 2.2):
+			var l := Label3D.new()
+			l.text = GRAFFITIS[rng.randi() % GRAFFITIS.size()]
+			l.font_size = 96
+			l.outline_size = 0
+			l.pixel_size = 0.006 * rng.randf_range(0.8, 1.3)
+			l.modulate = COULEURS_GRAFFITI[rng.randi() % COULEURS_GRAFFITI.size()]
+			l.modulate.a = 0.85
+			l.shaded = true
+			l.double_sided = false
+			l.alpha_cut = Label3D.ALPHA_CUT_DISCARD
+			l.visibility_range_end = 30.0
+			l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var pos := Vector3(ag, rng.randf_range(0.9, 1.7), face) if along_x else Vector3(face, rng.randf_range(0.9, 1.7), ag)
+			l.position = pos + o * 0.03
+			l.rotation = Vector3(0, atan2(o.x, o.z), rng.randf_range(-0.12, 0.12))
+			add_child(l)
 
 
 ## Bandeau horizontal (soubassement, corniche d'étage), interrompu au niveau de la porte.
