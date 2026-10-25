@@ -3,7 +3,7 @@ extends SceneTree
 ## outils/sources_persos_modulaires/ (h_*.glb, f_*.glb) -> res://modeles/persos_mod/<id>.scn
 ##  - les os sont renommés comme ceux du squelette UAL (pelvis, spine_01, hand_r…) : le reste du jeu
 ##    (démembrement, armes à la ceinture, animations) fonctionne sans changement ;
-##  - les 36 animations UAL du jeu (modeles/persos/homme.scn, femme.scn) sont transférées sur ce
+##  - les animations UAL du jeu (modeles/persos/homme.scn, femme.scn) sont transférées sur ce
 ##    squelette (rotations en repère monde, avec correction de la pose de repos bras le long du corps) ;
 ##  - point d'attache de l'arme « Prise » dans la main droite, calé comme pour l'ancien mannequin.
 ## Lancer : godot --headless --path . -s res://outils/godot/generer_persos_modulaires.gd
@@ -60,7 +60,11 @@ func _go() -> void:
 			libs[sexe] = _transferer(sexe, inst, sk)
 			ResourceSaver.save(libs[sexe], OUT + "anims_%s.res" % sexe, ResourceSaver.FLAG_COMPRESS)
 			libs[sexe] = load(OUT + "anims_%s.res" % sexe)
-		_assembler(id, inst, sk, libs[sexe])
+		# ANIMS_SEULES=1 : seulement les bibliothèques d'animations (après outils/godot/ajouter_anims_ual.gd)
+		if OS.get_environment("ANIMS_SEULES") == "":
+			_assembler(id, inst, sk, libs[sexe])
+		else:
+			inst.queue_free()
 	quit()
 
 
