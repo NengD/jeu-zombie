@@ -249,6 +249,72 @@ func _scenario(sc: String) -> Image:
 			p._select_slot(1 if p.slot == 0 else 0)
 			await _attendre(attente if attente > 0 else 0.15)
 			angle = 2.6
+		"z_prep", "z_relever", "z_mort", "z_regard":
+			var zs: Array = []
+			var n := 3 if nom in ["z_mort", "z_regard"] else 1
+			for i in n:
+				var pos: Vector3 = p.global_position - p.global_basis.z * (1.4 if nom == "z_prep" else 3.2) + p.global_basis.x * (i - (n - 1) / 2.0) * 1.3
+				var z = main.spawn_zombie(pos, "civil", false, 5.0)
+				z.look_at(Vector3(p.global_position.x, z.global_position.y, p.global_position.z), Vector3.UP)
+				zs.append(z)
+			await _attendre(0.3)
+			g.admin_invisible = nom in ["z_relever", "z_mort"]
+			for z in zs:
+				if nom == "z_prep" or nom == "z_regard":
+					z.state = z.State.CHASE
+				elif nom == "z_relever":
+					z.renverser(0.4)
+				elif nom == "z_mort":
+					z.take_hit(999.0, z.global_position + Vector3.UP, p.global_position)
+			if nom == "z_prep":
+				var fin := Time.get_ticks_msec() + 3000
+				while zs[0].prep_t < (attente if attente > 0 else 0.33) and Time.get_ticks_msec() < fin:
+					await process_frame
+			else:
+				await _attendre(attente if attente > 0 else (2.5 if nom == "z_mort" else 1.0))
+			# caméra sur le côté, à mi-chemin entre le joueur et les zombies
+			var milieu: Vector3 = (p.global_position + zs[0].global_position) * 0.5
+			var cote: Vector3 = p.global_basis.x.rotated(Vector3.UP, 0.0 if vue == INF else vue)
+			cam.global_position = milieu + cote * 4.5 + Vector3.UP * 1.5
+			cam.look_at(milieu + Vector3.UP * 0.9)
+			cam.fov = 55.0
+			suivre = true
+			cam.make_current()
+			await _attendre(0.05)
+			var im1 := root.get_viewport().get_texture().get_image()
+			for z in zs:
+				if is_instance_valid(z):
+					z.queue_free()
+			g.admin_invisible = true
+			suivre = false
+			cam.clear_current()
+			return im1
+		"bandit", "b_mort":
+			var bs: Array = get_nodes_in_group("bandits")
+			if bs.is_empty():
+				return root.get_viewport().get_texture().get_image()
+			var b = bs[0]
+			var dir: Vector3 = b.global_basis.z
+			p.global_position = b.global_position + dir * 7.0 + Vector3.UP * 0.5
+			p.look_at(Vector3(b.global_position.x, p.global_position.y, b.global_position.z), Vector3.UP)
+			p.rotation.x = 0.0
+			g.admin_invisible = false
+			await _attendre(1.5)
+			if nom == "b_mort":
+				b.take_hit(999.0, b.global_position + Vector3.UP, p.global_position)
+			await _attendre(attente if attente > 0 else (2.5 if nom == "b_mort" else 1.0))
+			var milieu: Vector3 = (p.global_position + b.global_position) * 0.5
+			cam.global_position = milieu + p.global_basis.x * 6.0 + Vector3.UP * 2.0
+			cam.look_at(milieu + Vector3.UP * 0.9)
+			cam.fov = 55.0
+			suivre = true
+			cam.make_current()
+			await _attendre(0.05)
+			var im2 := root.get_viewport().get_texture().get_image()
+			g.admin_invisible = true
+			suivre = false
+			cam.clear_current()
+			return im2
 		_:
 			if p.has_method("geste"):
 				p.geste(nom)

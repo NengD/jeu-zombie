@@ -23,6 +23,7 @@ var main_flanc := 0.0                # 0..1 : main gauche pressée sur le flanc 
 var bandage := 0.0                   # 0..1 : main droite qui enroule un bandage autour de l'avant-bras gauche
 var sortie := -1.0                   # sortie / rangement d'arme : progression 0..1 (-1 = aucun)
 var sortie_lieu := "dos"             # où la main droite va chercher l'arme : "dos", "cuisse", "hanche"
+var bras_leves := 0.0                # 0..1 : les deux bras levés devant soi (zombie qui prépare son attaque)
 
 var _hanches := 0.0
 var _inclinaison := 0.0
@@ -191,6 +192,13 @@ static func _descend_de(sk: Skeleton3D, b: int, ancetre: int) -> bool:
 ## Gestes des bras (avant bras_ik, qui reprend la main quand une arme à feu est tenue en joue).
 func _gestes_bras(sk: Skeleton3D, haut: Vector3, avant: Vector3, droite: Vector3) -> void:
 	if _os.get("hand_r", -1) < 0 or _os.get("hand_l", -1) < 0:
+		return
+	# bras levés devant soi, mains en avant à hauteur de tête (préparation de l'attaque d'un zombie)
+	if bras_leves > 0.01:
+		for c in ["_l", "_r"]:
+			var s := -1.0 if c == "_l" else 1.0
+			var epaule := sk.get_bone_global_pose(_os["upperarm" + c]).origin
+			_bras_vers(sk, c, epaule + avant * 0.4 + haut * 0.3 + droite * s * 0.1, bras_leves, -haut * 0.3 + droite * s * 0.3)
 		return
 	var bassin := sk.get_bone_global_pose(_os.pelvis).origin
 	var poitrine := sk.get_bone_global_pose(_os.spine_02).origin

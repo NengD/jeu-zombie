@@ -1947,7 +1947,7 @@ func open_inventory() -> void:
 
 func open_storage(crate: Node) -> void:
 	# geste : à genoux devant un tas au sol, un cadavre ou un meuble bas ; penché sur un meuble haut
-	var bas: bool = crate.is_in_group("zombies") or crate.is_in_group("tas_sol") or float((crate.get("box_size") if crate.get("box_size") != null else Vector3.ONE).y) < 0.9
+	var bas: bool = crate.is_in_group("corpses") or crate.is_in_group("zombies") or crate.is_in_group("tas_sol") or float((crate.get("box_size") if crate.get("box_size") != null else Vector3.ONE).y) < 0.9
 	geste("genou" if bas else "fouille")
 	var ui := get_tree().get_first_node_in_group("inventory_ui")
 	if ui:

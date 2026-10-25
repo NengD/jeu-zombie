@@ -56,6 +56,10 @@ var demembre: Node = null
 var aspect := {}            # apparence (couleurs des morceaux arrachés)
 var squelette: Skeleton3D = null
 var pieds_ik = null                 # pieds posés sur le sol (scripts/pieds_ik.gd)
+var corps_v = null                  # regard, boiterie, coups selon le côté, bras levés avant l'attaque (scripts/corps_vivant.gd)
+var prep_t := -1.0                  # préparation de l'attaque (bras levés) : temps écoulé, -1 = aucune
+var prep_cible: Node3D = null
+var relev_t := -1.0                 # relevé maladroit après avoir été renversé : temps écoulé
 var allure := randf_range(0.82, 1.18)   # cadence propre à chaque zombie (démarches variées)
 var a_terre := 0.0          # renversé : reste au sol, peut être achevé
 var etourdi := 0.0          # repoussé par une parade ou un coup lourd : ne peut plus attaquer un instant
@@ -230,6 +234,19 @@ func _apply_look() -> void:
 			squelette.add_child(pieds_ik)
 			# chaque zombie a sa démarche : buste penché d'un côté, plus ou moins voûté
 			pieds_ik.penche = randf_range(-0.22, 0.22)
+			# corps vivant (avant les pieds) : tête vers le joueur, réactions aux coups, bras levés avant
+			# de frapper ; un zombie sur trois boite (jambe raide, dos voûté), certains penchent d'un côté
+			corps_v = preload("res://scripts/corps_vivant.gd").new()
+			corps_v.corps = self
+			corps_v.pieds = pieds_ik
+			corps_v.active = false
+			corps_v.pivot_actif = false
+			corps_v.regard_max = 0.9
+			if randf() < 0.33:
+				corps_v.blessure = randf_range(0.5, 1.0)
+			corps_v.inclinaison_cible = randf_range(-0.08, 0.08)
+			squelette.add_child(corps_v)
+			squelette.move_child(corps_v, pieds_ik.get_index())
 		_armer()
 		if ap:
 			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
@@ -364,6 +381,11 @@ func _physics_process(delta: float) -> void:
 	dormant = dist > 90.0 and state != State.CHASE
 	if pieds_ik:
 		pieds_ik.active = dist < 22.0 and state != State.DEAD and not rampant
+	if corps_v:
+		corps_v.active = pieds_ik.active
+		corps_v.vitesse = Vector2(velocity.x, velocity.z).length()
+		var regarde: bool = state == State.CHASE and p != null and dist < 15.0
+		corps_v.regard = (p.global_position + Vector3.UP * 1.6) if regarde else Vector3.INF
 	if ap:
 		ap.active = not dormant
 	if dormant:
@@ -441,25 +463,25 @@ func _physics_process(delta: float) -> void:
 		attack_t = maxf(attack_t, 0.3)
 	if est_boss:
 		_boss_update(delta, p)
-	if state == State.CHASE and p and p.alive:
+	# attaque en deux temps : bras levés (préparation visible, PREP_ATTAQUE), puis la frappe, qui ne
+	# touche que si la cible est encore à portée (on peut reculer ou rouler pour l'éviter)
+	if prep_t >= 0.0:
+		prep_t += delta
+		if corps_v:
+			corps_v.bras_leves = 0.0 if rampant else smoothstep(0.0, _duree_prep() * 0.8, prep_t)
+		if etourdi > 0.0 or state != State.CHASE:
+			_finir_prep()
+		elif prep_t >= _duree_prep():
+			_frapper()
+	elif state == State.CHASE and p and p.alive:
 		var flat := Vector2(p.global_position.x - global_position.x, p.global_position.z - global_position.z).length()
 		if flat < 1.5 * (1.6 if est_boss else 1.0) and absf(p.global_position.y - global_position.y) < 1.5 * echelle and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
-			attack_t = 1.7 if est_boss else 1.1
-			lunge = 1.0
-			if not rampant:
-				_anim("attaque", 1.0, 0.8)
-			_voix("attaque", -2.0, 30.0)
-			p.take_damage(damage, self)
+			_preparer(p)
 	# attaque d'un bandit
-	if state == State.CHASE and proie and is_instance_valid(proie) and proie.state != 3:
+	if prep_t < 0.0 and state == State.CHASE and proie and is_instance_valid(proie) and proie.state != 3:
 		var fb := Vector2(proie.global_position.x - global_position.x, proie.global_position.z - global_position.z).length()
 		if fb < 1.5 * (1.6 if est_boss else 1.0) and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
-			attack_t = 1.7 if est_boss else 1.1
-			lunge = 1.0
-			if not rampant:
-				_anim("attaque", 1.0, 0.8)
-			_voix("attaque", -2.0, 30.0)
-			proie.take_hit(damage, proie.global_position + Vector3.UP * 1.2, global_position)
+			_preparer(proie)
 	# bruit de grognement (attire les autres de près)
 	groan_t -= delta
 	douleur_cd -= delta
@@ -773,6 +795,8 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 		dmg *= (1.0 - armor)
 	Game.signaler_degats(self, dmg, health, pos, from, headshot)
 	health -= dmg
+	if corps_v:
+		corps_v.coup(from, clampf(dmg / 40.0, 0.3, 1.2))   # buste rejeté du côté opposé au coup
 	var push := global_position - from
 	push.y = 0.0
 	velocity += push.normalized() * 2.0
@@ -832,6 +856,10 @@ func _die() -> void:
 	state = State.DEAD
 	if pieds_ik:
 		pieds_ik.active = false
+	_finir_prep()
+	relev_t = -1.0
+	if corps_v:
+		corps_v.active = false
 	remove_from_group("zombies")
 	add_to_group("corpses")
 	collision_layer = Game.LAYER_INTERACT
@@ -845,7 +873,7 @@ func _die() -> void:
 		elif rampant:
 			ap.pause()
 		else:
-			_anim("mort", 1.0, 99.0)
+			_mort_variee()
 		return
 	var tw := create_tween()
 	tw.tween_property(modele, "rotation:x", -PI / 2.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -917,6 +945,13 @@ func _anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
 
 
 func _update_anim(delta: float) -> void:
+	if relev_t >= 0.0:
+		relev_t += delta
+		ap.speed_scale = _vitesse_relever(relev_t)
+		if relev_t > 1.95:
+			relev_t = -1.0
+			if corps_v:
+				corps_v.coup(global_position + global_basis.x * (1.0 if randf() < 0.5 else -1.0), 0.7)   # titube
 	if anim_lock > 0.0:
 		anim_lock -= delta
 		return
@@ -1138,6 +1173,8 @@ func renverser(duree: float) -> void:
 	if est_boss or state == State.DEAD or rampant:
 		return
 	a_terre = duree
+	_finir_prep()
+	relev_t = -1.0
 	dormant = false
 	var cs: CollisionShape3D = $Collision
 	var cap := CapsuleShape3D.new()
@@ -1146,7 +1183,7 @@ func renverser(duree: float) -> void:
 	cs.shape = cap
 	cs.position.y = 0.32
 	if ap:
-		_anim("mort", 1.5, duree)
+		_anim("mort_miroir" if randf() < 0.5 and ap.has_animation("mort_miroir") else "mort", 1.5, duree)
 	Game.play_3d("coup", global_position + Vector3.UP * 0.5, -2.0, 0.2, 25.0)
 
 
@@ -1159,7 +1196,9 @@ func _se_relever() -> void:
 	cs.position.y = 0.9 * corps.y
 	if ap:
 		if ap.has_animation("relever"):
-			_anim("relever", 1.6, 1.0)
+			_anim("relever", 1.0, 2.0)
+			relev_t = 0.0
+			etourdi = maxf(etourdi, 1.9)   # ne bouge presque pas tant qu'il n'est pas debout
 		else:
 			_anim("idle", 1.0, 0.3)
 	state = State.CHASE if Game.player and Game.player.alive else State.WANDER
@@ -1220,3 +1259,67 @@ func _posture_zombie() -> void:
 		if squelette.find_bone(os_nom) >= 0:
 			coupes.append(os_nom)
 			demembre.coupes = coupes
+
+
+# ================================================================ attaque en deux temps
+func _duree_prep() -> float:
+	return 0.6 if est_boss else (0.3 if kind == "coureur" else 0.42)
+
+
+func _preparer(c: Node3D) -> void:
+	prep_t = 0.0
+	prep_cible = c
+	attack_t = (1.7 if est_boss else 1.1) + _duree_prep()
+	_voix("attaque", -2.0, 30.0)
+
+
+func _finir_prep() -> void:
+	prep_t = -1.0
+	prep_cible = null
+	if corps_v:
+		corps_v.bras_leves = 0.0
+
+
+func _frapper() -> void:
+	var c := prep_cible
+	_finir_prep()
+	lunge = 1.0
+	if not rampant:
+		_anim("attaque", 1.3, 0.6)
+	if c == null or not is_instance_valid(c):
+		return
+	var portee := 1.9 * (1.6 if est_boss else 1.0)
+	var flat := Vector2(c.global_position.x - global_position.x, c.global_position.z - global_position.z).length()
+	if flat > portee or absf(c.global_position.y - global_position.y) > 1.5 * echelle:
+		return   # la cible a reculé à temps
+	if c == Game.player:
+		if c.alive:
+			c.take_damage(damage, self)
+	elif c.get("state") != 3:
+		c.take_hit(damage, c.global_position + Vector3.UP * 1.2, global_position)
+
+
+## Vitesse de lecture du relevé maladroit (après avoir été renversé) : il se redresse, glisse en
+## arrière, peine un instant, puis se relève d'un coup et titube.
+func _vitesse_relever(t: float) -> float:
+	if t < 0.45:
+		return 1.0
+	if t < 0.75:
+		return -0.7
+	if t < 1.05:
+		return 0.2
+	return 1.3
+
+
+## Mort : chute sur un côté ou sur l'autre, ou effondrement sur place (« se relever » joué à l'envers).
+func _mort_variee() -> void:
+	var r := randf()
+	if r < 0.3 and ap.has_animation("relever"):
+		anim_lock = 99.0
+		ap.speed_scale = 1.0
+		ap.play("relever", 0.15, -1.15, true)
+		cur_anim = "relever"
+	elif r < 0.65 and ap.has_animation("mort_miroir"):
+		_anim("mort_miroir", 1.0, 99.0)
+	else:
+		_anim("mort", 1.0, 99.0)

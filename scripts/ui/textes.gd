@@ -40,7 +40,8 @@ const GUIDE := """[b]LES BASES[/b]
   fusil de précision gros coup unique. La visée revient ensuite doucement au centre ; baisser la souris compense plus vite.
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
-• Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras.
+• Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras, d'autres boitent. De près, ils tournent la tête vers toi.
+• Un zombie [b]lève les bras avant de frapper[/b] : recule ou fais une roulade à ce moment pour esquiver. Renversé, il se relève maladroitement. Zombies et bandits tombent de plusieurs façons et encaissent les coups selon le côté touché.
 • Ton personnage bouge avec naturel : pas de côté et à reculons en visant, corps penché dans les virages, jambes fléchies à l'atterrissage, tête tournée vers ce que tu regardes, souffle court quand tu es épuisé, dos voûté et boiterie quand tu es gravement blessé, buste secoué selon le côté où tu es touché.
 • En eau profonde (centre des lacs), tu nages : lentement, sans courir, sauter ni t'accroupir.
 • [b]Roulade d'esquive[/b] : accroupis-toi en plein sprint ; les coups au corps à corps passent à côté pendant la roulade (12 d'endurance).

@@ -45,6 +45,8 @@ var pap: AnimationPlayer = null
 var arme_noeud: Node3D = null
 var bras_ik: Node = null
 var pieds_ik = null                 # pieds posés sur le sol (scripts/pieds_ik.gd)
+var corps_v = null                  # hanches vers la marche (pas de côté en combat), regard, coups (scripts/corps_vivant.gd)
+var recule := false                 # recule en combat : la marche est jouée à l'envers
 var anim := ""
 var anim_lock := 0.0
 
@@ -101,6 +103,12 @@ func setup(p_camp: int, centre: Vector3, rng: RandomNumberGenerator) -> void:
 			pieds_ik.corps = self
 			pieds_ik.masque = Game.LAYER_WORLD
 			pieds_ik.active = false
+			corps_v = preload("res://scripts/corps_vivant.gd").new()
+			corps_v.corps = self
+			corps_v.pieds = pieds_ik
+			corps_v.active = false
+			corps_v.pivot_actif = false
+			sk_b.add_child(corps_v)
 			sk_b.add_child(pieds_ik)
 			sk_b.add_child(bras_ik)
 		ModeleUtil.distance_visible(modele, 160.0)
@@ -121,6 +129,23 @@ func _physics_process(delta: float) -> void:
 		dj = global_position.distance_to(p.global_position)
 	if pieds_ik:
 		pieds_ik.active = dj < 22.0
+	if corps_v:
+		corps_v.active = pieds_ik.active
+		# en combat : jambes vers la marche, buste vers la cible ; tête vers la cible
+		var vl := global_basis.inverse() * velocity
+		vl.y = 0.0
+		corps_v.vitesse = vl.length()
+		var h := 0.0
+		recule = false
+		if state == COMBAT and vl.length() > 0.4:
+			var ang := atan2(-vl.x, -vl.z)
+			if absf(ang) > 1.95:
+				recule = true
+				ang = wrapf(ang + PI, -PI, PI)
+			h = clampf(ang, -1.1, 1.1)
+		corps_v.hanches_cible = h
+		var vise: bool = cible != null and is_instance_valid(cible) and global_position.distance_to(cible.global_position) < 25.0
+		corps_v.regard = (cible.global_position + Vector3.UP * 1.5) if vise else Vector3.INF
 	# loin du joueur : en sommeil
 	if dj > 120.0 and state != COMBAT and state != REPLI:
 		if modele:
@@ -404,6 +429,8 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	var tete := pos.y > global_position.y + 1.5
 	Game.signaler_degats(self, dmg * (2.5 if tete else 1.0), health, pos, from, tete)
 	health -= dmg * (2.5 if tete else 1.0)
+	if corps_v:
+		corps_v.coup(from, clampf(dmg / 30.0, 0.3, 1.2))
 	var p = Game.player
 	var par_joueur: bool = p != null and from.distance_to(p.global_position) < 3.0
 	if par_joueur:
@@ -467,7 +494,17 @@ func _mourir(par_joueur: bool) -> void:
 	remove_from_group("bandits")
 	collision_layer = 0
 	velocity = Vector3.ZERO
-	_anim("mort", 1.0, 99.0)
+	if corps_v:
+		corps_v.active = false
+	# chute sur un côté ou sur l'autre, ou effondrement sur place (« se relever » joué à l'envers)
+	var r := randf()
+	if r < 0.3 and pap and pap.has_animation("relever"):
+		anim_lock = 99.0
+		pap.speed_scale = 1.0
+		pap.play("relever", 0.15, -1.15, true)
+		anim = "relever"
+	else:
+		_anim("mort_miroir" if r < 0.65 else "mort", 1.0, 99.0)
 	if par_joueur and Game.player:
 		Game.player.prog.gagner("combat", 70)
 		Game.player.gagner_argent(randi_range(10, 40))
@@ -529,9 +566,9 @@ func _animer(vitesse: float) -> void:
 		return
 	if state == COMBAT:
 		if hs > 2.5:
-			_anim("jogging", clampf(hs / 2.4, 0.7, 1.6))
+			_anim("jogging", clampf(hs / 2.4, 0.7, 1.6) * (-1.0 if recule else 1.0))
 		elif hs > 0.4:
-			_anim("marche", clampf(hs / 0.94, 0.6, 1.8))
+			_anim("marche", clampf(hs / 0.94, 0.6, 1.8) * (-1.0 if recule else 1.0))
 		else:
 			_anim("visee")
 	elif hs > 2.0:
