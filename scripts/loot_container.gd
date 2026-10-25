@@ -80,11 +80,14 @@ const FORME_ID := {
 	"viande_crue": [Vector3(0.16, 0.05, 0.12), Color(0.65, 0.18, 0.16)],
 	"viande_cuite": [Vector3(0.16, 0.05, 0.12), Color(0.45, 0.25, 0.12)],
 	"soda": [Vector3(0.07, 0.12, 0.07), Color(0.75, 0.12, 0.1)],
+	"viande_sechee": [Vector3(0.18, 0.025, 0.06), Color(0.32, 0.17, 0.1)],
+	"peau": [Vector3(0.4, 0.02, 0.3), Color(0.5, 0.36, 0.24)],
+	"cuir": [Vector3(0.36, 0.02, 0.26), Color(0.36, 0.22, 0.12)],
 	"fleche": [Vector3(0.015, 0.015, 0.7), Color(0.55, 0.42, 0.25)],
 }
 # objets qui reprennent le modèle d'un autre
-const MODELE_ID := {"soda": "", "ration": "barre", "antidouleur": "bandage", "medicament": "bandage",
-	"alcool": "eau", "bouillon": "conserve", "ragout": "conserve"}
+const MODELE_ID := {"soda": "", "ration": "barre", "antidouleur": "bandage", "medicament": "trousse",
+	"alcool": "bouteille2", "bouillon": "conserve_ouverte", "ragout": "conserve_ouverte"}
 static var _formes := {}
 var _sig_tas := ""
 var _t_tas := 0.0
@@ -191,6 +194,27 @@ func _modele_objet(id: String) -> Node3D:
 				mc.albedo_color = piece.col
 				mi.material_override = mc
 			return mi
+	if t == "armor" and id.begins_with("sac") and ResourceLoader.exists("res://modeles/objets/sac_dos.scn"):
+		return ModeleUtil.charger("res://modeles/objets/sac_dos.scn")   # sac sans modèle porté
+	if id == "soda":
+		# canette (cylindre) couchée
+		var can := MeshInstance3D.new()
+		var cy := CylinderMesh.new()
+		cy.top_radius = 0.033
+		cy.bottom_radius = 0.033
+		cy.height = 0.12
+		cy.radial_segments = 10
+		can.mesh = cy
+		var ms := StandardMaterial3D.new()
+		ms.albedo_color = Color(0.75, 0.12, 0.1)
+		ms.metallic = 0.6
+		ms.roughness = 0.35
+		can.material_override = ms
+		can.rotation.z = PI / 2.0
+		can.position.y = 0.033
+		var pc := Node3D.new()
+		pc.add_child(can)
+		return pc
 	return _boite_forme(FORME_ID.get(id, FORME_TYPE.get(t, [Vector3(0.15, 0.08, 0.12), Color(0.4, 0.38, 0.34)])))
 
 

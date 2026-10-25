@@ -71,7 +71,7 @@ Décor (tous CC0 — domaine public) :
    « Motorcycle » (https://poly.pizza/m/dse64pqMKAR) : Poly by Google, licence CC BY 3.0.
 — Intérieurs : lits, baignoire, WC, lavabo, lave-linge : « Ultimate Home Interior » et « Furniture » de Quaternius,
    licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; conversion : outils/godot/normaliser_props.gd).
-— Objets au sol (conserve, bandage, trousse de soin, jerrican) : « Survival Pack » de Quaternius ; bouteille et barre
+— Objets au sol (conserve fermée ou ouverte, bandage, trousse de soin, jerrican, sac à dos) : « Survival Pack » de Quaternius ; bouteilles et barre
    chocolatée : « Ultimate Food » de Quaternius — licence CC0 (via https://github.com/Papyszoo/CC0-Public-Domain-Models ;
    conversion : outils/godot/normaliser_objets.gd).
 — Textures photo (asphalte, béton, briques, carrelage, écorce, enduit, herbe, métal, parpaing, parquet, planches,

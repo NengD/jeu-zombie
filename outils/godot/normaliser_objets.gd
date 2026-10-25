@@ -8,7 +8,7 @@ const SRC := "res://outils/sources_objets/"
 const OUT := "res://modeles/objets/"
 # id : plus grande dimension (m)
 const TAILLE := {"conserve": 0.11, "bandage": 0.09, "trousse": 0.3, "essence": 0.42,
-	"eau": 0.28, "barre": 0.14}
+	"eau": 0.28, "barre": 0.14, "conserve_ouverte": 0.11, "bouteille2": 0.3, "sac_dos": 0.45}
 
 
 func _initialize() -> void:
