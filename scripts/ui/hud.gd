@@ -41,7 +41,7 @@ class Boussole extends Control:
 			reperes.append([Vector2(mq.x, mq.z), mq.nom, Color(1.0, 0.6, 0.15)])
 		var mc := Game.marchand_proche(pos)
 		if not mc.is_empty():
-			reperes.append([Vector2(mc.pos.x, mc.pos.z), "Marchands", Color(0.45, 1.0, 0.55)])
+			reperes.append([Vector2(mc.pos.x, mc.pos.z), mc.get("metiers", "Marchands"), Color(0.45, 1.0, 0.55)])
 		var base := Game.position_base()
 		if base != Vector3.INF:
 			reperes.append([Vector2(base.x, base.z), "Ma base", Color(0.45, 0.7, 1.0)])

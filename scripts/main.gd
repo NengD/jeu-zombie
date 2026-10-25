@@ -107,11 +107,22 @@ func _ready() -> void:
 		Game.msg("Partie chargée — jour %d." % Game.day)
 
 
-## Campements des marchands (médecin, quincaillier, armurier) : chacun dans son propre camp gardé,
-## juste à la sortie de la ville, le plus proche du départ en premier (médecin), à au moins 90 m l'un de l'autre.
+## Campements des marchands, chacun dans son propre camp gardé : trois juste à la sortie de la ville de départ
+## (médecin, quincaillier, armurier), deux à la sortie de chaque autre ville, puis un par grande zone de la carte
+## (grille de ZONES_MARCHANDS × ZONES_MARCHANDS) près d'un village, d'une gare, d'une station, d'une ferme ou d'un lieu.
 ## Même emplacement et mêmes vendeurs pour une même carte.
 const CampMarchand = preload("res://scripts/camp_marchand.gd")
 var camps_marchands: Array = []
+var _marchands_poses: Array = []   # [position, métier] de chaque marchand (répartition des métiers)
+var _a_degager: Array = []         # [centre, rayon] des emplacements à dégager (arbres, décor)
+const NOMS_MARCHANDS := ["Marc", "Sophie", "Karim", "Lucie", "Hugo", "Inès", "Paul", "Nadia", "Yann", "Chloé",
+	"Bruno", "Amina", "Gilles", "Léa", "Omar", "Mireille", "Théo", "Rosa", "Victor", "Jeanne", "Malik", "Odile"]
+const TITRES_METIERS := {"medecin": "du médecin", "quincaillier": "du quincaillier", "armurier": "de l'armurier",
+	"boucher": "du boucher", "epicier": "de l'épicier", "mecanicien": "du mécanicien"}
+const ZONES_MARCHANDS := 4          # grille de zones (cases de 1250 m sur la carte de 5 km)
+const ECART_MARCHANDS := 1150.0     # distance minimale entre un camp de campagne et les autres camps
+const ECART_MEME_METIER := 1300.0   # pas deux fois le même métier plus près que ça (si possible)
+const ECART_NID := 230.0            # loin des nids de zombies
 
 
 func _creer_marche() -> void:
@@ -125,6 +136,8 @@ func _creer_marche() -> void:
 	for i in range(1, Game.villes.size()):
 		var v: Dictionary = Game.villes[i]
 		_camps_autour(v.c, float(v.demi), v.c + Vector3(0, 0, float(v.demi) + 200.0), ["medecin", "armurier"], rng)
+	_camps_campagne(rng)
+	world.degager_cercles(_a_degager)   # un seul parcours du monde pour tous les camps
 
 
 ## Camps de marchands juste à la sortie d'une ville (centre, demi-côté), les plus proches de « vers » d'abord.
@@ -149,22 +162,157 @@ func _camps_autour(centre: Vector3, ch: float, vers_pt: Vector3, metiers: Array,
 			continue
 		c.y = Game.hauteur(c.x, c.z)
 		places.append(c)
-	var noms := ["Marc", "Sophie", "Karim", "Lucie", "Hugo", "Inès", "Paul", "Nadia", "Yann", "Chloé"]
-	var titres := {"medecin": "du médecin", "quincaillier": "du quincaillier", "armurier": "de l'armurier"}
 	for k in places.size():
-		world.degager(places[k], CampMarchand.RAYON + 1.5)
-		Game.sans_herbe.append([places[k], CampMarchand.RAYON + 0.8])
-		var n := camps_marchands.size()
-		var camp = CampMarchand.new()
-		camp.name = "CampMarchand%d" % n
-		add_child(camp)
-		camp.global_position = places[k]
-		var vers: Vector3 = centre - places[k]
-		camp.rotation.y = atan2(vers.x, vers.z)   # entrée (+Z) tournée vers la ville
-		var nom: String = noms[absi(Game.graine_monde + n * 3) % noms.size()]
-		camp.construire_marchand(metiers[k], nom, rng)
-		camps_marchands.append(camp)
-		Game.pois.append({"name": "Camp %s (%s)" % [titres[metiers[k]], nom], "pos": places[k], "color": Color(0.4, 0.9, 0.5), "marchand": true})
+		_poser_camp(places[k], centre, [metiers[k]], "moyen", rng)
+
+
+## Lieux qui accueillent un camp de campagne, du plus recherché au moins recherché : débuts de noms, métiers préférés, taille.
+const ANCRES_MARCHANDS := [
+	[["Village", "Hameau"], ["epicier", "medecin", "boucher", "quincaillier"], "grand"],
+	[["Gare", "Halte"], ["mecanicien", "medecin", "quincaillier"], "moyen"],
+	[["Station-service", "Relais", "Motel", "Camping", "Casse", "Aérodrome", "Scierie", "Garage"], ["mecanicien", "epicier", "medecin"], "moyen"],
+	[["Ferme", "Verger", "Vignoble", "Moulin"], ["boucher", "epicier", "medecin", "quincaillier"], "moyen"],
+	[["Cabane de chasseur", "Mirador", "Forêt", "Bois", "Étang", "Marais", "Lac"], ["boucher", "armurier", "medecin", "quincaillier"], "petit"],
+]
+const METIERS_DIVERS := ["armurier", "medecin", "quincaillier", "mecanicien", "boucher", "epicier"]
+const LIEUX_EVITES := ["Camp ", "Avant-poste", "Nid", "Carambolage", "Barrage routier", "Prison",
+	"Pont", "Feu de camp", "Parc éolien", "Antenne", "Château d'eau", "Base militaire", "Grotte"]
+
+
+## Un camp par zone de la carte, à 60–450 m d'un lieu (le plus recherché d'abord), à ECART_MARCHANDS des autres camps
+## (les zones des villes ont déjà les leurs) ; jamais sur une route, dans l'eau, dans un bâtiment ni près d'un nid.
+func _camps_campagne(rng: RandomNumberGenerator) -> void:
+	var lim: float = Game.map_half - 60.0
+	var cote: float = 2.0 * Game.map_half / ZONES_MARCHANDS
+	var nids: Array = []
+	var lieux: Array = []   # [position, priorité]
+	for poi in Game.pois:
+		var nom: String = poi.name
+		if nom.begins_with("Nid de zombies"):
+			nids.append(poi.pos)
+		if Game.in_city(poi.pos) or nom.contains("infestée") or nom.contains("(boss)") or LIEUX_EVITES.any(func(m): return nom.begins_with(m)):
+			continue
+		var prio := ANCRES_MARCHANDS.size()
+		for k in ANCRES_MARCHANDS.size():
+			if ANCRES_MARCHANDS[k][0].any(func(m): return nom.begins_with(m)):
+				prio = k
+				break
+		lieux.append([poi.pos, prio])
+	# lieux de chaque zone, du plus recherché au plus proche du milieu de la zone ;
+	# les zones qui ont un village passent en premier, puis celles qui ont une gare, etc.
+	var zones: Array = []
+	for zz in ZONES_MARCHANDS:
+		for zx in ZONES_MARCHANDS:
+			var coin := Vector2(-Game.map_half + zx * cote, -Game.map_half + zz * cote)
+			var milieu := coin + Vector2(cote, cote) / 2.0
+			var ancres: Array = []
+			for l in lieux:
+				if Rect2(coin, Vector2(cote, cote)).has_point(Vector2(l[0].x, l[0].z)):
+					ancres.append(l)
+			ancres.sort_custom(func(a, b):
+				if a[1] != b[1]:
+					return a[1] < b[1]
+				return Vector2(a[0].x, a[0].z).distance_to(milieu) < Vector2(b[0].x, b[0].z).distance_to(milieu))
+			ancres = ancres.slice(0, 8)
+			ancres.append([Vector3(milieu.x, 0, milieu.y), ANCRES_MARCHANDS.size()])   # en dernier recours : le milieu de la zone
+			zones.append([ancres[0][1] * 100 + zones.size(), ancres])
+	zones.sort_custom(func(a, b): return a[0] < b[0])
+	for zone in zones:
+		for a in zone[1]:
+			var prio: int = a[1]
+			var taille: String = ANCRES_MARCHANDS[prio][2] if prio < ANCRES_MARCHANDS.size() else "petit"
+			var r := CampMarchand.rayon_de(taille)
+			var place := Vector3.INF
+			for d in [60.0, 90.0, 125.0, 165.0, 210.0, 260.0, 320.0, 380.0, 450.0]:
+				var a0 := rng.randf() * TAU
+				for k in 16:
+					var ang := a0 + k * TAU / 16.0
+					var c: Vector3 = a[0] + Vector3(cos(ang), 0, sin(ang)) * (d + r)
+					c.y = 0.0
+					if absf(c.x) > lim or absf(c.z) > lim or Game.in_city(c) or _pres_marchand(c, ECART_MARCHANDS):
+						continue
+					if nids.any(func(nd): return Vector2(nd.x - c.x, nd.z - c.z).length() < ECART_NID):
+						continue
+					if not _terrain_libre(c, r + 3.0):
+						continue
+					place = c
+					break
+				if place != Vector3.INF:
+					break
+			if place == Vector3.INF:
+				continue
+			place.y = Game.hauteur(place.x, place.z)
+			var prefs: Array = ANCRES_MARCHANDS[prio][1] if prio < ANCRES_MARCHANDS.size() else METIERS_DIVERS
+			var metiers := [_choisir_metier(place, prefs, [])]
+			if taille == "grand":
+				metiers.append(_choisir_metier(place, prefs, metiers))
+			_poser_camp(place, a[0], metiers, taille, rng)
+			break
+
+
+## Un camp de marchand (quelle que soit sa taille) est-il à moins de « d » ?
+func _pres_marchand(c: Vector3, d: float) -> bool:
+	for c2 in camps_marchands:
+		if Vector2(c2.position.x - c.x, c2.position.z - c.z).length() < d:
+			return true
+	return false
+
+
+## Parmi les métiers préférés (puis tous) qu'aucun marchand proche (ECART_MEME_METIER) n'exerce, le moins répandu
+## sur la carte ; à défaut, celui dont le marchand le plus proche est le plus loin.
+func _choisir_metier(c: Vector3, prefs: Array, deja: Array) -> String:
+	var meilleur := ""
+	var dmax := -1.0
+	for liste in [prefs, METIERS_DIVERS]:
+		var libre := ""
+		var nb_min := 9999
+		for m in liste:
+			if m in deja:
+				continue
+			var dmin := INF
+			var nb := 0
+			for mp in _marchands_poses:
+				if mp[1] == m:
+					nb += 1
+					dmin = minf(dmin, Vector2(mp[0].x - c.x, mp[0].z - c.z).length())
+			if dmin >= ECART_MEME_METIER and nb < nb_min:
+				libre = m
+				nb_min = nb
+			if dmin > dmax:
+				dmax = dmin
+				meilleur = m
+		if libre != "":
+			return libre
+	return meilleur
+
+
+## Pose un camp (taille « petit » / « moyen » / « grand »), entrée tournée vers « vers_pt », et son lieu sur la carte.
+func _poser_camp(place: Vector3, vers_pt: Vector3, metiers: Array, taille: String, rng: RandomNumberGenerator) -> void:
+	var r := CampMarchand.rayon_de(taille)
+	_a_degager.append([place, r + 1.5])
+	Game.sans_herbe.append([place, r + 0.8])
+	var n := camps_marchands.size()
+	var camp = CampMarchand.new()
+	camp.name = "CampMarchand%d" % n
+	add_child(camp)
+	camp.global_position = place
+	var vers: Vector3 = vers_pt - place
+	camp.rotation.y = atan2(vers.x, vers.z)   # entrée (+Z) tournée vers la ville ou le lieu
+	var noms: Array = []
+	for k in metiers.size():
+		noms.append(NOMS_MARCHANDS[absi(Game.graine_monde + n * 3 + k * 11) % NOMS_MARCHANDS.size()])
+		_marchands_poses.append([place, metiers[k]])
+	camp.construire_marchand(metiers, noms, rng, taille)
+	camps_marchands.append(camp)
+	var nom_camp := "Camp %s (%s)" % [TITRES_METIERS[metiers[0]], noms[0]]
+	if metiers.size() > 1:
+		nom_camp = "Camp %s et %s" % [TITRES_METIERS[metiers[0]], TITRES_METIERS[metiers[1]]]
+	if taille == "petit":
+		nom_camp = nom_camp.replace("Camp ", "Avant-poste ")
+	var titres: Array = []
+	for v in camp.vendeurs:
+		titres.append(v.titre())
+	Game.pois.append({"name": nom_camp, "pos": place, "color": Color(0.4, 0.9, 0.5), "marchand": true, "metiers": " + ".join(titres)})
 
 
 ## Terrain sec, plutôt plat et sans bâtiment dans un rayon donné (camps).
@@ -215,7 +363,7 @@ func _creer_camps() -> void:
 		var c := Vector3(rng.randf_range(-lim, lim), 0, rng.randf_range(-lim, lim))
 		if Vector2(c.x - depart.x, c.z - depart.z).length() < 160.0 or Game.in_city(c):
 			continue
-		if pres_camp_marchand(c, 140.0):
+		if pres_camp_marchand(c, 250.0):
 			continue
 		if world._overlaps(Rect2(c.x - 16.0, c.z - 16.0, 32.0, 32.0)):
 			continue   # pas sur une route, un champ ou un lieu

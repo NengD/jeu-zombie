@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 16 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 17 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -2585,11 +2585,34 @@ func _grotte_details(c: Vector3, x0: float, x1: float, z0: float, z1: float, hs:
 
 ## Dégage un cercle (camp construit après la génération) : arbres masqués, décor et collisions retirés.
 func degager(centre: Vector3, r: float) -> void:
-	var c2 := Vector2(centre.x, centre.z)
-	var dedans := func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(c2) < r
+	degager_cercles([[centre, r]])
+
+
+## Dégage plusieurs cercles [centre, rayon] en un seul parcours du monde (camps des marchands).
+func degager_cercles(cercles: Array) -> void:
+	# cercles rangés par cases de 64 m : un point ne teste que ceux de sa case
+	var grille := {}
+	for ce in cercles:
+		var c: Vector3 = ce[0]
+		var r: float = ce[1]
+		for cx in range(floori((c.x - r) / 64.0), floori((c.x + r) / 64.0) + 1):
+			for cz in range(floori((c.z - r) / 64.0), floori((c.z + r) / 64.0) + 1):
+				var k := Vector2i(cx, cz)
+				if not grille.has(k):
+					grille[k] = []
+				grille[k].append(ce)
+	var dedans := func(p: Vector3) -> bool:
+		for ce in grille.get(Vector2i(floori(p.x / 64.0), floori(p.z / 64.0)), []):
+			if Vector2(p.x - ce[0].x, p.z - ce[0].z).length() < ce[1]:
+				return true
+		return false
 	# les instances d'un MultiMesh d'arbres (case de 128 m) et les formes d'un corps de chunk sont à moins
 	# de 182 m de la première : on saute d'un coup les groupes trop loin (sinon tous les arbres de la carte à chaque camp)
-	var loin := func(p: Vector3) -> bool: return Vector2(p.x, p.z).distance_to(c2) > r + 182.0
+	var loin := func(p: Vector3) -> bool:
+		for ce in cercles:
+			if Vector2(p.x - ce[0].x, p.z - ce[0].z).length() <= ce[1] + 182.0:
+				return false
+		return true
 	var enfants := get_children()
 	enfants.append_array(morceaux.detaches(self))   # cases loin du joueur, hors de l'arbre
 	for n in enfants:

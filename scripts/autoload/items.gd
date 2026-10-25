@@ -322,7 +322,7 @@ const PRIX := {
 	"eau": 6, "soda": 5, "barre": 5, "conserve": 9, "ration": 14,
 	"bandage": 10, "antidouleur": 8, "trousse": 45,
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
-	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6, "lit": 40,
+	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "viande_sechee": 10, "piege_machoires": 30, "sechoir": 25, "recuperateur_eau": 30, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6, "lit": 40,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "sac_randonnee": 110, "sac_sport": 40, "poings": 0,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
@@ -370,11 +370,12 @@ func prix(id: String) -> int:
 ## Prix de revente d'une unité (les marchands rachètent à 40 %).
 ## Un objet fabricable ne se revend jamais plus de 80 % du prix de ses ingrédients :
 ## acheter, fabriquer puis revendre ne rapporte rien (pas d'argent infini).
-func prix_vente(id: String) -> int:
+## bonus : rachat plus cher des spécialités d'un marchand (boucher : viande et peaux…), plafond inchangé.
+func prix_vente(id: String, bonus := 1.0) -> int:
 	var p := prix(id)
 	if p <= 0:
 		return 0
-	var v := int(p * 0.4)
+	var v := int(p * 0.4 * bonus)
 	for r in RECIPES:
 		if r.out == id:
 			var cout := 0.0

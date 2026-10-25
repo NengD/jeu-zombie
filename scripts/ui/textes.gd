@@ -198,9 +198,15 @@ const GUIDE := """[b]LES BASES[/b]
 • Les meubles et caisses proches qui ont encore quelque chose à prendre brillent d'un liseré doré.
 • Soins : antidouleurs (0,5 s, +10), bandage (0,9 s, +15), trousse (3,5 s, santé au maximum, interrompue si tu es touché). On marche lentement pendant un soin. [H] choisit le soin adapté à ta blessure.
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
-• Des [b]campements de marchands[/b] (points verts sur la carte, juste à la sortie des villes) : médecin, quincaillier
-  et armurier près de Bellerive, médecin et armurier près de Valmont. Chacun est entouré d'une palissade et gardé par des survivants armés qui abattent les zombies :
-  un vrai refuge. [F] devant un stand : acheter son stock, ou revendre tes objets à 40 % de leur prix.
+• Une quinzaine de [b]campements de marchands[/b] (points verts sur la carte, avec leur métier) répartis sur toute la carte :
+  médecin, quincaillier et armurier à la sortie de Bellerive, médecin et armurier à celle de Valmont, puis un camp par grande région,
+  près d'un village, d'une gare, d'une station-service, d'une ferme ou d'une forêt. Petits avant-postes (un marchand, deux gardes),
+  camps moyens (mirador) ou grands camps de village (deux marchands, quatre gardes). Chacun est entouré d'une palissade et gardé
+  par des survivants armés qui abattent les zombies : un vrai refuge, éclairé la nuit. [F] devant un stand : acheter son stock,
+  ou revendre tes objets à 40 % de leur prix.
+• Nouveaux métiers : [b]boucher-chasseur[/b] (arc, flèches, pièges, séchoir, viande préparée), [b]épicier[/b] (nourriture, boissons,
+  feu de camp, lit, récupérateur d'eau) et [b]mécanicien[/b] (pièces auto, essence, batteries, pneus, outils). Chaque marchand rachète
+  ses [b]spécialités[/b] (marquées ★) à 70 % : viande, peaux et cuir chez le boucher, nourriture chez l'épicier, pièces auto chez le mécanicien.
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 • [b]Vendre tout le bric-à-brac[/b] (avec confirmation) : armes et vêtements en double, munitions qu'aucune de tes armes
   ne tire, matériaux qui ne servent à rien. Les cases verrouillées de la barre rapide sont épargnées.

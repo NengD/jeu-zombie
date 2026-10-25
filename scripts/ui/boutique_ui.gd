@@ -87,7 +87,7 @@ func _maj() -> void:
 		var b := _bouton(ligne, "Acheter", _acheter.bind(id, n, prix))
 		b.disabled = p.argent < prix
 	# ------------------------------------------------ vente
-	var vente := _colonne(colonnes, "VENDRE (40 % du prix)")
+	var vente := _colonne(colonnes, "VENDRE (40 % du prix)" if vendeur.specialites().is_empty() else "VENDRE (40 %, 70 % pour ses spécialités)")
 	var objets := {}
 	for g in p.grilles():
 		for e in g.entrees:
@@ -103,16 +103,16 @@ func _maj() -> void:
 		var total := 0
 		var nb_obj := 0
 		for b in bric:
-			total += Items.prix_vente(b[0]) * int(b[1])
+			total += vendeur.prix_rachat(b[0]) * int(b[1])
 			nb_obj += int(b[1])
 		var bb := _bouton(vente, "Vendre tout le bric-à-brac (%d objet%s, %d €)…" % [nb_obj, "s" if nb_obj > 1 else "", total], _confirmer_bric.bind(bric, total))
 		bb.tooltip_text = "Armes et vêtements en double, munitions sans arme pour les tirer, matériaux qui ne servent à rien."
 	for id in ids:
-		var pv: int = Items.prix_vente(id)
+		var pv: int = vendeur.prix_rachat(id)
 		if pv <= 0:
 			continue
 		var nb: int = objets[id]
-		var ligne := _ligne(vente, id, "%s  (×%d)" % [Items.nom(id), nb], "%d € / u" % pv)
+		var ligne := _ligne(vente, id, "%s  (×%d)%s" % [Items.nom(id), nb, "  ★" if id in vendeur.specialites() else ""], "%d € / u" % pv)
 		var n1 := mini(lot(id), nb)
 		_bouton(ligne, "Vendre %d" % n1, _vendre.bind(id, n1))
 		if nb > n1:
@@ -182,7 +182,7 @@ func bric_a_brac(objets: Dictionary) -> Array:
 			utiles[m] = true
 	var res: Array = []
 	for id in objets:
-		if Items.prix_vente(id) <= 0 or (id in p.hotbar and p.hotbar_verrou[p.hotbar.find(id)]):
+		if vendeur.prix_rachat(id) <= 0 or (id in p.hotbar and p.hotbar_verrou[p.hotbar.find(id)]):
 			continue
 		var t: String = Items.info(id).get("type", "")
 		var n: int = objets[id]
@@ -205,7 +205,7 @@ func bric_a_brac(objets: Dictionary) -> Array:
 func _confirmer_bric(bric: Array, total: int) -> void:
 	var lignes: PackedStringArray = []
 	for b in bric:
-		lignes.append("%d× %s  (%d €)" % [b[1], Items.nom(b[0]), Items.prix_vente(b[0]) * int(b[1])])
+		lignes.append("%d× %s  (%d €)" % [b[1], Items.nom(b[0]), vendeur.prix_rachat(b[0]) * int(b[1])])
 	var dlg := ConfirmationDialog.new()
 	dlg.title = "Vendre le bric-à-brac"
 	dlg.dialog_text = "Vendre ces objets pour %d € ?\n\n%s" % [total, "\n".join(lignes)]
@@ -225,7 +225,7 @@ func _vendre(id: String, n: int) -> void:
 	var p = Game.player
 	if p.count(id) < n:
 		return
-	var gain: int = Items.prix_vente(id) * n
+	var gain: int = vendeur.prix_rachat(id) * n
 	if not p.remove_item(id, n):
 		return
 	if id == p.current_weapon():

@@ -18,7 +18,21 @@ const METIERS := {
 	"medecin": {"titre": "Médecin", "toile": Color(0.85, 0.85, 0.82), "stock": [
 		"bandage", "antidouleur", "trousse", "alcool", "eau", "soda", "barre", "conserve", "ration",
 		"veste_cuir", "casque_moto", "masque_gaz"]},
+	"boucher": {"titre": "Boucher-chasseur", "toile": Color(0.5, 0.32, 0.2), "stock": [
+		"arc", "fleche", "couteau_km2000", "hache", "collet", "piege_machoires", "sechoir", "feu_camp",
+		"viande_cuite", "viande_sechee", "bouillon", "ragout", "cuir", "sac_chasse", "capuche_cuir", "veste_cuir"],
+		"rachat": ["viande_crue", "viande_cuite", "viande_sechee", "peau", "cuir", "graisse", "os", "plume"]},
+	"epicier": {"titre": "Épicier", "toile": Color(0.3, 0.55, 0.25), "stock": [
+		"eau", "soda", "barre", "conserve", "ration", "viande_sechee", "bouillon", "alcool", "medicament",
+		"torche", "feu_camp", "lit", "recuperateur_eau", "sac_toile", "sac_sport", "casquette", "bonnet"],
+		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool"]},
+	"mecanicien": {"titre": "Mécanicien", "toile": Color(0.75, 0.55, 0.12), "stock": [
+		"cle_molette", "marteau", "pioche", "batte_cloutee", "piece_auto", "essence", "batterie", "pneu", "ferraille",
+		"ruban", "clous", "projecteur", "barbeles", "casque_chantier", "lunettes", "masque_gaz", "veste_renforcee"],
+		"rachat": ["piece_auto", "essence", "batterie", "pneu", "ferraille", "minerai", "cle_molette"]},
 }
+## Les marchands rachètent à 40 % ; un métier rachète ses spécialités (« rachat ») plus cher.
+const BONUS_RACHAT := 1.75
 
 # objets posés sur l'étal (les cases restantes : boîtes colorées)
 const ETAL := {
@@ -27,6 +41,10 @@ const ETAL := {
 	"quincaillier": ["res://modeles/props/seau.scn", "res://modeles/objets/essence.scn", "res://modeles/armes/hache.scn"],
 	"armurier": ["res://modeles/armes/glock19.scn", "res://modeles/armes/m45a1.scn", "res://modeles/props/caisse_munitions.scn",
 		"res://modeles/armes/machette.scn"],
+	"boucher": ["res://modeles/armes/couteau_km2000.scn", "res://modeles/armes/hache.scn", "res://modeles/objets/conserve_ouverte.scn"],
+	"epicier": ["res://modeles/objets/conserve.scn", "res://modeles/objets/eau.scn", "res://modeles/objets/barre.scn",
+		"res://modeles/objets/bouteille2.scn", "res://modeles/objets/conserve.scn", "res://modeles/objets/eau.scn"],
+	"mecanicien": ["res://modeles/objets/essence.scn", "res://modeles/props/seau.scn", "res://modeles/objets/essence.scn"],
 }
 
 var metier := "armurier"
@@ -104,7 +122,7 @@ func setup(p_metier: String, p_nom: String) -> void:
 		add_child(cv)
 
 
-## Pièces de vêtement en plus, suivant le bassin : bas de blouse du médecin, tablier du quincaillier.
+## Pièces de vêtement en plus, suivant le bassin : bas de blouse du médecin, tablier du quincaillier, du boucher, de l'épicier.
 func _habit_metier(p: Node3D) -> void:
 	var sk: Skeleton3D = ModeleUtil.squelette(p)
 	if sk == null or sk.find_bone("pelvis") < 0:
@@ -141,13 +159,13 @@ func _habit_metier(p: Node3D) -> void:
 			mi.position = Vector3(0, -0.2, -0.01)
 			mi.scale = Vector3(1.0, 1.0, 0.8)
 			m.albedo_color = Color(0.86, 0.87, 0.85)
-		"quincaillier":
+		"quincaillier", "boucher", "epicier":
 			var bm := BoxMesh.new()
 			bm.size = Vector3(0.36, 0.55, 0.015)
 			mi.mesh = bm
 			mi.position = Vector3(0, -0.16, -0.15)   # avant du personnage = -Z
 			mi.rotation.x = -0.08
-			m.albedo_color = Color(0.2, 0.27, 0.36)
+			m.albedo_color = {"quincaillier": Color(0.2, 0.27, 0.36), "boucher": Color(0.78, 0.74, 0.7), "epicier": Color(0.24, 0.42, 0.22)}[metier]
 			# poche du tablier
 			var po := MeshInstance3D.new()
 			var pm := BoxMesh.new()
@@ -192,3 +210,13 @@ func interact(_player: Node) -> void:
 	var ui := get_tree().get_first_node_in_group("boutique_ui")
 	if ui:
 		ui.ouvrir(self)
+
+
+## Prix de rachat d'une unité : 40 %, plus pour les spécialités du métier.
+func prix_rachat(id: String) -> int:
+	return Items.prix_vente(id, BONUS_RACHAT if id in METIERS[metier].get("rachat", []) else 1.0)
+
+
+## Spécialités rachetées plus cher (affichées dans la boutique).
+func specialites() -> Array:
+	return METIERS[metier].get("rachat", [])

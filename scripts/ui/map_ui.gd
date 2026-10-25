@@ -74,6 +74,10 @@ class Cadre extends Control:
 				nom += " (fouillé)"
 			# noms : villes et villages toujours, le reste en zoomant (camps de bandits et lieux de ville encore plus près)
 			var montrer := moyen or zoom >= (4.5 if nom == "Camp de bandits" else (5.0 if en_ville else 2.6))
+			# campements de marchands : leur métier dès le zoom 1,2, leur nom complet de plus près
+			if poi.get("marchand", false) and not montrer and zoom >= 1.2:
+				montrer = true
+				nom = poi.get("metiers", nom)
 			if montrer:
 				var taille := 24 if grand else (18 if moyen else 15)
 				draw_string_outline(font, pp + Vector2(11, 6), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, 4, Color.BLACK)

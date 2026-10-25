@@ -1,20 +1,32 @@
 extends "res://scripts/camp_bandits.gd"
 ## Campement d'un marchand : palissade en bois avec une seule entrée (tournée vers la ville, +Z local),
-## le stand du marchand au centre, deux tentes, un brasero, un mirador à l'arrière,
+## un ou deux stands, des tentes, un brasero, un mirador à l'arrière (sauf les petits avant-postes),
 ## et des gardes armés qui surveillent (deux à l'entrée, un sur le mirador) et abattent les zombies.
 
 const Vendeur = preload("res://scripts/vendeur.gd")
 const Garde = preload("res://scripts/garde.gd")
-const RAYON := 11.0
-const NB_PANS := 18
+## Tailles : petit avant-poste (1 marchand, 2 gardes, sans mirador), camp moyen (1 marchand, 3 gardes),
+## grand camp (2 marchands, 4 gardes, mirador).
+const TAILLES := {"petit": 8.0, "moyen": 11.0, "grand": 14.0}
+var RAYON := 11.0
+var NB_PANS := 18
 
-var vendeur: Node3D
+var vendeur: Node3D            # premier marchand du camp
+var vendeurs: Array = []
 var gardes: Array = []
 
 
+## Rayon du camp d'une taille donnée (zone protégée, emplacement à dégager).
+static func rayon_de(taille: String) -> float:
+	return TAILLES.get(taille, 11.0)
+
+
 ## Construit le camp (le nœud doit déjà être dans l'arbre, placé et tourné).
-func construire_marchand(metier: String, nom_vendeur: String, rng: RandomNumberGenerator) -> void:
+## metiers / noms : un marchand, ou deux pour un grand camp.
+func construire_marchand(metiers: Array, noms: Array, rng: RandomNumberGenerator, taille := "moyen") -> void:
 	add_to_group("camp_marchand")
+	RAYON = rayon_de(taille)
+	NB_PANS = 2 * int(round(9.0 * RAYON / 11.0))   # pans d'environ 3,8 m : entrée de 7 m quelle que soit la taille
 	corps = StaticBody3D.new()
 	corps.collision_layer = Game.LAYER_WORLD
 	corps.collision_mask = 0
@@ -23,17 +35,29 @@ func construire_marchand(metier: String, nom_vendeur: String, rng: RandomNumberG
 	# entrée : deux murets de sacs de sable en chicane devant l'ouverture
 	_sacs(Vector2(-2.6, RAYON + 1.6), 0.0)
 	_sacs(Vector2(2.6, RAYON + 1.6), 0.0)
-	_mirador(Vector2(0.0, -RAYON + 2.2))
-	# le stand au centre, comptoir tourné vers l'entrée (le client se tient côté entrée)
-	vendeur = Vendeur.new()
-	vendeur.setup(metier, nom_vendeur)
-	add_child(vendeur)
-	vendeur.position = _sol(Vector2(0.0, -1.0))
-	vendeur.rotation.y = PI
-	_lumiere(vendeur.position + Vector3(0, 2.2, 0.3), 7.0, 1.4)
-	# sol de terre battue, lanternes (allumées la nuit) : quatre poteaux et l'entrée
+	if taille != "petit":
+		_mirador(Vector2(0.0, -RAYON + 2.2))
+	# les stands, comptoir tourné vers l'entrée (le client se tient côté entrée)
+	var stands: Array = [Vector2(0.0, -1.0)]
+	if metiers.size() > 1:
+		stands = [Vector2(-3.4, -1.6), Vector2(3.4, -1.6)]
+	elif taille == "petit":
+		stands = [Vector2(0.0, -2.2)]
+	for k in stands.size():
+		var v = Vendeur.new()
+		v.setup(metiers[k], noms[k])
+		add_child(v)
+		v.position = _sol(stands[k])
+		v.rotation.y = PI
+		vendeurs.append(v)
+		_lumiere(v.position + Vector3(0, 2.2, 0.3), 7.0, 1.4)
+	vendeur = vendeurs[0]
+	# sol de terre battue, lanternes (allumées la nuit) : poteaux et l'entrée
 	_sol_terre()
-	for a in [PI * 0.25, PI * 0.75, PI * 1.25, PI * 1.75]:
+	var poteaux := [PI * 1.25, PI * 1.75] if taille == "petit" else [PI * 0.25, PI * 0.75, PI * 1.25, PI * 1.75]
+	if taille == "grand":
+		poteaux.append_array([PI, 0.0])
+	for a in poteaux:
 		_lampadaire(Vector2(cos(a), sin(a)) * (RAYON - 1.6))
 	var pas_e := TAU / NB_PANS
 	for s in [-1.0, 1.0]:
@@ -41,21 +65,41 @@ func construire_marchand(metier: String, nom_vendeur: String, rng: RandomNumberG
 		_lumiere(_sol(Vector2(cos(ae), sin(ae)) * (RAYON - 0.4)) + Vector3(0, 2.9, 0), 9.0, 1.6)
 	# tentes de part et d'autre, brasero près de l'entrée
 	var toiles := [Color(0.33, 0.36, 0.22), Color(0.45, 0.4, 0.3), Color(0.2, 0.3, 0.45)]
-	_tente(Vector2(-6.8, -3.0), toiles[rng.randi() % toiles.size()])
-	_tente(Vector2(6.8, -3.0), toiles[rng.randi() % toiles.size()])
-	_brasero(Vector2(-4.0, 4.0))
+	match taille:
+		"petit":
+			_tente(Vector2(-4.4, -2.6), toiles[rng.randi() % toiles.size()])
+			_brasero(Vector2(3.4, 2.4))
+		"grand":
+			for tp in [Vector2(-9.6, -3.6), Vector2(9.6, -3.6), Vector2(-9.0, 4.2)]:
+				_tente(tp, toiles[rng.randi() % toiles.size()])
+			_brasero(Vector2(4.6, 4.6))
+		_:
+			_tente(Vector2(-6.8, -3.0), toiles[rng.randi() % toiles.size()])
+			_tente(Vector2(6.8, -3.0), toiles[rng.randi() % toiles.size()])
+			_brasero(Vector2(-4.0, 4.0))
 	# bric-à-brac le long de la palissade
 	var props := ["caisse_bois", "caisse_bois", "caisse_mil", "baril_bleu", "baril_rouge", "palette", "jerrican", "pneu"]
+	if taille == "petit":
+		props = props.slice(0, 4)
+	elif taille == "grand":
+		props.append_array(["caisse_bois", "caisse_mil", "palette", "baril_bleu"])
 	for id in props:
 		var a := rng.randf_range(-PI * 0.95, PI * 0.15) - PI / 2.0
+		if absf(angle_difference(a, PI / 2.0)) < 2.0 * TAU / NB_PANS:
+			a = PI / 2.0 + signf(angle_difference(PI / 2.0, a)) * 2.0 * TAU / NB_PANS   # jamais dans l'entrée
 		_prop(id, Vector2(cos(a), sin(a)) * rng.randf_range(RAYON - 2.4, RAYON - 1.3), rng.randf() * TAU)
-	# gardes : deux à l'entrée (regard vers l'extérieur), un sur le mirador (regard vers l'arrière)
+	# gardes : deux à l'entrée (regard vers l'extérieur), un sur le mirador (regard vers l'arrière),
+	# un de plus sur le flanc dans les grands camps
 	var vers_dehors := global_rotation.y + PI
 	_garde(Vector3(-2.0, 0.0, RAYON - 0.6), vers_dehors, rng)
 	_garde(Vector3(2.0, 0.0, RAYON - 0.6), vers_dehors, rng)
-	var g := _garde(Vector3(0.0, 0.0, -RAYON + 2.2), global_rotation.y, rng)
-	g.position.y = _sol(Vector2(0.0, -RAYON + 2.2)).y + HAUT_MIRADOR
-	g.portee = 40.0
+	if taille != "petit":
+		var g := _garde(Vector3(0.0, 0.0, -RAYON + 2.2), global_rotation.y, rng)
+		g.position.y = _sol(Vector2(0.0, -RAYON + 2.2)).y + HAUT_MIRADOR
+		g.portee = 40.0
+	if taille == "grand":
+		_garde(Vector3(RAYON - 1.4, 0.0, 1.5), global_rotation.y - PI / 2.0, rng)
+
 
 
 var lampes: Array = []          # lumières allumées seulement la nuit
@@ -132,6 +176,9 @@ func _lumiere(pos: Vector3, portee_l: float, energie: float) -> OmniLight3D:
 	l.shadow_enabled = false
 	l.position = pos
 	l.visible = false
+	l.distance_fade_enabled = true   # beaucoup de camps sur la carte : seuls les proches éclairent
+	l.distance_fade_begin = 90.0
+	l.distance_fade_length = 25.0
 	add_child(l)
 	lampes.append(l)
 	return l
