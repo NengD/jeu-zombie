@@ -347,22 +347,18 @@ func interact(player: Node) -> void:
 		Game.msg("Il te faut un couteau (ou une machette, une hache) pour dépecer.")
 		return
 	depece = true
-	var obtenu: PackedStringArray = []
 	for id in DEPECAGE[kind]:
 		var r: Array = DEPECAGE[kind][id]
 		var n := randi_range(int(r[0]), int(r[1]))
 		if n > 0:
 			player.add_item(id, n)
-			obtenu.append("%d× %s" % [n, Items.nom(id)])
 	var nf := int(get_meta("fleches", 0))
 	if nf > 0:
 		player.add_item("fleche", nf)
-		obtenu.append("%d× %s" % [nf, Items.nom("fleche")])
 	player.prog.gagner("survie", 10)
 	Game.play_ui("fouille", -4.0, 0.1, 0.8)
 	Game.play_3d("impact", global_position, -10.0, 0.2, 15.0)
 	Effets.flaque(get_parent(), global_position)
-	Game.msg("Dépecé : " + ", ".join(obtenu))
 	queue_free()
 
 

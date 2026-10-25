@@ -393,13 +393,11 @@ func _interagir_stock(player: Node) -> void:
 				Game.msg("Le fût est vide : il se remplit quand il pleut.")
 				return
 			player.add_item("eau", stock)
-			Game.msg("Eau de pluie récupérée : %d bouteille(s)." % stock)
 			stock = 0
 			Game.play_ui("fouille", -6.0, 0.1, 1.2)
 		"sechoir":
 			if secs > 0:
 				player.add_item("viande_sechee", secs)
-				Game.msg("Viande séchée récupérée : %d." % secs)
 				stock -= secs
 				secs = 0
 			elif stock < SECHOIR_MAX and player.count("viande_crue") > 0:
@@ -540,7 +538,6 @@ func interact(player: Node) -> void:
 			player.add_item("os", 1)
 		player.prog.gagner("survie", 8)
 		Game.play_ui("fouille", -6.0, 0.1, 0.9)
-		Game.msg("Lapin récupéré dans le collet : viande crue, peau.")
 	elif kind == "projecteur":
 		mode = (mode + 1) % MODES.size()
 		_maj_projecteur()

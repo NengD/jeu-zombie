@@ -193,6 +193,12 @@ func _ready() -> void:
 	boussole.set_anchors_preset(Control.PRESET_FULL_RECT)
 	boussole.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(boussole)
+	# fil des objets reçus (« +12 Balles 9 mm »), à gauche, au tiers de la hauteur
+	var fil: VBoxContainer = preload("res://scripts/ui/fil_objets.gd").new()
+	fil.anchor_top = 0.36
+	fil.anchor_bottom = 0.36
+	fil.offset_left = 24.0
+	root.add_child(fil)
 	# jauges
 	var bar_box := VBoxContainer.new()
 	bar_box.name = "Jauges"

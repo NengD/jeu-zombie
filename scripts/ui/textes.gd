@@ -58,6 +58,7 @@ const GUIDE := """[b]LES BASES[/b]
   la capacité du sac), tu ralentis ; à 1,5 fois le seuil, plus de sprint.
 • Au survol : poids, prix de revente chez un marchand, et [b]comparaison[/b] avec l'arme en main (dégâts, cadence,
   dispersion, recul, chargeur…) ou la pièce d'équipement portée (protection, rangement).
+• Ce que tu reçois (ramassé, fouillé, dépecé, récolté, acheté, fabriqué) s'affiche à gauche de l'écran : « +12 Balles 9 mm », regroupé si ça se suit, puis s'efface.
 • Munitions et flèches sont [b]ramassées automatiquement[/b] en passant dessus (flèches plantées, tas au sol des bandits) ;
   l'option se coupe dans les Paramètres. Ce que tu jettes toi-même n'est pas repris.
 • Barre rapide : clic droit sur une case > [b]Verrouiller[/b] : l'objet garde sa place même quand tu n'en as plus

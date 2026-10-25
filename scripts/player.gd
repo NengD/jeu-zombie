@@ -1502,7 +1502,7 @@ func gagner_argent(n: int, silencieux := false) -> void:
 		return
 	argent += n
 	if not silencieux:
-		Game.msg("+%d €" % n)
+		Game.recu("argent", n)
 
 
 ## Talent Adrénaline : actif sous 25 % de santé.
@@ -1931,6 +1931,7 @@ func add_item(id: String, n: int = 1) -> int:
 			hotbar[empty] = id
 			if empty == slot:
 				_refresh_weapon_model()
+	Game.recu(id, n - reste)
 	if reste > 0:
 		var e2 := nouvelle_entree(id, reste)
 		drop_entry(e2)
@@ -2167,7 +2168,7 @@ func _ramassage_auto(delta: float) -> void:
 					break
 			if reste < n:
 				pris = true
-				Game.msg("Ramassé : %d× %s" % [n - reste, Items.nom(e.id)])
+				Game.recu(e.id, n - reste)
 			e.n = reste
 			if reste <= 0:
 				c.grille.retirer_entree(e)

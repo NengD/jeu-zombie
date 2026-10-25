@@ -155,7 +155,7 @@ func _acheter(id: String, n: int, prix: int) -> void:
 	p.argent -= prix
 	p.add_item(id, n)
 	Game.play_ui("fouille", -6.0, 0.1, 1.4)
-	Game.msg("Acheté : %s%s (-%d €)" % ["%d× " % n if n > 1 else "", Items.nom(id), prix])
+	Game.recu("argent", -prix)   # l'objet acheté apparaît aussi dans le fil (add_item)
 	_maj()
 
 
@@ -232,7 +232,8 @@ func _vendre(id: String, n: int) -> void:
 		p._refresh_weapon_model()
 	p.gagner_argent(gain, true)
 	Game.play_ui("fouille", -6.0, 0.1, 1.1)
-	Game.msg("Vendu : %d× %s (+%d €)" % [n, Items.nom(id), gain])
+	Game.recu(id, -n)
+	Game.recu("argent", gain)
 	_maj()
 
 

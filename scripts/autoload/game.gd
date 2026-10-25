@@ -3,6 +3,7 @@ extends Node
 
 signal noise_made(pos: Vector3, radius: float)
 signal notify(text: String)
+signal objet_recu(id: String, n: int)   # fil des objets reçus (HUD, scripts/ui/fil_objets.gd) ; id "argent" = euros
 signal hit_confirmed(headshot: bool, kill: bool)
 signal degats_infliges(cible: Node3D, montant: float, pos: Vector3, genre: int)   # genre : 0 normal, 1 tête, 2 critique
 signal texte_flottant(pos: Vector3, texte: String, couleur: Color)   # (récolte : coups portés)
@@ -449,6 +450,12 @@ func go_to_menu() -> void:
 # ---------------------------------------------------------------- helpers
 func msg(text: String) -> void:
 	notify.emit(text)
+
+
+## Objets ramassés, fouillés, dépecés, récoltés, achetés, fabriqués : petite ligne « +n objet » dans le fil du HUD.
+func recu(id: String, n: int) -> void:
+	if n != 0:
+		objet_recu.emit(id, n)
 
 
 func make_noise(pos: Vector3, radius: float) -> void:

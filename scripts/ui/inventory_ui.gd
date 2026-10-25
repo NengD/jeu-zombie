@@ -862,6 +862,7 @@ func _quick_transfer(e: Dictionary, g: Grille) -> void:
 	if targets.is_empty():
 		return
 	var o := [e.x, e.y, e.r]
+	var n0 := int(e.n)
 	g.retirer_entree(e)
 	var done := false
 	for t in targets:
@@ -869,6 +870,8 @@ func _quick_transfer(e: Dictionary, g: Grille) -> void:
 			continue
 		if t.ajouter_entree(e):
 			done = true
+			if not _is_player_grid(g):
+				Game.recu(e.id, n0)   # fouille : fil des objets
 			break
 	if not done and int(e.n) > 0:
 		if not g.placer(e, o[0], o[1], o[2]) and not g.ajouter_entree(e):

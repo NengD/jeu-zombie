@@ -184,8 +184,7 @@ func _qte(x: float) -> int:
 
 
 func _donner(joueur: Node, id: String, n: int) -> void:
-	joueur.add_item(id, n)
-	Game.msg("+%d %s" % [n, Items.nom(id)])
+	joueur.add_item(id, n)   # (le fil des objets du HUD affiche « +n »)
 
 
 ## Arbre coupé : la collision disparaît, le tronc tombe (animé) puis s'efface ; une souche reste.
