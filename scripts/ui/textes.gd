@@ -51,12 +51,11 @@ const GUIDE := """[b]LES BASES[/b]
 • Lâcher un objet hors de la fenêtre le jette au sol (on peut le reprendre en fouillant le tas) : les objets du tas se voient au sol (arme, conserve, bandage…).
 • Glisse un sac ou un gilet sur l'emplacement d'équipement pour l'équiper et profiter de son rangement.
 • L'équipement porté se voit sur ton personnage : casque, bonnet ou casquette (Tête), masque à gaz ou lunettes (Visage), gilet ou veste (Torse), sac (Dos). Les armes de ta barre rapide que tu ne tiens pas sont rangées sur toi : fusil, arc ou arme longue dans le dos, pistolet à la cuisse, couteau à la hanche. Bandits et zombies portent aussi de l'équipement.
-• [b]Trier par type / par poids[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
+• [b]Trier par type / par taille[/b] (boutons en haut de l'inventaire) : tout se range et les piles se regroupent
   (les piles incomplètes se regroupent aussi à chaque ouverture).
 • Conteneur ouvert : [b]Tout prendre[/b], ou [b]Déposer les matériaux[/b] pour vider d'un coup tes ressources de fabrication.
-• [b]Charge[/b] : le poids porté s'affiche sous les jauges (et dans l'inventaire). Au-delà du seuil (22 kg + la moitié de
-  la capacité du sac), tu ralentis ; à 1,5 fois le seuil, plus de sprint.
-• Au survol : poids, prix de revente chez un marchand, et [b]comparaison[/b] avec l'arme en main (dégâts, cadence,
+• Pas de poids : seule la place compte (poches, gilet, sac). Un plus grand sac = plus de cases.
+• Au survol : taille, prix de revente chez un marchand, et [b]comparaison[/b] avec l'arme en main (dégâts, cadence,
   dispersion, recul, chargeur…) ou la pièce d'équipement portée (protection, rangement).
 • Ce que tu reçois (ramassé, fouillé, dépecé, récolté, acheté, fabriqué) s'affiche à gauche de l'écran : « +12 Balles 9 mm », regroupé si ça se suit, puis s'efface.
 • Munitions et flèches sont [b]ramassées automatiquement[/b] en passant dessus (flèches plantées, tas au sol des bandits) ;

@@ -205,7 +205,7 @@ func _ready() -> void:
 	tri.add_theme_constant_override("separation", 6)
 	c2.add_child(tri)
 	_button(tri, "Trier par type", func(): _trier("type"))
-	_button(tri, "Trier par poids", func(): _trier("poids"))
+	_button(tri, "Trier par taille", func(): _trier("taille"))
 	var sc := ScrollContainer.new()
 	sc.custom_minimum_size = Vector2(CELL * 8 + 24, 680)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -465,11 +465,7 @@ func _update_side() -> void:
 	var p = Game.player
 	for sv in equip_slots + hot_slots:
 		sv.queue_redraw()
-	var kg: float = p.charge()
-	var seuil: float = p.charge_max()
-	stats_label.text = "Santé %d   Faim %d   Soif %d\nProtection : %d %%\nCharge : %.1f / %.0f kg%s" % [int(p.health), int(p.hunger), int(p.thirst), int(p.armor_total() * 100),
-			kg, seuil, ("\nTrop chargé : vitesse -%d %%" % int((1.0 - p.facteur_charge()) * 100.0)) if kg > seuil else ""]
-	stats_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.4) if kg > seuil else (Color(1.0, 0.85, 0.45) if kg > seuil * 0.85 else Color(0.85, 0.85, 0.8)))
+	stats_label.text = "Santé %d   Faim %d   Soif %d\nProtection : %d %%" % [int(p.health), int(p.hunger), int(p.thirst), int(p.armor_total() * 100)]
 
 
 func _redraw_all() -> void:
@@ -586,17 +582,13 @@ func _desc(id: String) -> String:
 		_:
 			d = "Matériau de fabrication."
 	var s: Vector2i = Items.size(id)
-	d += "\nTaille : %d×%d   ·   %s kg" % [s.x, s.y, _kg(Items.poids(id))]
+	d += "\nTaille : %d×%d" % [s.x, s.y]
 	if Items.stack(id) > 1:
 		d += "   ·   pile de %d max" % Items.stack(id)
 	var pv := Items.prix_vente(id) if Items.prix(id) > 0 else 0
 	if pv > 0:
 		d += "\nRevente chez un marchand : %d €%s" % [pv, " pièce" if Items.stack(id) > 1 else ""]
 	return d + _comparaison(id)
-
-
-func _kg(v: float) -> String:
-	return ("%.2f" % v).trim_suffix("0").trim_suffix("0").trim_suffix(".").replace(".", ",") if v < 10.0 else "%.0f" % v
 
 
 ## Comparaison avec l'arme en main (armes) ou la pièce portée au même endroit (vêtements, sacs).
@@ -629,7 +621,6 @@ func _comparaison(id: String) -> String:
 			ligne.call("Chargeur", float(a.mag), float(b.mag), "%.0f", false)
 			ligne.call("Rechargement", float(a.reload), float(b.reload), "%.1f s", true)
 		ligne.call("Portée", float(a.get("range", 0)), float(b.get("range", 0)), "%.1f m", false)
-		ligne.call("Poids", Items.poids(cur) if cur != "poings" else 0.0, Items.poids(id), "%.1f kg", true)
 		return "\n\nFace à %s (en main) :\n%s" % [Items.nom(cur), "\n".join(lignes)]
 	if t == "armor":
 		var slot: String = it.get("slot", "")
@@ -642,10 +633,6 @@ func _comparaison(id: String) -> String:
 		var gb := Items.grid(id)
 		if ga.x > 0 or gb.x > 0:
 			ligne.call("Rangement (cases)", float(ga.x * ga.y), float(gb.x * gb.y), "%.0f", false)
-		if slot == "dos":
-			ligne.call("Charge sans ralentir", p.CHARGE_BASE + float(ia.get("capacity", 6.0 if not e.is_empty() else 0.0)) * 0.5,
-					p.CHARGE_BASE + float(it.get("capacity", 6.0)) * 0.5, "%.0f kg", false)
-		ligne.call("Poids", Items.poids(e.id) if not e.is_empty() else 0.0, Items.poids(id), "%.1f kg", true)
 		return "\n\nFace à %s :\n%s" % [Items.nom(e.id) if not e.is_empty() else "rien de porté", "\n".join(lignes)]
 	return ""
 

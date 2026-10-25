@@ -427,11 +427,6 @@ func cle_recette(r: Dictionary) -> String:
 	return "%s|%s" % [r.out, ",".join(r.needs.keys())]
 
 
-## Poids d'une unité (kg) ; 0,2 kg pour les objets qui n'en précisent pas.
-func poids(id: String) -> float:
-	return float(info(id).get("weight", 0.2))
-
-
 func size(id: String) -> Vector2i:
 	var a: Array = SIZES.get(id, [1, 1])
 	return Vector2i(a[0], a[1])

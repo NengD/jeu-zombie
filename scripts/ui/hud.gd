@@ -155,7 +155,6 @@ var lbl_prompt: Label
 var lbl_info: Label
 var lbl_alerte: Label        # alerte de horde (haut de l'écran)
 var lbl_cache: Label         # « Caché » sous le réticule quand on est dans un buisson
-var lbl_charge: Label        # poids porté / seuil de ralentissement (sous les jauges)
 var hot_panels: Array = []
 var hot_labels: Array = []
 var hot_icons: Array = []
@@ -223,8 +222,6 @@ func _ready() -> void:
 		row.add_child(pb)
 		bar_box.add_child(row)
 		bars[b[0]] = pb
-	lbl_charge = _label("", 15)
-	bar_box.add_child(lbl_charge)
 	# arme
 	lbl_weapon = _label("", 22)
 	lbl_weapon.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -397,10 +394,6 @@ func _process(delta: float) -> void:
 	bars.faim.value = p.hunger
 	bars.soif.value = p.thirst
 	bars.endurance.value = p.stamina
-	var kg: float = p.charge()
-	var seuil: float = p.charge_max()
-	lbl_charge.text = "Charge  %.1f / %.0f kg%s" % [kg, seuil, ("   — ralenti -%d %%" % int((1.0 - p.facteur_charge()) * 100.0)) if kg > seuil else ""]
-	lbl_charge.label_settings.font_color = Color(1.0, 0.5, 0.35) if kg > seuil else (Color(1.0, 0.85, 0.45) if kg > seuil * 0.85 else Color(0.85, 0.85, 0.8))
 	# bords rouges : montent sous 60 % de santé, battent sous 25 % ; éclair à chaque coup reçu
 	var k_sante: float = p.health / p.prog.sante_max()
 	var force := clampf((0.6 - k_sante) / 0.6, 0.0, 1.0) * 0.75
