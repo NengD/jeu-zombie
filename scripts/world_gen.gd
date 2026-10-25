@@ -15,7 +15,7 @@ const BLOCK := 46.0      # taille d'un pâté de maisons (route comprise)
 const ROAD := 10.0       # largeur des routes
 const NB := 7            # nombre de pâtés par côté
 const CHUNK := 64.0
-const VERSION_MONDE := 12 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
+const VERSION_MONDE := 13 # à augmenter quand la génération change (numéros des meubles dans les sauvegardes)
 const WALL_T := 0.3
 const INT_H := 3.3       # hauteur intérieure du rez-de-chaussée
 const DOOR_W := 1.8
@@ -2495,10 +2495,10 @@ func _petite_forme(s: Shape3D) -> bool:
 ## Décor non fouillable posé dans les pièces : [modèle, nombre par étage], selon le type de bâtiment.
 const DECO_PIECES := {
 	# [modèle, nombre, chance par pièce (1 si absente)]
-	"maison": [["canape", 1], ["table_bois", 1], ["lit_double", 1, 0.35], ["lit_simple", 1, 0.2], ["baignoire", 1, 0.12], ["lavabo", 1, 0.15], ["wc", 1, 0.12]],
-	"ferme": [["table_bois", 1], ["canape", 1], ["lit_double", 1, 0.3], ["baignoire", 1, 0.1]],
-	"bureau": [["bureau_ecole", 3]], "bibliotheque": [["table_bois", 3]], "bar": [["table_bois", 4], ["wc", 1, 0.3]],
-	"police": [["bureau_ecole", 2]], "hopital": [["bureau_ecole", 1], ["lit_simple", 3, 0.8]], "motel": [["lit_double", 1, 0.8], ["lavabo", 1, 0.4]],
+	"maison": [["canape", 1], ["table_bois", 1], ["meuble_tele", 1, 0.55], ["lit_double", 1, 0.35], ["lit_simple", 1, 0.2], ["baignoire", 1, 0.12], ["lavabo", 1, 0.15], ["wc", 1, 0.12]],
+	"ferme": [["table_bois", 1], ["canape", 1], ["meuble_tele", 1, 0.4], ["lit_double", 1, 0.3], ["baignoire", 1, 0.1]],
+	"bureau": [["bureau_ecole", 3]], "bibliotheque": [["table_bois", 3]], "bar": [["table_bois", 4], ["meuble_tele", 1, 0.5], ["wc", 1, 0.3]],
+	"police": [["bureau_ecole", 2]], "hopital": [["bureau_ecole", 1], ["lit_simple", 3, 0.8]], "motel": [["lit_double", 1, 0.8], ["meuble_tele", 1, 0.6], ["lavabo", 1, 0.4]],
 }
 
 
@@ -2517,6 +2517,15 @@ func _deco_piece(zone: Dictionary, kind: String, placed: Array) -> void:
 				var sx := t.x if quart % 2 == 0 else t.z
 				var sz := t.z if quart % 2 == 0 else t.x
 				var p := Vector3(rng.randf_range(ab.position.x + 1.3, ab.end.x - 1.3), ab.position.y, rng.randf_range(ab.position.z + 1.3, ab.end.z - 1.3))
+				var ang := quart * PI / 2.0
+				if id == "meuble_tele":
+					# contre un mur, écran tourné vers la pièce (avant du modèle = +Z)
+					var m := 0.25 + t.z / 2.0
+					match quart:
+						0: p.z = ab.position.z + m
+						1: p.x = ab.position.x + m
+						2: p.z = ab.end.z - m
+						3: p.x = ab.end.x - m
 				var r := Rect2(p.x - sx / 2.0, p.z - sz / 2.0, sx, sz)
 				var ok := true
 				for pr in placed:
@@ -2532,7 +2541,18 @@ func _deco_piece(zone: Dictionary, kind: String, placed: Array) -> void:
 				if not ok:
 					continue
 				placed.append(r)
-				_sans_ombre(_prop(id, p, quart * PI / 2.0, true, 1.0, 30.0))
+				_sans_ombre(_prop(id, p, ang, true, 1.0, 30.0))
+				if id == "meuble_tele":
+					# télé posée dessus : cathodique dans les vieilles maisons, plate ailleurs
+					var tv := "tele_vintage" if kind == "ferme" or rng.randf() < 0.4 else "tele_moderne"
+					var dz := Vector3(sin(ang), 0, cos(ang)) * (-0.06 if tv == "tele_moderne" else 0.0)
+					var n := _prop(tv, p + Vector3(0, t.y, 0) + dz, ang + rng.randf_range(-0.12, 0.12), false, 0.9, 30.0)
+					_sans_ombre(n)
+					if n and rng.randf() < 0.25:
+						# renversée par un pillard : face contre le sol devant le meuble
+						var av := Vector3(sin(ang), 0, cos(ang))
+						n.position = p + av * (t.z * 0.5 + 0.3) + Vector3(0, Decor.taille(tv).z * 0.45 + 0.01, 0)
+						n.rotate_object_local(Vector3.RIGHT, PI / 2.0 - 0.08)
 				break
 
 
@@ -3168,11 +3188,122 @@ func _cabane_chasseur(p: Vector3) -> void:
 	_residents(z, 0.5, 1)
 	var cof := _container(p + Vector3(2.4, 0, 3.8), Vector3(1.0, 0.6, 0.6), Color(0.4, 0.3, 0.2), "Coffre du chasseur", "chasseur", 3)
 	cof.set_texture("planches")
-	_box(p + Vector3(4.6, 0.5, 0), Vector3(1.0, 1.0, 3.0), Color(0.55, 0.4, 0.28), true, "planches")
+	_box(p + Vector3(4.6, 0.5, 0), Vector3(1.0, 1.0, 3.0), Color(0.55, 0.4, 0.28), true, "invisible")
+	_habillage_rondins(z, p)
 	for i in 7:
 		var a := TAU * i / 7.0
 		_box(p + Vector3(-2.0 + cos(a) * 0.8, 0.12, 7.0 + sin(a) * 0.8), Vector3(0.35, 0.24, 0.35), Color(0.6, 0.6, 0.58), false, "roche")
 	_poi("Cabane de chasseur", p, Color(0.7, 0.55, 0.35))
+
+
+## Cabane en rondins : rondins empilés sur les murs (fenêtres et porte dégagées, bouts croisés aux angles),
+## porche couvert devant la porte, cheminée en pierre, bois de cerf, stère de bûches. Un seul MultiMesh, sans collision.
+func _habillage_rondins(z: Dictionary, p: Vector3) -> void:
+	if OS.get_environment("SANS_FACADES") != "":
+		return
+	var ab: AABB = z.aabb
+	var x0 := ab.position.x - WALL_T
+	var x1 := ab.end.x + WALL_T
+	var z0 := ab.position.z - WALL_T
+	var z1 := ab.end.z + WALL_T
+	var haut := ab.size.y
+	var dp: Vector3 = z.doors[0].pos if not z.doors.is_empty() else Vector3(p.x, 0, z1)
+	var xfs: Array = []
+	var r := 0.16
+	# rondin le long de x (along_x) ou de z, de a à b, à la hauteur y, collé à la face « fixe »
+	var rondin := func(along_x: bool, fixe: float, a: float, b: float, y: float) -> void:
+		if b - a < 0.25:
+			return
+		var c := (a + b) / 2.0
+		var pos := Vector3(c, y, fixe) if along_x else Vector3(fixe, y, c)
+		var bas := Basis(Vector3.FORWARD, PI / 2.0) if along_x else Basis(Vector3.RIGHT, PI / 2.0)
+		xfs.append(Transform3D(bas * Basis.from_scale(Vector3(1.0, b - a, 1.0)), pos - p))
+	var murs := [[true, z0, x0, x1], [true, z1, x0, x1], [false, x0, z0, z1], [false, x1, z0, z1]]
+	for mi in murs.size():
+		var m: Array = murs[mi]
+		var a0: float = m[2]
+		var a1: float = m[3]
+		# ouvertures de ce mur : fenêtres tous les 3,6 m à partir de a0 + 2 (comme _building), porte
+		var trous: Array = []
+		var porte_ici: bool = (absf(dp.z - m[1]) < 0.6) if m[0] else (absf(dp.x - m[1]) < 0.6)
+		var dc: float = dp.x if m[0] else dp.z
+		var a := a0 + 2.0
+		while a < a1 - 2.0:
+			if not (porte_ici and absf(a - dc) < 2.0):
+				trous.append([a - 0.75, a + 0.75, 0.95, 2.3])
+			a += 3.6
+		if porte_ici:
+			trous.append([dc - DOOR_W / 2.0 - 0.05, dc + DOOR_W / 2.0 + 0.05, -1.0, DOOR_H + 0.1])
+		var dehors := -1.0 if mi % 2 == 0 else 1.0
+		var fixe: float = m[1] + dehors * 0.02
+		var y := r + 0.02
+		var rang := 0
+		while y < haut - 0.1:
+			# bouts croisés aux angles : rondins alternés qui dépassent de 0,35 m
+			var dep := 0.35 if (rang + (0 if m[0] else 1)) % 2 == 0 else 0.0
+			var bornes: Array = [[a0 - dep, a1 + dep]]
+			for tr in trous:
+				if y + r < tr[2] or y - r > tr[3]:
+					continue
+				var nb: Array = []
+				for bn in bornes:
+					if tr[1] <= bn[0] or tr[0] >= bn[1]:
+						nb.append(bn)
+						continue
+					nb.append([bn[0], tr[0]])
+					nb.append([tr[1], bn[1]])
+				bornes = nb
+			for bn in bornes:
+				rondin.call(m[0], fixe, bn[0], bn[1], y)
+			y += r * 1.85
+			rang += 1
+	# porche : deux poteaux, auvent en planches, devant la porte (mur sud)
+	var av := 1.0 if absf(dp.z - z1) < 0.6 else -1.0
+	for sx in [-1.0, 1.0]:
+		var pp := Vector3(dp.x + sx * 1.3, 0, dp.z + av * 1.6)
+		xfs.append(Transform3D(Basis.from_scale(Vector3(0.7, 2.6, 0.7)), pp + Vector3(0, 1.3, 0) - p))
+		_box(pp + Vector3(0, 1.3, 0), Vector3(0.22, 2.6, 0.22), Color.WHITE, true, "invisible")
+	_box(Vector3(dp.x, 2.68, dp.z + av * 0.9), Vector3(3.4, 0.08, 2.0), Color(0.42, 0.3, 0.2), false, "planches")
+	_box(Vector3(dp.x, 0.08, dp.z + av * 0.9), Vector3(3.2, 0.16, 1.9), Color(0.5, 0.38, 0.26), true, "planches")
+	# bois de cerf au-dessus de la porte
+	var bois := Color(0.86, 0.8, 0.68)
+	for sx in [-1.0, 1.0]:
+		_box(Vector3(dp.x + sx * 0.22, DOOR_H + 0.55, dp.z + av * 0.22), Vector3(0.4, 0.05, 0.05), bois, false, "uni")
+		_box(Vector3(dp.x + sx * 0.4, DOOR_H + 0.72, dp.z + av * 0.22), Vector3(0.05, 0.35, 0.05), bois, false, "uni")
+		_box(Vector3(dp.x + sx * 0.3, DOOR_H + 0.68, dp.z + av * 0.22), Vector3(0.04, 0.22, 0.04), bois, false, "uni")
+	_box(Vector3(dp.x, DOOR_H + 0.5, dp.z + av * 0.2), Vector3(0.3, 0.3, 0.06), Color(0.4, 0.28, 0.18), false, "planches")
+	# cheminée en pierre sur le pignon ouest
+	var ch := Vector3(x0 - 0.45, 0, p.z + 1.0)
+	_box(ch + Vector3(0, 1.6, 0), Vector3(0.9, 3.2, 1.2), Color(0.62, 0.6, 0.56), true, "roche")
+	_box(ch + Vector3(0.05, haut + 1.0, 0), Vector3(0.7, 2.2, 0.8), Color(0.62, 0.6, 0.56), true, "roche")
+	# stère de bûches contre le mur est (sous une collision unique posée par l'appelant)
+	for i in 18:
+		var bz := p.z - 1.2 + (i % 6) * 0.45
+		var by := 0.18 + (i / 6) * 0.32
+		xfs.append(Transform3D(Basis(Vector3.FORWARD, PI / 2.0) * Basis.from_scale(Vector3(1.0, 0.9, 1.0)), Vector3(p.x + 4.6, by, bz + (by * 0.3)) - p))
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = r
+	cyl.bottom_radius = r
+	cyl.height = 1.0
+	cyl.radial_segments = 7
+	cyl.rings = 1
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = cyl
+	mm.instance_count = xfs.size()
+	for k in xfs.size():
+		mm.set_instance_transform(k, xfs[k])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	var mat: StandardMaterial3D = mats["planches"].duplicate()
+	mat.vertex_color_use_as_albedo = false
+	mat.uv1_triplanar = true
+	mat.albedo_color = Color(0.5, 0.36, 0.24)
+	mat.uv1_scale = Vector3(0.6, 0.6, 0.6)
+	mmi.material_override = mat
+	mmi.position = p
+	mmi.visibility_range_end = 220.0
+	decor.add_child(mmi)
 
 
 ## Mirador de chasse : plateforme à 4,2 m (échelle côté +z), caisse du chasseur.
@@ -3569,6 +3700,16 @@ func _abribus(p: Vector3) -> void:
 	p.y = relief.hauteur(p.x, p.z)
 	var verre := Color(0.7, 0.8, 0.85)
 	_box(p + Vector3(0, 0.05, 0), Vector3(4.2, 0.3, 2.0), Color(0.8, 0.8, 0.78), true, "beton")
+	if Decor.existe("abribus"):
+		# modèle (Zsky, CC BY) : vitre du fond côté -Z du modèle, tournée vers +Z comme l'ancien ; collisions : fond et côtés
+		_prop("abribus", p + Vector3(0, 0.2, -0.1), PI, false, 1.05, 160.0)
+		_box(p + Vector3(0, 1.4, 0.95), Vector3(3.7, 2.4, 0.1), verre, true, "invisible")
+		for sx in [-1.0, 1.0]:
+			_box(p + Vector3(sx * 1.85, 1.4, 0.45), Vector3(0.1, 2.4, 1.0), verre, true, "invisible")
+		if rng.randf() < 0.5:
+			_prop("poubelle_rue", p + Vector3(2.5, 0.2, 0.6), rng.randf() * TAU, true, 1.0, 90.0)
+		_reserve(Rect2(p.x - 2.2, p.z - 1.2, 4.4, 2.4))
+		return
 	_box(p + Vector3(0, 1.4, 0.85), Vector3(3.8, 2.4, 0.06), verre, true, "vitre")
 	for sx in [-1.0, 1.0]:
 		_box(p + Vector3(sx * 1.9, 1.4, 0.3), Vector3(0.06, 2.4, 1.2), verre, true, "vitre")

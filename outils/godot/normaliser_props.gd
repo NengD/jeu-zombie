@@ -96,8 +96,46 @@ const CFG := {
 	# --- bateaux (« Ships », Quaternius CC0)
 	"barque": ["barque", "", "", 0.75, Vector3.ZERO, 3000, "", Color.WHITE, 0],
 	"canot": ["canot", "", "", 0.85, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	# --- lot 2 (Kenney, Quaternius, KayKit, CreativeTrio CC0 ; Zsky, J-Toastie, Steve B CC BY)
+	"tele_vintage": ["tele_vintage", "", "", 0.55, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"tele_moderne": ["tele_moderne", "", "", 0.62, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"meuble_tele": ["meuble_tele", "", "", 0.5, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"abribus": ["abribus", "", "", 2.6, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"cabine_tel": ["cabine_tel", "", "", 2.3, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"distributeur": ["distributeur", "", "", 1.85, Vector3.ZERO, 2000, "", Color.WHITE, 512],
+	"boite_lettres": ["boite_lettres", "", "", 1.2, Vector3.ZERO, 2000, "", Color.WHITE, 256],
+	"benne": ["benne", "", "", 1.5, Vector3.ZERO, 2000, "", Color.WHITE, 256],
+	"feu_tricolore": ["feu_tricolore", "", "", 4.2, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"panneau_stop": ["panneau_stop", "", "", 2.4, Vector3.ZERO, 1000, "", Color.WHITE, 0],
+	"panneau_interdit": ["panneau_interdit", "", "", 2.4, Vector3.ZERO, 1000, "", Color.WHITE, 0],
+	"panneau_danger": ["panneau_danger", "", "", 2.4, Vector3.ZERO, 1000, "", Color.WHITE, 0],
+	"lampadaire_simple": ["lampadaire_simple", "", "", 5.6, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"lampadaire_double": ["lampadaire_double", "", "", 6.2, Vector3.ZERO, 3000, "", Color.WHITE, 0],
+	"lampadaire_ancien": ["lampadaire_ancien", "", "", 3.9, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"clim_q": ["clim_q", "", "", 0.7, Vector3.ZERO, 1000, "", Color.WHITE, 0],
+	"balcon": ["balcon", "", "", 0.0, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"gouttiere": ["gouttiere", "", "", 0.0, Vector3.ZERO, 500, "", Color.WHITE, 0],
+	"feu_bois": ["feu_bois", "", "", 0.6, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"lit_camp": ["lit_camp", "", "", 0.45, Vector3.ZERO, 2000, "", Color.WHITE, 0],
+	"etabli": ["etabli", "", "", 0.95, Vector3.ZERO, 2000, "planches", Color(0.78, 0.62, 0.46), 0],
+	"seau": ["seau", "", "", 0.35, Vector3.ZERO, 1000, "", Color.WHITE, 0],
+	"piege_machoires": ["piege_machoires", "", "", 0.14, Vector3.ZERO, 1500, "", Color.WHITE, 0],
 }
-const TUILES := {"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
+# couleurs pastel des modèles Kenney ramenées au style du jeu : {source: {matériau: [couleur, rugosité, métal]}}
+const ECRAN := [Color(0.035, 0.045, 0.05), 0.12, 0.2]
+const PLASTIQUE_NOIR := [Color(0.07, 0.07, 0.075), 0.55, 0.0]
+const RECOLORE := {
+	"tele_moderne": {"metal": ECRAN, "metalDark": PLASTIQUE_NOIR},
+	"tele_vintage": {"metal": ECRAN, "metalDark": [Color(0.16, 0.15, 0.14), 0.6, 0.0], "metalMedium": [Color(0.3, 0.3, 0.28), 0.5, 0.1],
+		"wood": [Color(0.36, 0.23, 0.14), 0.7, 0.0]},
+	"meuble_tele": {"wood": [Color(0.42, 0.3, 0.2), 0.75, 0.0]},
+	"abribus": {"BlueBusStop": [Color(0.24, 0.26, 0.28), 0.5, 0.4], "LightBlue_BusStop": [Color(0.5, 0.58, 0.62), 0.35, 0.1]},
+	"cabine_tel": {"PhoneBooth_Blue": [Color(0.24, 0.29, 0.34), 0.55, 0.3], "PhoneBooth_01Windows": [Color(0.1, 0.12, 0.14), 0.08, 0.2]},
+	"lit_camp": {"mat11": [Color(0.2, 0.3, 0.18), 0.9, 0.0], "mat15": [Color(0.45, 0.47, 0.45), 0.5, 0.5], "mat17": [Color(0.3, 0.32, 0.3), 0.5, 0.5],
+		"mat6": [Color(0.55, 0.38, 0.22), 0.9, 0.0], "mat7": [Color(0.48, 0.3, 0.18), 0.9, 0.0], "mat8": [Color(0.4, 0.2, 0.12), 0.9, 0.0],
+		"mat12": [Color(0.62, 0.52, 0.3), 0.9, 0.0], "mat13": [Color(0.58, 0.4, 0.2), 0.9, 0.0], "mat14": [Color(0.5, 0.25, 0.12), 0.9, 0.0]},
+}
+const TUILES :={"metal_peint": 1.0, "parquet": 2.0, "planches": 1.0, "beton": 3.0, "uni": 1.0}
 const MATS_VOITURE := ["Black", "Grey", "Windows", "Headlights", "TailLights", "WhiteLights", "BlueLights"]
 
 var tex_cache := {}
@@ -109,7 +147,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT)
 	var seul := OS.get_environment("PROP")
 	for id in CFG:
-		if seul != "" and id != seul:
+		if seul != "" and not id in seul.split(","):
 			continue
 		_convertir(id, CFG[id])
 	if manque:
@@ -176,6 +214,8 @@ func _convertir(id: String, c: Array) -> void:
 		m.transform = Transform3D(Basis().scaled(Vector3(k, k, k)), decal * k) * xf
 		racine.add_child(m)
 		m.owner = racine
+	if n > 4:
+		_fusionner(racine)
 	var taille := ab.size * k
 	infos[id] = [snappedf(taille.x, 0.001), snappedf(taille.y, 0.001), snappedf(taille.z, 0.001)]
 	var ps := PackedScene.new()
@@ -183,6 +223,35 @@ func _convertir(id: String, c: Array) -> void:
 	var err := ResourceSaver.save(ps, OUT + id + ".scn", ResourceSaver.FLAG_COMPRESS)
 	print("%s : %s tris %d -> ~%d, taille %s (err %d)" % [id, c[0], tris_tot, int(tris_tot * ratio), taille, err])
 	src.queue_free()
+
+
+## Modèle en nombreux petits morceaux : un seul maillage, une surface par matériau (moins d'appels de dessin).
+func _fusionner(racine: Node3D) -> void:
+	var sts := {}
+	var mats := {}
+	for m in racine.get_children():
+		var mi := m as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var mat: Material = mi.mesh.surface_get_material(s)
+			var cle: String = mat.resource_name if mat else "-"
+			if not sts.has(cle):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				sts[cle] = st
+				mats[cle] = mat
+			sts[cle].append_from(mi.mesh, s, mi.transform)
+		racine.remove_child(mi)
+		mi.free()
+	var am := ArrayMesh.new()
+	for cle in sts:
+		var st: SurfaceTool = sts[cle]
+		st.set_material(mats[cle])
+		st.commit(am)
+	var mi := MeshInstance3D.new()
+	mi.name = "m0"
+	mi.mesh = am
+	racine.add_child(mi)
+	mi.owner = racine
 
 
 func _simplifier(mi: MeshInstance3D, ratio: float, c: Array) -> ArrayMesh:
@@ -231,6 +300,13 @@ func _materiau(m: Material, c: Array) -> Material:
 	if m == null or not (m is BaseMaterial3D):
 		return m
 	var bm: BaseMaterial3D = m.duplicate()
+	var teintes: Dictionary = RECOLORE.get(c[0], {})
+	if teintes.has(bm.resource_name):
+		var tn: Array = teintes[bm.resource_name]
+		bm.albedo_color = tn[0]
+		bm.roughness = tn[1]
+		bm.metallic = tn[2]
+		return bm
 	var taille: int = c[8]
 	if String(c[0]) in ["normal_car1", "normal_car2", "suv", "taxi", "sports_car", "cop"]:
 		# voitures : carrosserie métallisée usée, vitres sombres
@@ -266,6 +342,8 @@ func _reduire(t: Texture2D, taille: int, normale: bool, nom: String) -> Texture2
 	var chemin := OUT + "tex/" + nom + (".png" if normale else ".jpg")
 	if ResourceLoader.exists(chemin):
 		return load(chemin)
+	if ResourceLoader.exists(chemin.replace(".jpg", ".png")):
+		return load(chemin.replace(".jpg", ".png"))
 	if tex_cache.has(chemin):
 		return null
 	var img := t.get_image()

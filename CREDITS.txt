@@ -93,3 +93,6 @@ Décor (tous CC0 — domaine public) :
    · Casquette de police « Security Hat » : Casey Tumbers (https://poly.pizza/m/46Bl5Ook_xw), licence CC BY 3.0.
    · Casque militaire « Combat Helmet » : hc (https://opengameart.org/content/combat-helmet), licence CC BY 3.0.
    · Gilets pare-balles et tactiques : bustes des personnages « SWAT » et « Soldier » de Quaternius (CC0), recolorés.
+— Télévisions (cathodique, écran plat) et meuble télé : « Furniture Kit » de Kenney (https://kenney.nl), licence CC0
+   (via https://github.com/Papyszoo/CC0-Public-Domain-Models ; recolorés par outils/godot/normaliser_props.gd).
+— Abribus « Bus Stop » : Zsky (https://poly.pizza/m/OWczicNWhO), licence CC BY 3.0.
