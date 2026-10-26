@@ -300,9 +300,9 @@ func _ready() -> void:
 	degats.hud = self
 	root.add_child(degats)
 	add_child(preload("res://scripts/ui/etat_ui.gd").new())   # écran État du survivant (touche J)
+	add_child(preload("res://scripts/ui/journal_ui.gd").new())   # journal du survivant (touche O)
 	Game.player_died.connect(_on_death)
 
-	add_child(preload("res://scripts/ui/journal_ui.gd").new())   # journal du survivant (touche O)
 
 func _label(text: String, size: int) -> Label:
 	var l := Label.new()

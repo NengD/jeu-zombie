@@ -901,6 +901,10 @@ func _die() -> void:
 			p.stamina = minf(p.prog.endurance_max(), p.stamina + 8.0)
 			p.health = minf(p.prog.sante_max(), p.health + 3.0)
 		Game.player.prog.gagner("combat", XP_TYPE.get(kind, 20))
+		var journal = preload("res://scripts/journal.gd")   # journal du survivant
+		journal.compter("zombies")
+		journal.compter("zombies_type:" + ("boss" if est_boss else kind))
+		journal.compter("zombies_arme:" + p.current_weapon())
 		# quelques billets sur le corps
 		if randf() < 0.45:
 			Game.player.gagner_argent(randi_range(1, 6) * (4 if est_boss else 1))
@@ -922,10 +926,6 @@ func _die() -> void:
 	relev_t = -1.0
 	if corps_v:
 		corps_v.active = false
-		var journal = preload("res://scripts/journal.gd")   # journal du survivant
-		journal.compter("zombies")
-		journal.compter("zombies_type:" + ("boss" if est_boss else kind))
-		journal.compter("zombies_arme:" + p.current_weapon())
 	remove_from_group("zombies")
 	add_to_group("corpses")
 	collision_layer = Game.LAYER_INTERACT

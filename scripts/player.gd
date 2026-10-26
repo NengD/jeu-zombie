@@ -1834,6 +1834,8 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 	# roulade : les coups au corps à corps passent à côté pendant le milieu de la roulade
 	if roulade_t > 0.15 and roulade_t < ROULADE_DUREE - 0.1 and _from is Node3D:
 		return
+	if amount > 0.0:
+		preload("res://scripts/journal.gd").touche()   # journal : fin de la série sans dégâts
 	# indicateur de direction des dégâts (HUD)
 	var src: Vector3 = (_from as Node3D).global_position if _from is Node3D else origine
 	if src != Vector3.INF:
@@ -1857,8 +1859,6 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 			else:
 				amount *= 0.6
 				Game.msg("Trop épuisé pour parer !")
-	if amount > 0.0:
-		preload("res://scripts/journal.gd").touche()   # journal : fin de la série sans dégâts
 	if Game.admin and Game.admin_invincible:
 		hurt_flash = 0.3
 		return
@@ -2764,6 +2764,8 @@ func craft(r: Dictionary) -> bool:
 		Game.msg("Économe : 1× %s récupéré." % Items.nom(rendu))
 	Game.make_noise(global_position, 6.0)
 	Game.msg("Fabriqué : %d× %s" % [qty, Items.nom(r.out)])
+	preload("res://scripts/journal.gd").compter("fabriques", qty)   # journal du survivant
+	preload("res://scripts/journal.gd").compter("fab:" + str(r.out), qty)
 	prog.gagner("fabrication", 12 + total * 3)
 	if au_feu:
 		prog.gagner("chasse", 8)   # la cuisine au feu fait partie de la branche Chasse
@@ -2787,8 +2789,6 @@ func start_placement(id: String) -> void:
 	bm.size = PLACE_SIZES[id]
 	ghost.mesh = bm
 	ghost_mat = StandardMaterial3D.new()
-	preload("res://scripts/journal.gd").compter("fabriques", qty)   # journal du survivant
-	preload("res://scripts/journal.gd").compter("fab:" + str(r.out), qty)
 	ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ghost_mat.albedo_color = Color(0.2, 1.0, 0.3, 0.35)
@@ -2867,6 +2867,8 @@ func _confirm_placement() -> void:
 		crate.setup("Caisse de stockage", "", PLACE_SIZES[placing], Color(0.45, 0.32, 0.18))
 		crate.make_storage(8, 6)
 		obj = crate
+	elif placing == "frigo":
+		obj = Placeable.creer_frigo()
 	else:
 		var p = Placeable.new()
 		p.setup(placing)
@@ -2890,8 +2892,6 @@ func _p_anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
 	if pap == null or not pap.has_animation(nom):
 		return
 	if verrou > 0.0:
-	elif placing == "frigo":
-		obj = Placeable.creer_frigo()
 		p_lock = verrou
 		pap.play(nom, 0.08)
 		pap.seek(0.0)
@@ -3225,6 +3225,8 @@ func _anim_geste(delta: float, hs: float) -> bool:
 			fini = geste_t > 1.6
 		"ramasser":
 			fini = geste_t > 0.8
+		"planter":
+			fini = geste_t > 1.3
 		"lit":
 			fini = geste_t > 2.0
 		"lever":
@@ -3247,10 +3249,10 @@ func _anim_geste(delta: float, hs: float) -> bool:
 			_p_anim("genou")
 		"ramasser":
 			_p_anim("recolter", 2.2)
+		"planter":
+			_p_anim("planter", 1.2)
 		"lit":
 			# couché : première image de « se relever », sans fondu (il ne progresserait pas à vitesse nulle)
-		"planter":
-			fini = geste_t > 1.3
 			if p_anim != "relever":
 				pap.play("relever", 0.0)
 				p_anim = "relever"
@@ -3273,8 +3275,6 @@ func _lieu_arme(id: String) -> String:
 		return "dos"
 	return ""
 
-		"planter":
-			_p_anim("planter", 1.2)
 
 ## Roulade d'esquive (s'accroupir en plein sprint) : élan vers l'avant, coups évités pendant la
 ## partie centrale de la roulade (ROULADE_DUREE), endurance dépensée.
@@ -3382,6 +3382,7 @@ func _maj_blessures(delta: float) -> void:
 				Game.msg("La morsure s'infecte : tu as de la fièvre. Il te faut des antibiotiques.")
 			else:
 				Game.msg("La morsure cicatrise sans s'infecter.")
+				preload("res://scripts/journal.gd").compter("morsures_soignees")
 			morsure_risque = 0.0
 	if infection > 0.0:
 		# la fièvre monte en ~18 min (deux fois moins vite avec Guérison)
@@ -3412,7 +3413,6 @@ func _soin_utile(id: String) -> bool:
 				return true
 	if it.get("desinfecte", false) and morsure_t > 0.0 and not plaie_desinfectee:
 		return true
-				preload("res://scripts/journal.gd").compter("morsures_soignees")
 	return id == "medicament" and maladie > 0.0
 
 
@@ -3438,6 +3438,7 @@ func _soigner_etat(id: String) -> bool:
 				morsure_risque = 0.0
 				_palier_fievre = 0
 				Game.msg("Les antibiotiques font effet : plus d'infection.")
+				preload("res://scripts/journal.gd").compter("morsures_soignees")
 				dit = true
 	if it.get("desinfecte", false) and morsure_t > 0.0 and not plaie_desinfectee:
 		plaie_desinfectee = true
@@ -3468,7 +3469,6 @@ func _soin_conseille() -> String:
 	return ""
 
 
-				preload("res://scripts/journal.gd").compter("morsures_soignees")
 # --- eau des lacs et de la rivière : [F] pour boire, ou remplir une bouteille vide
 var face_eau := false
 

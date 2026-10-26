@@ -164,12 +164,6 @@ const GUIDE := """[b]LES BASES[/b]
   [F] pour y suspendre la viande crue, elle devient de la viande séchée (légère, sans danger). Piège à mâchoires (établi) :
   immobilise et blesse le premier zombie qui marche dessus ; [F] pour le réarmer.
 
-[b]RÉCOLTE : HACHE ET PIOCHE[/b]
-• Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,
-  il reste une souche), la [b]pioche[/b] brise les rochers (pierres, parfois du minerai de fer ou de la ferraille), et
-  les deux démontent les [b]épaves de voitures[/b] (ferraille, pièces auto, pneu, batterie, essence, tissu ; l'épave vidée noircit).
-• Rendement selon la compétence (écran Personnage, K) : par niveau, 4 % de coups en moins et 6 % de ressources en plus
-  (niveau 10 : -40 % de coups, +60 % de ressources) ; [b]Survie[/b] pour les arbres et rochers, [b]Fabrication[/b] pour les épaves.
 [b]POTAGER[/b]
 • Graines de tomate, de carotte, de maïs et plants de pomme de terre : dans les fermes, les granges, les quincailleries
   (parfois dans les maisons). Bac de culture (4 planches, 3 clous, à la main) : à poser dehors.
@@ -188,6 +182,12 @@ const GUIDE := """[b]LES BASES[/b]
   la nourriture ne se gâte pas). Regarde un appareil pour voir la production et la consommation de son réseau ; s'il n'y a
   pas assez de courant, les appareils les plus proches de la source passent d'abord.
 
+[b]RÉCOLTE : HACHE ET PIOCHE[/b]
+• Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,
+  il reste une souche), la [b]pioche[/b] brise les rochers (pierres, parfois du minerai de fer ou de la ferraille), et
+  les deux démontent les [b]épaves de voitures[/b] (ferraille, pièces auto, pneu, batterie, essence, tissu ; l'épave vidée noircit).
+• Rendement selon la compétence (écran Personnage, K) : par niveau, 4 % de coups en moins et 6 % de ressources en plus
+  (niveau 10 : -40 % de coups, +60 % de ressources) ; [b]Survie[/b] pour les arbres et rochers, [b]Fabrication[/b] pour les épaves.
 • Les coups font du bruit (les zombies viennent voir). Rien ne repousse, mais il y a des milliers d'arbres et de rochers.
 • Bûche → 3 planches à l'établi (1 seule à la main) ; minerai + bûche → ferraille au feu ; 4 pierres + eau → ciment (établi) ;
   feu de camp en pierres et bûches ; barricade de pneus ; projecteur sur batterie ; flèches à pointe de pierre.
@@ -219,6 +219,10 @@ const GUIDE := """[b]LES BASES[/b]
 • [H] choisit tout seul le soin le plus utile. Les états (saignement, infection, fracture, froid) s'affichent sous l'heure.
 • [J] ouvre l'écran [b]État du survivant[/b] : chaque état avec sa valeur, sa cause, ses effets et le soin conseillé (et si tu l'as),
   une silhouette avec les zones touchées, et les effets actifs (vêtements chauds, feu proche, abri). [H] y applique le soin conseillé.
+• [O] ouvre le [b]Journal du survivant[/b] (Tab, Q / E : changer d'onglet) : [b]Statistiques[/b] (zombies tués par type et par arme,
+  animaux, bandits, distance à pied et en véhicule, objets fabriqués, lieux découverts, plus longue série sans dégâts…),
+  [b]Objectifs[/b] (étapes guidées pour bien débuter, cochées toutes seules, avec une petite récompense en XP ou en euros)
+  et [b]Succès[/b] (28 à débloquer, annoncés à l'écran).
 
 [b]EAU ET FROID[/b]
 • Face à un lac ou à la rivière, [F] pour boire (l'eau n'est pas potable : risque de maladie) ou, avec une bouteille vide,
@@ -243,10 +247,6 @@ const GUIDE := """[b]LES BASES[/b]
   à l'établi en poudre à canon (ex. 12 balles de 9 mm, 6 cartouches de calibre 12 ou 8 balles de 5.56 → 1 poudre).
 • La [b]clé à molette[/b] est une arme de mêlée. En main ou dans ton sac, elle fait démonter les épaves plus vite
   (4 coups sur 10 en moins) et rapporte 40 % de pièces en plus.
-• [O] ouvre le [b]Journal du survivant[/b] (Tab, Q / E : changer d'onglet) : [b]Statistiques[/b] (zombies tués par type et par arme,
-  animaux, bandits, distance à pied et en véhicule, objets fabriqués, lieux découverts, plus longue série sans dégâts…),
-  [b]Objectifs[/b] (étapes guidées pour bien débuter, cochées toutes seules, avec une petite récompense en XP ou en euros)
-  et [b]Succès[/b] (28 à débloquer, annoncés à l'écran).
 
 [b]PÊCHE ET CUEILLETTE[/b]
 • [b]Ligne de pêche[/b] (planche + tissu + ferraille, à la main) : plante-la au bord d'une rivière, d'un lac ou d'une mare
@@ -289,17 +289,17 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Hordes[/b] : à partir du 2e jour, à la tombée de la nuit, une horde peut marcher sur ta base (au moins 4 pièces).
   Une alerte s'affiche 60 secondes avant son arrivée et dit de quel côté elle vient (on l'entend grogner de ce côté) : rentre et prépare-toi ! Si tu es loin,
   elle abîme tes murs ; les pièges autour de la base réduisent les dégâts.
+• [b]Événements[/b] (environ un tous les 1 à 2 jours, annoncés à la radio, triangle de couleur sur la carte et la boussole) :
+  [b]largage[/b] (un hélicoptère lâche une caisse en parachute : très bon butin, mais sa fumée rouge attire les zombies),
+  [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]
+  (20 à 40 zombies qui traversent la carte et vont vers les coups de feu et les explosions : évite le bruit),
+  [b]bandits en maraude[/b] (une bande armée qui traverse la région). Ils disparaissent une fois fouillés ou après un moment.
 
 [b]PROJECTEURS[/b] (3 ferrailles + 1 ruban + 1 tissu, établi — ou chez le quincaillier)
 • À poser dehors autour de ta base pour voir venir les zombies la nuit. [F] : automatique (s'allume la nuit) / allumé / éteint.
 
 [b]ARGENT ET MARCHANDS[/b]
 • Les meubles et caisses proches qui ont encore quelque chose à prendre brillent d'un liseré doré.
-• [b]Événements[/b] (environ un tous les 1 à 2 jours, annoncés à la radio, triangle de couleur sur la carte et la boussole) :
-  [b]largage[/b] (un hélicoptère lâche une caisse en parachute : très bon butin, mais sa fumée rouge attire les zombies),
-  [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]
-  (20 à 40 zombies qui traversent la carte et vont vers les coups de feu et les explosions : évite le bruit),
-  [b]bandits en maraude[/b] (une bande armée qui traverse la région). Ils disparaissent une fois fouillés ou après un moment.
 • Soins : antidouleurs (0,5 s, +10), bandage (0,9 s, +15), trousse (3,5 s, santé au maximum, interrompue si tu es touché). On marche lentement pendant un soin. [H] choisit le soin adapté à ta blessure.
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
 • Une quinzaine de [b]campements de marchands[/b] (points verts sur la carte, avec leur métier) répartis sur toute la carte :
