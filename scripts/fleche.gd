@@ -100,9 +100,9 @@ func _planter(hit: Dictionary) -> void:
 		Effets.gerbe_sang(get_parent(), hit.position, dir, 0.7)
 		Game.play_3d("impact", hit.position, -8.0, 0.2, 20.0)
 		if tireur and tireur.get("prog") != null:
-			tireur.prog.gagner("combat", 3)
+			tireur.prog.gagner("chasse", 3)
 		# plantée dans la créature : suit son corps ; récupérable une fois sur deux en fouillant / dépeçant
-		recuperable = randf() < 0.5
+		recuperable = randf() < (0.85 if _solide() else 0.5)
 		if recuperable and col is Node:
 			(col as Node).set_meta("fleches", int((col as Node).get_meta("fleches", 0)) + 1)
 		if col is Node3D:
@@ -112,7 +112,7 @@ func _planter(hit: Dictionary) -> void:
 	# décor : trois fois sur quatre on peut la ramasser
 	Game.play_3d("impact_mur", hit.position, -14.0, 0.2, 18.0)
 	Game.make_noise(hit.position, 5.0)
-	recuperable = randf() < 0.75
+	recuperable = randf() < (0.97 if _solide() else 0.75)
 	if recuperable:
 		var r := Ramassage.new()
 		r.name = "Ramassage"
@@ -131,3 +131,8 @@ func _planter(hit: Dictionary) -> void:
 	var plantees := get_tree().get_nodes_in_group("fleches_plantees")
 	if plantees.size() > MAX_PLANTEES:
 		plantees[0].queue_free()
+
+
+## Talent « Flèches solides » du tireur : flèches presque toujours récupérables.
+func _solide() -> bool:
+	return tireur != null and is_instance_valid(tireur) and tireur.get("prog") != null and tireur.prog.a("recup_fleches")

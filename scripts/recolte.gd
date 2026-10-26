@@ -86,7 +86,8 @@ static func plus_de_ressources(niv: int) -> float:
 func _niv(joueur: Node, genre: String) -> int:
 	if joueur == null or joueur.get("prog") == null:
 		return 0
-	return int(joueur.prog.comp[competence(genre)].niv)
+	var c := competence(genre)
+	return int(joueur.prog.comp[c].niv) + (2 if c == "survie" and joueur.prog.a("bucheron") else 0)
 
 
 func _coups_requis(genre: String, i: int, outil: String, niv := 0) -> int:

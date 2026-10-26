@@ -536,7 +536,7 @@ func interact(player: Node) -> void:
 		player.add_item("peau", 1)
 		if randf() < 0.5:
 			player.add_item("os", 1)
-		player.prog.gagner("survie", 8)
+		player.prog.gagner("chasse", 8)
 		Game.play_ui("fouille", -6.0, 0.1, 0.9)
 	elif kind == "projecteur":
 		mode = (mode + 1) % MODES.size()

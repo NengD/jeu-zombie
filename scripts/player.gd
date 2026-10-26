@@ -1210,6 +1210,12 @@ func arme_stats(id: String) -> Dictionary:
 			w.damage = float(w.damage) * 1.2
 		if prog.a("sang_froid"):
 			w.recoil = float(w.recoil) * 0.65
+		if prog.a("tir_hanche"):
+			w.dispersion_hanche = float(w.get("dispersion_hanche", 1.0)) * 0.7
+		if prog.a("gachette"):
+			w.rate = float(w.rate) * 0.87
+		if prog.a("balistique"):
+			w.range = float(w.range) * 1.25
 	return w
 
 
@@ -2494,7 +2500,7 @@ func max_craft(r: Dictionary) -> int:
 
 ## Durée de fabrication d'un exemplaire : -5 % par niveau de fabrication.
 func duree_fabrication(r: Dictionary) -> float:
-	return float(r.get("duree", 3.0)) * maxf(0.5, 1.0 - 0.05 * niveau_fabrication())
+	return float(r.get("duree", 3.0)) * maxf(0.5, 1.0 - 0.05 * niveau_fabrication()) * (0.75 if prog.a("artisan_rapide") else 1.0)
 
 
 # fabrication en cours (en série) : un objet à la fois, ingrédients pris à la fin de chacun
@@ -2550,7 +2556,7 @@ func demonter(id: String, e: Dictionary = {}, g: Grille = null) -> bool:
 	_check_hotbar()
 	var rendu: PackedStringArray = []
 	for ing in r.needs:
-		var x := float(r.needs[ing]) * Items.PART_DEMONTAGE
+		var x := minf(float(r.needs[ing]), float(r.needs[ing]) * Items.PART_DEMONTAGE * (1.5 if prog.a("recuperateur") else 1.0))
 		var k := int(floor(x)) + (1 if randf() < x - floor(x) else 0)
 		if k > 0:
 			add_item(ing, k)
@@ -2615,6 +2621,9 @@ func craft(r: Dictionary) -> bool:
 		qty = int(ceil(qty * 1.5))
 	if not munition and prog.a("maitre_artisan") and randf() < 0.5:
 		qty *= 2
+	var au_feu: bool = r.get("station", "") == "feu"
+	if au_feu and not munition and prog.a("chef") and randf() < 0.5:
+		qty += 1
 	add_item(r.out, qty)
 	if prog.a("econome") and randf() < 0.3:
 		var ids: Array = r.needs.keys()
@@ -2624,6 +2633,8 @@ func craft(r: Dictionary) -> bool:
 	Game.make_noise(global_position, 6.0)
 	Game.msg("Fabriqué : %d× %s" % [qty, Items.nom(r.out)])
 	prog.gagner("fabrication", 12 + total * 3)
+	if au_feu:
+		prog.gagner("chasse", 8)   # la cuisine au feu fait partie de la branche Chasse
 	return true
 
 
@@ -2838,7 +2849,7 @@ func _maj_arc(delta: float, can_act: bool) -> void:
 	if tient:
 		if arc_tension <= 0.0:
 			Game.play_ui("fouille", -12.0, 0.05, 0.55)   # la corde grince
-		arc_tension = minf(1.0, arc_tension + delta / ARC_TENSION_DUREE)
+		arc_tension = minf(1.0, arc_tension + delta / (ARC_TENSION_DUREE * (0.65 if prog.a("tension_rapide") else 1.0)))
 		if arc_tension >= 1.0:
 			arc_plein_t += delta
 			if arc_plein_t > 2.0:
@@ -2863,7 +2874,8 @@ func _tirer_fleche(k: float) -> void:
 	var ecart := deg_to_rad((0.35 + 1.4 * (1.0 - k)) * (1.8 if moving else 1.0) * (1.0 + clampf(arc_plein_t - 2.0, 0.0, 3.0) * 0.5) * (0.75 if prog.a("main_sure") else 1.0))
 	dir = dir.rotated(camera.global_basis.x.normalized(), randf_range(-ecart, ecart)).rotated(Vector3.UP, randf_range(-ecart, ecart))
 	var f = Fleche.new()
-	f.tirer(self, origine + dir * 0.5, dir * lerpf(20.0, 62.0, k), float(w.damage) * (0.25 + 0.75 * k * k))
+	var degats := float(w.damage) * (0.25 + 0.75 * k * k) * (1.2 if prog.a("archer") else 1.0) * (1.5 if k >= 0.98 and prog.a("tir_mortel") else 1.0)
+	f.tirer(self, origine + dir * 0.5, dir * lerpf(20.0, 62.0, k), degats)
 	get_parent().add_child(f)
 	Game.play_ui("vent_leger", -6.0, 0.1, 1.7)
 	Game.play_ui("clic_vide", -10.0, 0.05, 0.45)   # claquement de la corde
@@ -2890,7 +2902,7 @@ func _manger(id: String) -> void:
 	prog.gagner("survie", 5)
 	Game.msg("Consommé : " + Items.nom(id))
 	if it.get("cru", false):
-		var risque := maxf(0.2, 0.5 - 0.03 * int(prog.comp["survie"].niv))
+		var risque := maxf(0.2, 0.5 - 0.03 * int(prog.comp["survie"].niv)) * (0.5 if prog.a("estomac") else 1.0)
 		if randf() < risque:
 			var deja := maladie > 0.0
 			maladie = minf(MALADIE_DUREE * 1.6, maladie + (120.0 if deja else MALADIE_DUREE))

@@ -206,7 +206,7 @@ func _voler(delta: float) -> void:
 func _percevoir(p: Node, d: float) -> void:
 	if not p.alive or etat == Etat.CHARGE or (Game.admin and Game.admin_invisible):
 		return
-	var portee: float = TYPES[kind].vue
+	var portee: float = TYPES[kind].vue * (0.7 if p.prog.a("pisteur") else 1.0)
 	if p.crouching:
 		portee *= 0.45 if Vector2(p.velocity.x, p.velocity.z).length() > 0.5 else 0.3
 	if p.cache_buisson:
@@ -321,7 +321,8 @@ func _mourir() -> void:
 	collision_layer = Game.LAYER_INTERACT
 	collision_mask = Game.LAYER_WORLD
 	if Game.player:
-		Game.player.prog.gagner("survie", 6)
+		Game.player.prog.gagner("chasse", 10)
+		Game.player.prog.gagner("survie", 3)
 	if faune and is_instance_valid(faune):
 		faune.mort(self)
 	if ap and ap.has_animation("Death"):
@@ -362,12 +363,14 @@ func interact(player: Node) -> void:
 	for id in DEPECAGE[kind]:
 		var r: Array = DEPECAGE[kind][id]
 		var n := randi_range(int(r[0]), int(r[1]))
+		if id in ["viande_crue", "peau"] and player.prog.a("depeceur"):
+			n += 1
 		if n > 0:
 			player.add_item(id, n)
 	var nf := int(get_meta("fleches", 0))
 	if nf > 0:
 		player.add_item("fleche", nf)
-	player.prog.gagner("survie", 10)
+	player.prog.gagner("chasse", 12)
 	Game.play_ui("fouille", -4.0, 0.1, 0.8)
 	Game.play_3d("impact", global_position, -10.0, 0.2, 15.0)
 	Effets.flaque(get_parent(), global_position)

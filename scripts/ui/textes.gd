@@ -21,7 +21,7 @@ const TOUCHES := [
 	["Mode construction (marteau)", "B"],
 	["Renforcer / réparer une pièce", "G"],
 	["Démonter une pièce", "X"],
-	["Personnage : niveaux et compétences", "K"],
+	["Personnage : arbre de compétences", "K"],
 	["Pause", "Échap"],
 	["Sauvegarde rapide / chargement", "F5 / F9"],
 	["Aide en jeu", "F1"],
@@ -108,10 +108,12 @@ const GUIDE := """[b]LES BASES[/b]
 • Mobilier urbain : feux et panneaux (Quaternius), benne (Kenney), boîte aux lettres (CreativeTrio) — CC0 ; lampadaires anciens (Quaternius), lanternes de village (KayKit) ; cabine téléphonique (Zsky), distributeur (J-Toastie) — CC BY 3.0, via Poly Pizza.
 • Voix des zombies : « Zombies Sound Pack » d'artisticdude et « Zombie noises and moans » d'ianzazz (OpenGameArt), licence CC0.
 
-[b]NIVEAUX ET COMPÉTENCES[/b] (touche K)
-• Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), manger, boire, se soigner et encaisser des coups (Survie).
-• Niveau global : +1 point d'attribut à placer en Endurance, Santé, Soif ou Faim.
-• Chaque niveau de compétence donne 1 point de talent : débloque des bonus (dégâts, recharge, soins, munitions, discrétion, poches plus grandes…).
+[b]NIVEAUX ET ARBRE DE COMPÉTENCES[/b] (touche K)
+• Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), récolter, manger, boire, se soigner et encaisser des coups (Survie), toucher avec une flèche, tuer et dépecer des animaux, relever un collet, cuisiner au feu (Chasse).
+• L'écran Personnage est un [b]arbre[/b] qui part du survivant (au centre) : une branche par compétence (Combat se sépare en corps à corps et armes à feu, puis Fabrication, Exploration, Survie, Chasse et arc). Un nœud ne se débloque que si le précédent l'est, et plus on s'éloigne du centre, plus le niveau de compétence demandé est élevé.
+• Chaque niveau de compétence donne 1 point de talent pour sa branche (1 point par nœud). Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
+• Couleurs : nœud plein = acquis, anneau doré qui pulse = disponible (clic pour débloquer), gris = verrouillé. Survol : description, coût, prérequis, niveau requis. Clic-glisser pour déplacer, molette pour zoomer, Espace pour recentrer.
+• Bouton « Réinitialiser » : rend tous les points dépensés contre de l'argent (100 € + 40 € par niveau) ; les rangées de poches restent acquises.
 
 [b]BARRE RAPIDE[/b]
 • Dans l'inventaire, glisse un objet sur un emplacement 1 à 5 de la barre rapide.
