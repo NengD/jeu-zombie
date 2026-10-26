@@ -212,6 +212,10 @@ func maj() -> void:
 	if p.maladie > 0.0:
 		t += _bloc("Intoxication", "encore %d min" % ceili(p.maladie / 60.0), COUL_ALERTE, p.causes.get("maladie", "nourriture crue ou eau sale"),
 			"faim et soif plus rapides, endurance plafonnée à 60 %, nausées", _soin(p, "medicament"))
+	if p.tripes_t > 0.0:
+		var lave := " (la pluie le lave plus vite)" if Game.pluie > 0.1 and p.in_zone.is_empty() else ""
+		t += _bloc("☣ Déguisement de tripes", "encore %d min %02d s%s" % [int(p.tripes_t) / 60, int(p.tripes_t) % 60, lave], COUL_OK,
+			"tripes d'un zombie (cadavre + lame)", "les zombies ne te voient pas tant que tu marches ; rompu si tu cours, attaques, ou si un zombie est touché tout près", "")
 	# --- température
 	var bilan: float = p.bilan_temperature()
 	var etat_froid := "bien"

@@ -10,11 +10,20 @@ var degats := 190.0
 var rayon := 6.5
 var _rebond_t := 0.0
 var feu := false          # Molotov : se brise au contact
+var petards := false      # pétards : salve de détonations sans dégâts, bruit qui porte loin
+var leurre: Array = []    # réveil / radio : [son en boucle, durée (s), rayon du bruit (m)]
+var sonne_t := -1.0       # leurre : temps de sonnerie restant (-1 = pas encore posé)
+var pv_leurre := 6        # leurre : coups de zombies avant d'être cassé
+var _bruit_t := 0.0
+var _son: AudioStreamPlayer3D = null
+const PETARDS_RAYON := 120.0
 
 
 func preparer(id: String) -> void:
 	var info := Items.info(id)
-	minuterie = float(info.get("minuterie", 3.5))
+	petards = bool(info.get("petards", false))
+	leurre = info.get("leurre", [])
+	minuterie = float(info.get("minuterie", 3.5 if leurre.is_empty() else 1.2))
 	var ex: Array = info.get("explosion", [190.0, 6.5])
 	degats = float(ex[0])
 	rayon = float(ex[1])
@@ -38,6 +47,11 @@ func preparer(id: String) -> void:
 	if info.get("feu", false):
 		m = bouteille()
 		m.position.y = -0.12                     # tourne autour du milieu de la bouteille
+	elif petards or not leurre.is_empty():
+		m = modele_leurre(id)
+		sp.radius = 0.06 if id == "radio" else 0.04
+		mass = 0.8 if id == "radio" else 0.3
+		pm.bounce = 0.15
 	else:
 		m = ModeleUtil.arme(id)
 	if m:
@@ -52,7 +66,14 @@ func preparer(id: String) -> void:
 func _physics_process(delta: float) -> void:
 	minuterie -= delta
 	_rebond_t = maxf(0.0, _rebond_t - delta)
+	if not leurre.is_empty():
+		_maj_leurre(delta)
+		return
 	if minuterie <= 0.0:
+		if petards:
+			_salve(get_parent(), global_position + Vector3.UP * 0.1)
+			queue_free()
+			return
 		if feu:
 			_briser()
 			return
@@ -67,6 +88,165 @@ func _contact(_b: Node) -> void:
 	if _rebond_t <= 0.0 and linear_velocity.length() > 1.5:
 		_rebond_t = 0.25
 		Game.play_3d("douille1", global_position, -2.0, 0.2, 20.0)
+
+
+## Leurre (réveil, radio) : une fois posé, sonne en boucle et fait du bruit toutes les 2 s pendant leurre[1] s ;
+## les zombies viennent voir (zombie._on_noise) et le frappent (zombie._think → frapper_leurre).
+func _maj_leurre(delta: float) -> void:
+	if sonne_t < 0.0:
+		# attend d'être posé (ou 4 s de plus s'il roule encore)
+		if minuterie > 0.0 or (linear_velocity.length() > 0.4 and minuterie > -4.0):
+			return
+		sonne_t = float(leurre[1])
+		freeze = true   # posé : ne dévale plus les pentes (les zombies le suivraient sans jamais l'atteindre)
+		add_to_group("leurres")
+		var s := Game.sfx_boucle(String(leurre[0]))
+		if s:
+			_son = AudioStreamPlayer3D.new()
+			_son.stream = s
+			_son.bus = "Effets"
+			_son.volume_db = 2.0
+			_son.unit_size = 6.0
+			_son.max_distance = float(leurre[2]) * 1.6
+			add_child(_son)
+			_son.play()
+		return
+	if sonne_t <= 0.0:
+		return
+	sonne_t -= delta
+	_bruit_t -= delta
+	if _bruit_t <= 0.0:
+		_bruit_t = 2.0
+		Game.make_noise(global_position, float(leurre[2]))
+	if sonne_t <= 0.0:
+		_eteindre(15.0)
+
+
+func sonne() -> bool:
+	return sonne_t > 0.0
+
+
+## Coup de zombie sur le leurre : il tressaute (reste en place), se casse au bout de pv_leurre coups.
+func frapper_leurre(_depuis: Vector3) -> void:
+	if sonne_t <= 0.0:
+		return
+	pv_leurre -= 1
+	Game.play_3d("impact_metal", global_position, -4.0, 0.15, 25.0)
+	rotate_y(randf_range(-0.7, 0.7))
+	if pv_leurre <= 0:
+		Effets.impact(get_parent(), global_position, Vector3.UP, true)
+		_eteindre(0.0)
+
+
+func _eteindre(apres: float) -> void:
+	sonne_t = 0.0
+	remove_from_group("leurres")
+	if _son:
+		_son.stop()
+	if apres <= 0.0:
+		queue_free()
+	else:
+		get_tree().create_timer(apres).timeout.connect(queue_free)
+
+
+## Pétards : salve de détonations et d'éclairs pendant ~2,5 s, aucun dégât ; bruit qui porte loin (deux fois).
+static func _salve(monde: Node, pos: Vector3) -> void:
+	Game.play_3d("petards", pos, 4.0, 0.05, 220.0)
+	Game.make_noise(pos, PETARDS_RAYON)
+	var arbre := monde.get_tree()
+	arbre.create_timer(1.5).timeout.connect(func(): Game.make_noise(pos, PETARDS_RAYON))
+	for k in 9:
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.85, 0.5) if k % 2 == 0 else Color(1.0, 0.45, 0.3)
+		l.light_energy = 0.0
+		l.omni_range = 5.0
+		monde.add_child(l)
+		l.global_position = pos + Vector3(randf_range(-0.6, 0.6), randf_range(0.2, 0.8), randf_range(-0.6, 0.6))
+		var tw := l.create_tween()
+		tw.tween_interval(k * 0.27 + randf() * 0.1)
+		tw.tween_property(l, "light_energy", 6.0, 0.02)
+		tw.tween_property(l, "light_energy", 0.0, 0.12)
+		tw.tween_callback(l.queue_free)
+	Effets.fumee(monde, pos + Vector3.UP * 0.2, Vector3.UP, 6, true)
+
+
+static func _mat(c: Color, metal: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.metallic = metal
+	m.roughness = 0.45 if metal > 0.0 else 0.8
+	return m
+
+
+static func _piece(n: Node3D, mesh: Mesh, m: Material, pos: Vector3, rot := Vector3.ZERO) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation = rot
+	n.add_child(mi)
+
+
+## Modèles des leurres (formes simples) : réveil à deux cloches, radio à antenne, paquet de pétards à mèche.
+static func modele_leurre(id: String) -> Node3D:
+	var n := Node3D.new()
+	match id:
+		"reveil":
+			var corps := CylinderMesh.new()
+			corps.top_radius = 0.045
+			corps.bottom_radius = 0.045
+			corps.height = 0.03
+			_piece(n, corps, _mat(Color(0.7, 0.12, 0.1), 0.6), Vector3.ZERO, Vector3(PI / 2, 0, 0))
+			var cadran := CylinderMesh.new()
+			cadran.top_radius = 0.038
+			cadran.bottom_radius = 0.038
+			cadran.height = 0.004
+			_piece(n, cadran, _mat(Color(0.92, 0.9, 0.82), 0.0), Vector3(0, 0, 0.016), Vector3(PI / 2, 0, 0))
+			var cloche := SphereMesh.new()
+			cloche.radius = 0.022
+			cloche.height = 0.022
+			cloche.is_hemisphere = true
+			for s in [-1.0, 1.0]:
+				_piece(n, cloche, _mat(Color(0.75, 0.72, 0.6), 0.8), Vector3(0.026 * s, 0.05, 0), Vector3(0, 0, -0.5 * s))
+		"radio":
+			var boite := BoxMesh.new()
+			boite.size = Vector3(0.22, 0.13, 0.07)
+			_piece(n, boite, _mat(Color(0.22, 0.24, 0.22), 0.0), Vector3.ZERO)
+			var grille := CylinderMesh.new()
+			grille.top_radius = 0.04
+			grille.bottom_radius = 0.04
+			grille.height = 0.006
+			_piece(n, grille, _mat(Color(0.08, 0.08, 0.08), 0.0), Vector3(-0.05, 0, 0.036), Vector3(PI / 2, 0, 0))
+			var cadran2 := BoxMesh.new()
+			cadran2.size = Vector3(0.07, 0.03, 0.006)
+			_piece(n, cadran2, _mat(Color(0.85, 0.75, 0.4), 0.0), Vector3(0.06, 0.02, 0.036))
+			var antenne := CylinderMesh.new()
+			antenne.top_radius = 0.002
+			antenne.bottom_radius = 0.003
+			antenne.height = 0.22
+			_piece(n, antenne, _mat(Color(0.7, 0.7, 0.7), 0.9), Vector3(0.08, 0.15, -0.02), Vector3(0, 0, -0.35))
+		_:
+			var tube := CylinderMesh.new()
+			tube.top_radius = 0.009
+			tube.bottom_radius = 0.009
+			tube.height = 0.09
+			for k in 5:
+				var a := k * TAU / 5.0
+				_piece(n, tube, _mat(Color(0.75, 0.1, 0.08) if k % 2 == 0 else Color(0.9, 0.8, 0.2), 0.0), Vector3(cos(a) * 0.014, 0, sin(a) * 0.014))
+			var meche := CylinderMesh.new()
+			meche.top_radius = 0.002
+			meche.bottom_radius = 0.002
+			meche.height = 0.05
+			_piece(n, meche, _mat(Color(0.15, 0.12, 0.1), 0.0), Vector3(0, 0.065, 0))
+			var etincelle := MeshInstance3D.new()
+			var q := QuadMesh.new()
+			q.size = Vector2(0.05, 0.05)
+			etincelle.mesh = q
+			etincelle.material_override = ZoneFeu.materiau_flamme()
+			etincelle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			etincelle.position.y = 0.095
+			n.add_child(etincelle)
+	return n
 
 
 ## Explosion : dégâts dégressifs (arrêtés par les murs ; zombies, bandits, animaux), zombies renversés, souffle, lumière, fumée, bruit.

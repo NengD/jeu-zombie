@@ -383,7 +383,7 @@ func _physics_process(delta: float) -> void:
 	var dist := 9999.0
 	if p:
 		dist = global_position.distance_to(p.global_position)
-	dormant = dist > 90.0 and state != State.CHASE
+	dormant = dist > 90.0 and state == State.WANDER   # (un bruit lointain — pétards, explosion — réveille aussi les zombies loin du joueur)
 	LodAnim.ombres(modele, dist < LodAnim.OMBRE_DIST)
 	if pieds_ik:
 		pieds_ik.active = dist < 22.0 and state != State.DEAD and not rampant
@@ -549,7 +549,8 @@ func _think() -> void:
 	if not p.in_zone.is_empty() and not is_same(p.in_zone, Game.find_zone(global_position + Vector3.UP)):
 		sight *= 0.6
 	var sees := false
-	if dist < sight:
+	# déguisé de tripes (player.tripes_t) : pris pour un des leurs, pas vu (la course et les coups rompent le déguisement)
+	if dist < sight and not p.deguise():
 		var fwd := -global_basis.z
 		# accroupi : il faut être bien devant le zombie, et plus près, pour qu'il le remarque
 		var facing := fwd.dot(to_p.normalized()) > (0.45 if p.crouching else 0.1)
@@ -575,9 +576,11 @@ func _think() -> void:
 		lost_t = 0.0
 	elif state == State.CHASE:
 		lost_t += 0.25
-		if lost_t > 4.0:
+		if lost_t > 4.0 or (p.deguise() and proie == null):
 			state = State.INVESTIGATE
 	elif state == State.INVESTIGATE:
+		if _frapper_leurre():
+			return
 		if Vector2(target.x - global_position.x, target.z - global_position.z).length() < 1.5 and absf(target.y - global_position.y) < 1.5:
 			state = State.WANDER
 			wander_t = randf_range(3.0, 8.0)
@@ -609,9 +612,36 @@ func _line_of_sight(p: Node3D) -> bool:
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
+var leurre_vise: Node3D = null   # leurre qu'il est en train de frapper (_frapper_leurre)
+
+
+## Leurre qui sonne (réveil, radio : grenade.gd, groupe « leurres ») à moins de 6 m : le zombie va dessus et s'acharne.
+func _frapper_leurre() -> bool:
+	for l in get_tree().get_nodes_in_group("leurres"):
+		var d := Vector2(l.global_position.x - global_position.x, l.global_position.z - global_position.z).length()
+		if d > 6.0 or absf(l.global_position.y - global_position.y) > 1.6 or not l.sonne():
+			continue
+		leurre_vise = l
+		target = l.global_position
+		if d < 1.8:
+			# à portée de bras : s'arrête face au leurre et frappe (les autres zombies l'entourent)
+			target = global_position
+			rotation.y = atan2(-(l.global_position.x - global_position.x), -(l.global_position.z - global_position.z))
+			if attack_t <= 0.0 and etourdi <= 0.0:
+				attack_t = randf_range(1.2, 1.8)
+				lunge = 1.0
+				_anim("attaque", 1.0, 0.6)
+				l.frapper_leurre(global_position)
+		return true
+	leurre_vise = null
+	return false
+
+
 func _on_noise(pos: Vector3, radius: float) -> void:
 	if state == State.DEAD or state == State.CHASE:
 		return
+	if state == State.INVESTIGATE and leurre_vise and is_instance_valid(leurre_vise) and leurre_vise.sonne():
+		return   # va déjà droit sur la source (leurre qui sonne : _frapper_leurre)
 	if global_position.distance_to(pos) <= radius:
 		state = State.INVESTIGATE
 		target = pos + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
@@ -828,6 +858,8 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	velocity += push.normalized() * 2.0
 	var killed := health <= 0.0
 	dormant = false
+	if jp != null and jp.deguise() and global_position.distance_to(jp.global_position) < 6.0:
+		jp.rompre_tripes("zombie touché tout près")
 	if Game.tir_discret and state != State.CHASE:
 		# flèche venue de nulle part : tué, il tombe sans alerter personne ; blessé, il va voir d'où vient
 		# le tir (à peu près : l'erreur grandit avec la distance) sans encore savoir où est le tireur
@@ -931,9 +963,13 @@ var grille: Grille = null
 func get_prompt() -> String:
 	if state != State.DEAD:
 		return "[F] Achever" if achevable() else ""
+	# déguisement (player.se_couvrir_de_tripes) : une fois par corps, avec une lame
+	var tripes := ""
+	if not has_meta("tripes") and not est_boss and Game.player and Game.player.lame_tripes() != "":
+		tripes = "   [%s] Se couvrir de tripes" % Game.texte_touche("ameliorer")
 	if searched and grille and grille.vide():
-		return "Corps (vide)"
-	return "[F] Fouiller le corps"
+		return "Corps (vide)" + tripes
+	return "[F] Fouiller le corps" + tripes
 
 
 func interact(player: Node) -> void:

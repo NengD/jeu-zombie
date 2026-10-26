@@ -285,4 +285,55 @@ for k in range(30):
 sauver("explosion", grave + coup + gronde + debris, 0.98)
 sauver("goupille", placer(0.5, (0.0, clic((2600, 4100, 6200), 0.015, 0.06, 1.0)), (0.12, glisse(0.12, 1800, 3200, 0.15)), (0.3, clic((3400, 5200), 0.01, 0.05, 0.7))), 0.8)
 
+# ---------------------------------------------------------------- leurres (grenade.gd, joués en boucle par Game.sfx_boucle)
+r = np.random.default_rng(91)
+# réveil mécanique : le marteau bat deux cloches (~22 coups/s) pendant 0,9 s, puis 0,4 s de silence
+y = np.zeros(int(SR * 1.3))
+m = int(SR * 0.08)
+tt = np.arange(m) / SR
+for k in range(20):
+    cloche = 0
+    for f0, a in [(2350, 1.0), (5650, 0.45), (8100, 0.25)] if k % 2 == 0 else [(2620, 1.0), (6100, 0.4), (8800, 0.2)]:
+        cloche = cloche + np.sin(2 * np.pi * f0 * r.uniform(0.995, 1.005) * tt) * a
+    frappe = cloche * np.exp(-tt / 0.025) + passe_haut(bruit(m), 3000) * np.exp(-tt / 0.003) * 0.4
+    i = int(SR * k * 0.045)
+    y[i:i + m] += frappe[: len(y) - i]
+sauver("reveil", y, 0.75)
+# radio : grésillement + voix lointaine (formants qui changent) + bout de musique étouffée, 3 s bouclées
+d = 3.5
+n = int(SR * d)
+x = t(d)
+gresil = passe_haut(bruit(n), 1500) * (0.35 + 0.25 * np.sin(2 * np.pi * 0.7 * x))
+crepite = np.zeros(n)
+for k in range(60):
+    i = int(r.uniform(0, n - 200))
+    crepite[i:i + 200] += bruit(200) * np.exp(-np.arange(200) / 30.0) * r.uniform(0.3, 1.0)
+voix = np.zeros(n)
+for k in range(12):
+    s0, l0 = r.uniform(0, d - 0.3), r.uniform(0.08, 0.25)
+    i, l = int(SR * s0), int(SR * l0)
+    f0 = r.uniform(110, 170)
+    tt2 = np.arange(l) / SR
+    v = sum(np.sin(2 * np.pi * f0 * h * tt2) / h for h in range(1, 12))
+    voix[i:i + l] += passe_bas(passe_haut(v, 300), 2800) * np.hanning(l)
+notes = np.zeros(n)
+for k, f0 in enumerate([392, 440, 494, 440, 392, 330, 349, 392]):
+    i, l = int(SR * k * 0.42), int(SR * 0.38)
+    tt2 = np.arange(l) / SR
+    notes[i:i + l] += (np.sign(np.sin(2 * np.pi * f0 * tt2)) * 0.3 + np.sin(2 * np.pi * f0 * 2 * tt2) * 0.2) * env(l, 0.01, 0.2)
+notes = passe_bas(passe_haut(notes, 400), 2200)
+sauver("radio", boucle(gresil * 0.5 + crepite * 0.5 + voix * 0.8 + notes * 0.35, 0.4), 0.7)
+# pétards : salve irrégulière de détonations sèches sur ~2,6 s
+y = np.zeros(int(SR * 3.0))
+tps = 0.0
+while tps < 2.6:
+    m = int(SR * 0.25)
+    tt = np.arange(m) / SR
+    pet = passe_bas(bruit(m), r.uniform(2500, 5000)) * np.exp(-tt / r.uniform(0.008, 0.02)) * r.uniform(0.6, 1.0)
+    pet += passe_bas(bruit(m), 300) * np.exp(-tt / 0.05) * 0.4
+    i = int(SR * tps)
+    y[i:i + m] += pet[: len(y) - i]
+    tps += r.uniform(0.04, 0.3)
+sauver("petards", y, 0.95)
+
 print("sons générés dans", OUT)

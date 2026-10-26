@@ -41,6 +41,12 @@ const GUIDE := """[b]LES BASES[/b]
 • Recul selon l'arme : pistolet sec et court, fusil à pompe brutal, fusil d'assaut régulier (la visée se stabilise en rafale),
   fusil de précision gros coup unique. La visée revient ensuite doucement au centre ; baisser la souris compense plus vite.
 • Accroupi, tu es plus difficile à repérer. Penche-toi (A / E) pour regarder au coin d'un mur.
+• [b]Déguisement de tripes[/b] : sur un cadavre de zombie, avec un couteau, une machette ou une hache, touche G = te couvrir de ses tripes.
+  Pendant ~5 min les zombies te prennent pour l'un des leurs tant que tu marches : tu peux traverser une horde.
+  Courir, frapper, tirer ou toucher un zombie près de toi rompt le déguisement ; la pluie (et l'eau) le lave plus vite.
+• [b]Leurres sonores[/b] (onglet Armes de la fabrication, maisons, bureaux, magasins) : le réveil (40 s) et la radio (90 s)
+  se lancent comme une grenade, ou se posent accroupi ; les zombies viennent les chercher et les frappent jusqu'à les casser.
+  Les pétards éclatent 2 s après le lancer, sans dégâts, et attirent les zombies jusqu'à 120 m.
 • La nuit, les zombies voient moins bien… sauf si ta lampe est allumée. Certains courent plus vite.
 • Chaque zombie a sa démarche : tête penchée, dos voûté, peau grise ; certains ont déjà perdu un bras, d'autres boitent. De près, ils tournent la tête vers toi.
 • Un zombie [b]lève les bras avant de frapper[/b] : recule ou fais une roulade à ce moment pour esquiver. Renversé, il se relève maladroitement. Zombies et bandits tombent de plusieurs façons et encaissent les coups selon le côté touché.

@@ -341,6 +341,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			interact_target.interact(self)
 		elif face_eau:
 			_puiser_eau()
+	elif event.is_action_pressed("ameliorer") and interact_target and is_instance_valid(interact_target) and interact_target.is_in_group("corpses"):
+		se_couvrir_de_tripes(interact_target)
 	elif event.is_action_pressed("recharger"):
 		_start_reload()
 	elif event.is_action_pressed("soigner"):
@@ -384,6 +386,7 @@ func _physics_process(delta: float) -> void:
 	_update_interact()
 	_maj_face_eau()
 	_maj_fabrication(delta)
+	_maj_tripes(delta)
 	_ramassage_auto(delta)
 	_maj_equipement_visible()
 	if placing != "":
@@ -1373,6 +1376,8 @@ func _update_combat(delta: float, can_act: bool) -> void:
 		Game.play_ui("clic_vide", -4.0)
 		Game.msg("%s est cassé : répare-le (kit de réparation, clic droit dans l'inventaire)." % Items.nom(id))
 		return
+	if not (w.type == "lancer" and (w.has("leurre") or w.has("petards"))):
+		rompre_tripes("attaque")   # lancer un leurre ne trahit pas le déguisement, frapper ou tirer si
 	if w.type == "gun":
 		_fire_gun(id, w)
 	elif w.type == "lancer":
@@ -1486,10 +1491,18 @@ var goupille_t := 0.0
 func _lancer(id: String, _w: Dictionary) -> void:
 	if count(id) <= 0:
 		return
+	var leurre: bool = _w.has("leurre")
+	if leurre and crouching:
+		# réveil / radio posé à ses pieds, à genoux (sans bruit de lancer)
+		cooldown = 1.0
+		geste("genou")
+		get_tree().create_timer(0.5).timeout.connect(_relacher_grenade.bind(id, true))
+		return
 	cooldown = 1.0 + GOUPILLE_DUREE
-	# 1) goupille arrachée de la main gauche, 2) lancer
+	# 1) goupille arrachée de la main gauche (grenade), réveil remonté, mèche allumée… 2) lancer
 	goupille_t = GOUPILLE_DUREE
-	get_tree().create_timer(GOUPILLE_DUREE * 0.6).timeout.connect(func(): Game.play_ui("goupille", -4.0, 0.05))
+	if not leurre and not _w.has("petards"):
+		get_tree().create_timer(GOUPILLE_DUREE * 0.6).timeout.connect(func(): Game.play_ui("goupille", -4.0, 0.05))
 	get_tree().create_timer(GOUPILLE_DUREE).timeout.connect(_jeter_grenade.bind(id))
 
 
@@ -1503,8 +1516,18 @@ func _jeter_grenade(id: String) -> void:
 	get_tree().create_timer(0.3).timeout.connect(_relacher_grenade.bind(id))
 
 
-func _relacher_grenade(id: String) -> void:
+func _relacher_grenade(id: String, pose := false) -> void:
 	if not alive or count(id) <= 0 or current_weapon() != id:
+		return
+	if pose:
+		remove_item(id, 1)
+		var gp: RigidBody3D = Grenade.new()
+		gp.preparer(id)
+		gp.minuterie = 0.3
+		get_parent().add_child(gp)
+		gp.global_position = global_position - global_basis.z * 0.6 + Vector3.UP * 0.2
+		if count(id) <= 0:
+			_refresh_weapon_model()
 		return
 	remove_item(id, 1)
 	var g: RigidBody3D = Grenade.new()
@@ -2986,6 +3009,7 @@ func _maj_arc(delta: float, can_act: bool) -> void:
 
 
 func _tirer_fleche(k: float) -> void:
+	rompre_tripes("attaque")
 	if not (Game.admin and Game.admin_munitions):
 		remove_item("fleche", 1)
 	user("arc")
@@ -3619,3 +3643,96 @@ func _maj_temperature(delta: float) -> void:
 		Game.msg("Tu es transi de froid : ta santé baisse !")
 	elif froid < 30.0 and avant >= 30.0:
 		Game.msg("Tu te réchauffes.")
+
+
+# ================================================================ déguisement de tripes
+## Couvert des tripes d'un zombie (cadavre + lame, touche « ameliorer ») : zombie._think ne voit plus le joueur
+## pendant TRIPES_DUREE s ; rompu en courant, en attaquant ou quand un zombie est touché tout près
+## (zombie.take_hit), lavé plus vite sous la pluie ou dans l'eau. Sang visible : calque sang_perso (perso.gd).
+const TRIPES_DUREE := 300.0
+const TRIPES_LAMES := ["couteau_km2000", "machette", "hache"]
+var tripes_t := 0.0
+var _tripes_niveau := -1.0
+var _tripes_maj := 0.0
+
+
+func deguise() -> bool:
+	return tripes_t > 0.0
+
+
+func lame_tripes() -> String:
+	for l in TRIPES_LAMES:
+		if count(l) > 0:
+			return l
+	return ""
+
+
+func se_couvrir_de_tripes(corps: Node) -> void:
+	if not alive or not corps.is_in_group("corpses"):
+		return
+	if corps.has_meta("tripes"):
+		Game.msg("Ce corps a déjà été vidé.")
+		return
+	if lame_tripes() == "":
+		Game.msg("Il te faut une lame (couteau, machette, hache) pour ouvrir le corps.")
+		return
+	corps.set_meta("tripes", true)
+	geste("genou")
+	tripes_t = TRIPES_DUREE
+	causes["tripes"] = "tripes de zombie"
+	Effets.gerbe_sang(get_parent(), (corps as Node3D).global_position + Vector3.UP * 0.3, Vector3.UP, 1.0)
+	Game.play_ui("impact", -6.0, 0.1, 0.6)
+	# les zombies qui le poursuivaient perdent sa trace (ils cherchent encore là où il était)
+	for z in get_tree().get_nodes_in_group("zombies"):
+		if z.state == z.State.CHASE and z.proie == null and not z.assaut and global_position.distance_to(z.global_position) < 40.0:
+			z.state = z.State.INVESTIGATE
+			z.target = global_position
+	Game.msg("Couvert de tripes : les zombies te prennent pour l'un des leurs tant que tu marches (ni course, ni attaque).")
+	_appliquer_tripes()
+
+
+func rompre_tripes(raison: String) -> void:
+	if tripes_t <= 0.0:
+		return
+	tripes_t = 0.0
+	Game.msg("Déguisement rompu (%s) : les zombies te voient de nouveau." % raison)
+	_appliquer_tripes()
+
+
+func _maj_tripes(delta: float) -> void:
+	if tripes_t <= 0.0:
+		return
+	if sprinting and Vector2(velocity.x, velocity.z).length() > 3.5:
+		rompre_tripes("tu as couru")
+		return
+	var lave := 1.0
+	if Game.pluie > 0.1 and in_zone.is_empty():
+		lave += 4.0 * Game.pluie   # forte pluie : ~1 min
+	if Game.dans_eau(global_position):
+		lave += 8.0
+	tripes_t = maxf(0.0, tripes_t - delta * lave)
+	if tripes_t <= 0.0:
+		Game.msg("Les tripes ont séché ou ont été lavées : les zombies te voient de nouveau.")
+	_tripes_maj -= delta
+	if _tripes_maj <= 0.0 or tripes_t <= 0.0:
+		_tripes_maj = 2.0   # (refait aussi après un changement d'équipement visible)
+		_appliquer_tripes()
+
+
+## Calque de sang sur le modèle du joueur (pas sur l'arme en main, qui a son propre sang).
+func _appliquer_tripes() -> void:
+	var niveau := 0.0 if tripes_t <= 0.0 else clampf(0.5 + 0.5 * tripes_t / TRIPES_DUREE, 0.0, 1.0)
+	if niveau == 0.0 and _tripes_niveau == 0.0:
+		return
+	_tripes_niveau = niveau
+	var mat: ShaderMaterial = Perso._materiau_sang()
+	for mi in modele.find_children("*", "MeshInstance3D", true, false):
+		if hand_weapon and is_instance_valid(hand_weapon) and (mi == hand_weapon or hand_weapon.is_ancestor_of(mi)):
+			continue
+		var m3: MeshInstance3D = mi
+		if m3.material_overlay != null and m3.material_overlay != mat:
+			continue
+		m3.material_overlay = mat if niveau > 0.0 else null
+		if niveau > 0.0:
+			m3.set_instance_shader_parameter("sang", niveau)
+			m3.set_instance_shader_parameter("graine", 3.7)

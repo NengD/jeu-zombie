@@ -518,6 +518,8 @@ func _etat_blessures(p) -> String:
 		t += "\n❄ Frais"
 	elif p.pres_feu and p.froid > 0.5:
 		t += "\nAu chaud près du feu"
+	if p.tripes_t > 0.0:
+		t += "\n☣ Déguisé de tripes : %d min%s" % [ceili(p.tripes_t / 60.0), " (la pluie le lave)" if Game.pluie > 0.1 and p.in_zone.is_empty() else ""]
 	if t != "" or p.maladie > 0.0:
 		t += "\n[%s] détails" % Game.texte_touche("etat")
 	return t
