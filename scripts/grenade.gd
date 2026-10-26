@@ -69,10 +69,10 @@ func _contact(_b: Node) -> void:
 		Game.play_3d("douille1", global_position, -2.0, 0.2, 20.0)
 
 
-## Explosion : dégâts dégressifs (arrêtés par les murs), zombies renversés, souffle, lumière, fumée, bruit.
+## Explosion : dégâts dégressifs (arrêtés par les murs ; zombies, bandits, animaux), zombies renversés, souffle, lumière, fumée, bruit.
 static func exploser(monde: Node, pos: Vector3, degats_max: float, r: float) -> void:
 	var espace: PhysicsDirectSpaceState3D = monde.get_viewport().world_3d.direct_space_state
-	for z in monde.get_tree().get_nodes_in_group("zombies") + monde.get_tree().get_nodes_in_group("bandits"):
+	for z in monde.get_tree().get_nodes_in_group("zombies") + monde.get_tree().get_nodes_in_group("bandits") + monde.get_tree().get_nodes_in_group("animaux"):
 		if not is_instance_valid(z) or not (z is Node3D):
 			continue
 		var centre: Vector3 = (z as Node3D).global_position + Vector3.UP * 0.9
@@ -230,7 +230,7 @@ static func bouteille() -> Node3D:
 	return n
 
 
-## Zone de feu au sol : brûle zombies, bandits et joueur pendant `duree` s (dégâts par 0,5 s), flammes, lumière, crépitement.
+## Zone de feu au sol : brûle zombies, bandits, animaux et joueur pendant `duree` s (dégâts par 0,5 s), flammes, lumière, crépitement.
 class ZoneFeu extends Node3D:
 	var rayon := 3.0
 	var dps := 26.0
@@ -302,7 +302,7 @@ class ZoneFeu extends Node3D:
 
 	func _bruler(dmg: float) -> void:
 		var c := global_position
-		for z in get_tree().get_nodes_in_group("zombies") + get_tree().get_nodes_in_group("bandits"):
+		for z in get_tree().get_nodes_in_group("zombies") + get_tree().get_nodes_in_group("bandits") + get_tree().get_nodes_in_group("animaux"):
 			if not is_instance_valid(z) or not (z is Node3D) or not z.has_method("take_hit"):
 				continue
 			var p: Vector3 = (z as Node3D).global_position

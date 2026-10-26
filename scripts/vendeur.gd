@@ -4,6 +4,7 @@ extends StaticBody3D
 
 const Perso = preload("res://scripts/perso.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
+const Commandes = preload("res://scripts/commandes.gd")
 
 const METIERS := {
 	"armurier": {"titre": "Armurier", "toile": Color(0.55, 0.16, 0.12), "stock": [
@@ -206,7 +207,12 @@ func stock() -> Array:
 
 
 func get_prompt() -> String:
-	return "[F] Commercer — %s, %s" % [nom, titre().to_lower()]
+	var n := 0
+	if Game.player:
+		for c in Commandes.liste(self):
+			if not c.fait:
+				n += 1
+	return "[F] Commercer — %s, %s%s" % [nom, titre().to_lower(), "" if n == 0 else " (%d commande%s)" % [n, "s" if n > 1 else ""]]
 
 
 func interact(_player: Node) -> void:

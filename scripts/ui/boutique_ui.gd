@@ -2,6 +2,7 @@ extends CanvasLayer
 ## Boutique d'un marchand : acheter son stock (à gauche), revendre ses objets à 40 % (à droite).
 
 const Construction = preload("res://scripts/construction.gd")
+const Commandes = preload("res://scripts/commandes.gd")
 const LOTS := {"clous": 10, "planche": 5}   # vendus par lots ; les munitions par 20
 
 var fond: ColorRect
@@ -72,6 +73,7 @@ func _maj() -> void:
 	_label(tete, "Ton argent : %d €    " % p.argent, 24, Color(0.6, 1.0, 0.6))
 	_bouton(tete, "Fermer  (F / Échap)", fermer)
 	_primes(p)
+	_commandes(p)
 	var colonnes := HBoxContainer.new()
 	colonnes.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	colonnes.add_theme_constant_override("separation", 40)
@@ -289,3 +291,26 @@ func _bouton(parent: Node, t: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
+
+
+## Commandes du jour de ce marchand (commandes.gd) : rendre les objets demandés contre argent et XP.
+func _commandes(p: Node) -> void:
+	var liste: Array = Commandes.liste(vendeur)
+	if liste.is_empty():
+		return
+	_label(contenu, "COMMANDES DU JOUR — renouvelées chaque matin", 20, Color(0.55, 0.85, 1.0))
+	for c in liste:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		contenu.add_child(h)
+		var gain := "%d € + %d XP %s" % [c.prix, c.xp, c.comp]
+		if c.fait:
+			_label(h, "✓ %s — faite" % Commandes.texte(c), 15, Color(0.55, 0.55, 0.52))
+			continue
+		var manque := Commandes.manque(c, p)
+		_label(h, "%s — %s%s" % [Commandes.texte(c), gain, "" if manque == "" else "  (%s)" % manque], 15,
+				Color(0.9, 0.9, 0.88) if manque != "" else Color(0.6, 1.0, 0.6))
+		if manque == "":
+			_bouton(h, "Rendre", func():
+				if Commandes.rendre(c, p):
+					_maj())

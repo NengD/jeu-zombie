@@ -414,6 +414,8 @@ func poser() -> void:
 	if not valide:
 		Game.msg(raison)
 		return
+	if not _marteau_ok():
+		return
 	var t := type_choisi()
 	if not _payer(Construction.PIECES[t].cout):
 		return
@@ -429,6 +431,7 @@ func poser() -> void:
 	base.ajouter(p)
 	Game.play_ui("construire", -3.0, 0.1)
 	Game.make_noise(player.global_position, 8.0)
+	player.user("marteau", 1)
 	player.prog.gagner("fabrication", 4)
 
 
@@ -441,6 +444,8 @@ func _cout_reparation(p: Node) -> Dictionary:
 
 
 func _ameliorer() -> void:
+	if not _marteau_ok():
+		return
 	if visee == null and visee_objet and is_instance_valid(visee_objet):
 		_reparer_objet(visee_objet)
 		return
@@ -450,6 +455,7 @@ func _ameliorer() -> void:
 	if visee.pv < visee.pv_max() - 0.5:
 		if _payer(_cout_reparation(visee)):
 			visee.pv = visee.pv_max()
+			player.user("marteau", 1)
 			Game.play_ui("construire", -4.0, 0.1, 1.1)
 			Game.msg("Réparé : " + visee.nom_complet())
 		return
@@ -462,6 +468,7 @@ func _ameliorer() -> void:
 	visee.pv = visee.pv_max()
 	visee._reconstruire()
 	Game.play_ui("construire", -2.0, 0.1, 0.9)
+	player.user("marteau", 1)
 	player.prog.gagner("fabrication", 6)
 	Game.msg("Renforcé : " + visee.nom_complet())
 
@@ -517,6 +524,8 @@ func _toute_la_base() -> void:
 	if plan.pieces.is_empty():
 		Game.msg("Toute la base est déjà au plus solide.")
 		return
+	if not _marteau_ok():
+		return
 	if not _payer(plan.cout):
 		return
 	for p in plan.pieces:
@@ -531,6 +540,7 @@ func _toute_la_base() -> void:
 			p.health = p.health_max
 	_plan_t = -1.0
 	Game.play_ui("construire", -2.0, 0.1, 0.9)
+	player.user("marteau", plan.pieces.size())
 	player.prog.gagner("fabrication", (3 if plan.mode == "reparer" else 6) * plan.pieces.size())
 	Game.msg("%s : %d élément(s)." % ["Base réparée" if plan.mode == "reparer" else "Base renforcée", plan.pieces.size()])
 
@@ -540,9 +550,12 @@ func _reparer_objet(o: Node) -> void:
 	if o.health >= o.health_max - 0.5:
 		Game.msg("%s : en parfait état." % o.nom_piege())
 		return
+	if not _marteau_ok():
+		return
 	if not _payer(o.COUT_REPARATION[o.kind]):
 		return
 	o.health = o.health_max
+	player.user("marteau", 1)
 	Game.play_ui("construire", -4.0, 0.1, 1.1)
 	player.prog.gagner("fabrication", 2)
 	Game.msg("Réparé : " + o.nom_piege())
@@ -579,3 +592,11 @@ func _demonter() -> void:
 	Game.msg("Démonté : " + visee.nom_complet())
 	visee.detruire()
 	visee = null
+
+
+## Marteau usé (items.gd « durab ») : 1 point par pose, renforcement ou réparation ; cassé = plus de construction.
+func _marteau_ok() -> bool:
+	if Game.admin or not player.est_cassee("marteau"):
+		return true
+	Game.msg("Ton marteau est cassé : répare-le avec un kit de réparation (clic droit dans l'inventaire).")
+	return false
