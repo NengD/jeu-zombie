@@ -31,9 +31,9 @@ const METIERS := {
 		"torche", "feu_camp", "lit", "recuperateur_eau", "sac_toile", "sac_sport", "casquette", "bonnet"],
 		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool", "pomme", "raisin", "epi_mais", "mais_grille", "poisson_cuit"]},
 	"mecanicien": {"titre": "Mécanicien", "toile": Color(0.75, 0.55, 0.12), "stock": [
-		"cle_molette", "marteau", "pioche", "batte_cloutee", "piece_auto", "essence", "batterie", "pneu", "ferraille",
+		"cle_molette", "marteau", "pioche", "batte_cloutee", "piece_auto", "essence", "tuyau", "batterie", "pneu", "ferraille",
 		"ruban", "clous", "projecteur", "barbeles", "casque_chantier", "lunettes", "masque_gaz", "veste_renforcee"],
-		"rachat": ["piece_auto", "essence", "batterie", "pneu", "ferraille", "minerai", "cle_molette"]},
+		"rachat": ["piece_auto", "essence", "tuyau", "batterie", "pneu", "ferraille", "minerai", "cle_molette"]},
 }
 ## Les marchands rachètent à 40 % ; un métier rachète ses spécialités (« rachat ») plus cher.
 const BONUS_RACHAT := 1.75
