@@ -139,6 +139,33 @@ func setup(p_kind: String) -> void:
 				lapin_pris.add_child(la)
 			collet_t = randf_range(150.0, 400.0) * (0.5 if Game.player and Game.player.prog.a("piegeur") else 1.0)
 			_shape(Vector3(0, 0.15, 0), Vector3(0.5, 0.3, 0.5))
+		"canne_peche":
+			# ligne de pêche : canne plantée en biais vers l'eau (-Z), fil, bouchon, seau où tombent les poissons
+			health = 50.0
+			collision_layer = Game.LAYER_INTERACT
+			var canne := _part(Vector3(0, 0.55, -0.35), Vector3(0.035, 0.035, 1.6), wood.darkened(0.15))
+			canne.rotation.x = 0.6
+			_part(Vector3(0, 0.08, 0.25), Vector3(0.12, 0.16, 0.12), wood.darkened(0.3))   # fourche qui la tient
+			var fil := _part(Vector3(0, 0.6, -1.05), Vector3(0.006, 1.15, 0.006), Color(0.85, 0.85, 0.85))
+			fil.rotation.x = -0.25
+			_part(Vector3(0, 0.06, -1.2), Vector3(0.07, 0.07, 0.07), Color(0.85, 0.15, 0.1))   # bouchon
+			var seau := MeshInstance3D.new()
+			var cs := CylinderMesh.new()
+			cs.top_radius = 0.17
+			cs.bottom_radius = 0.13
+			cs.height = 0.3
+			cs.cap_top = false
+			seau.mesh = cs
+			seau.material_override = _mat_acier()
+			seau.position = Vector3(0.4, 0.15, 0.25)
+			add_child(seau)
+			for k in PECHE_MAX:
+				var po := _part(Vector3(0.4 + (k - 1) * 0.06, 0.24 + k * 0.025, 0.25), Vector3(0.05, 0.03, 0.2), Color(0.55, 0.6, 0.62))
+				po.rotation.y = k * 0.9
+				poissons.append(po)
+			minuteur = randf_range(0.0, 60.0)
+			_maj_visuel_stock()
+			_shape(Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.9))
 		"piege_machoires":
 			# piège à mâchoires (Quaternius, CC0) : blesse et immobilise le premier zombie qui marche dessus ; [F] pour le réarmer
 			health = 80.0
@@ -321,6 +348,8 @@ func get_prompt() -> String:
 			return "[F] Récupérateur d'eau : %d / %d bouteilles%s" % [stock, EAU_MAX, " (il pleut)" if Game.pluie > 0.3 else ""]
 		"sechoir":
 			return "[F] Séchoir à viande : %d / %d sèche(s)" % [secs, stock] if stock > 0 else "[F] Séchoir à viande : mettre de la viande crue à sécher"
+		"canne_peche":
+			return "[F] Ligne de pêche : %d / %d poisson(s)" % [stock, PECHE_MAX] if stock > 0 else "Ligne de pêche (rien pour l'instant : les poissons mordent quand personne ne rôde)"
 		"piege_machoires":
 			return "Piège à mâchoires (armé)" if armee else "[F] Réarmer le piège à mâchoires"
 		"lit":
@@ -355,6 +384,24 @@ var armee := true                    # piège à mâchoires armé
 var machoires: Node3D = null
 var niveau_eau: MeshInstance3D = null
 var lanieres: Array = []
+const PECHE_MAX := 3                # poissons gardés dans le seau
+const PECHE_DUREE := 240.0          # secondes (au calme) par poisson
+var poissons: Array = []
+
+
+## Refus de pose propre à certains objets ("" = accepté) ; appelé par player._update_placement.
+static func refus_pose(k: String, pt: Vector3) -> String:
+	if k != "canne_peche" or Game.relief == null:
+		return ""
+	var r = Game.relief
+	if r.dans_eau(pt.x, pt.z) and r.hauteur(pt.x, pt.z) < r.NIVEAU_EAU - 0.5:
+		return "Trop profond : plante la ligne sur la rive."
+	for d in [1.5, 3.5, 6.0]:
+		for a in 12:
+			var ang := a * TAU / 12.0
+			if r.dans_eau(pt.x + cos(ang) * d, pt.z + sin(ang) * d):
+				return ""
+	return "Il faut de l'eau à moins de 6 m (rivière, lac, mare)."
 
 
 func _maj_visuel_stock() -> void:
@@ -366,6 +413,8 @@ func _maj_visuel_stock() -> void:
 		la.visible = k < stock
 		if la.visible:
 			(la.material_override as StandardMaterial3D).albedo_color = Color(0.32, 0.17, 0.1) if k < secs else Color(0.6, 0.16, 0.13)
+	for k in poissons.size():
+		poissons[k].visible = k < stock
 	if machoires:
 		machoires.scale.y = 1.1 if armee else 0.5
 
@@ -376,6 +425,16 @@ func _maj_lent(delta: float) -> void:
 		minuteur += delta * Game.pluie
 		if minuteur >= PLUIE_PAR_BOUTEILLE:
 			minuteur = 0.0
+			stock += 1
+			_maj_visuel_stock()
+	elif kind == "canne_peche" and stock < PECHE_MAX:
+		# comme le collet : ça ne mord que si personne ne rôde (joueur à plus de 20 m)
+		var p = Game.player
+		if p and global_position.distance_squared_to(p.global_position) < 400.0:
+			return
+		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.3 if Game.pluie > 0.3 else 1.0)
+		if minuteur >= PECHE_DUREE:
+			minuteur = randf_range(-60.0, 30.0)
 			stock += 1
 			_maj_visuel_stock()
 	elif kind == "sechoir" and secs < stock:
@@ -412,6 +471,14 @@ func _interagir_stock(player: Node) -> void:
 				Game.msg("Il faut de la viande crue à faire sécher.")
 				return
 			Game.play_ui("fouille", -6.0, 0.1, 0.9)
+		"canne_peche":
+			if stock <= 0:
+				Game.msg("Rien n'a mordu : les poissons viennent quand personne ne rôde autour.")
+				return
+			player.add_item("poisson_cru", stock)
+			player.prog.gagner("chasse", 6 * stock)
+			stock = 0
+			Game.play_ui("fouille", -6.0, 0.1, 1.1)
 		"piege_machoires":
 			if not armee:
 				armee = true
@@ -464,7 +531,7 @@ func _maj_projecteur() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if kind == "recuperateur_eau" or kind == "sechoir":
+	if kind == "recuperateur_eau" or kind == "sechoir" or kind == "canne_peche":
 		_maj_lent(delta)
 		return
 	if lapin_pris:
@@ -527,7 +594,7 @@ func interact(player: Node) -> void:
 		player.open_inventory()
 	elif kind == "lit":
 		player.dormir(self)
-	elif kind in ["recuperateur_eau", "sechoir", "piege_machoires"]:
+	elif kind in ["recuperateur_eau", "sechoir", "piege_machoires", "canne_peche"]:
 		_interagir_stock(player)
 	elif kind == "collet" and lapin_pris.visible:
 		lapin_pris.visible = false

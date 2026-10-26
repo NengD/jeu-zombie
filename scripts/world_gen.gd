@@ -4440,6 +4440,8 @@ func _decharge(p: Vector3) -> void:
 ## Avant le relief : vergers, vignes, champs de maïs (cachette), marais près de la rivière, carrière et deuxième grotte.
 ## Après le relief : épaves dans les fossés, feux de camp abandonnés, cachettes de survivants, nids de zombies.
 var vergers: Array = []   # Rect2 : arbres fruitiers (feuillus seulement)
+var vignobles: Array = []   # centres des vignobles (rangs recalculés par cueillette.gd)
+var champs_mais: Array = []   # Rect2 des champs de maïs (cueillette.gd)
 
 
 func _nature_plan() -> void:
@@ -4495,6 +4497,7 @@ func _dans_verger(p: Vector3) -> bool:
 
 
 func _vignoble(p: Vector3) -> void:
+	vignobles.append(p)
 	_reserve(Rect2(p.x - 36.0, p.z - 26.0, 72.0, 52.0), Color(0.42, 0.3, 0.38, 0.6))
 	_flat(Rect2(p.x - 34.0, p.z - 14.0, 68.0, 38.0), 0.012, Color(0.85, 0.78, 0.7), "terre")
 	var vert := Color(0.3, 0.42, 0.18)
@@ -4519,6 +4522,7 @@ func _mais(p: Vector3) -> void:
 	var r := Rect2(p.x - 25.0, p.z - 20.0, 50.0, 40.0)
 	_reserve(Rect2(p.x - 27.0, p.z - 22.0, 54.0, 44.0), Color(0.75, 0.68, 0.25, 0.7))
 	champs.append(r)
+	champs_mais.append(r)
 	_flat(r, 0.012, Color(0.85, 0.78, 0.7), "terre")
 	var x := r.position.x + 0.8
 	while x < r.end.x:

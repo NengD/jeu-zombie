@@ -68,6 +68,11 @@ func _ready() -> void:
 	add_child(recolte)
 	recolte.installer(world)
 	Game.recolte = recolte
+	var cueillette = preload("res://scripts/cueillette.gd").new()   # pommiers, vignes, maïs ([F] une fois par jour)
+	cueillette.name = "Cueillette"
+	add_child(cueillette)
+	cueillette.installer(world)
+	recolte.cueillette = cueillette
 	zombies_root = Node3D.new()
 	zombies_root.name = "Zombies"
 	add_child(zombies_root)

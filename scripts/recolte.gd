@@ -3,12 +3,13 @@ extends Node3D
 ##  - hache : arbres (plusieurs coups, l'arbre tombe puis disparaît, il reste une souche) -> bûches ;
 ##  - pioche : rochers (ils se brisent) -> pierres, parfois du minerai de fer ou de la ferraille ;
 ##  - hache ou pioche : épaves de voitures (démontées puis vidées) -> ferraille, pièces auto, pneus, batterie…
+## Clé à molette (en main ou dans le sac) : épaves démontées en moins de coups (x0,6), plus de pièces (+40 %).
 ## Rien ne repousse : la carte compte des milliers d'arbres et de rochers et des centaines d'épaves, et ce qui
 ## a été coupé / cassé / vidé reste ainsi cohérent d'une partie à l'autre. L'état est mémorisé par numéro
 ## (ordre de génération : même graine = mêmes numéros) et sauvegardé (`etat()` / `appliquer()`).
 
 const Decor = preload("res://scripts/decor.gd")
-const OUTILS := ["hache", "pioche"]
+const OUTILS := ["hache", "pioche", "cle_molette"]   # clé à molette : épaves seulement (démontage plus rapide et plus rentable)
 const CASE := 8.0
 const DUREE_CHUTE := 1.6
 
@@ -17,6 +18,7 @@ var index := {}                 # Vector2i -> [[genre, n°], …]  (genre : "a" 
 var coups := {}                 # "a12" -> coups déjà portés
 var faits := {"a": {}, "r": {}, "e": {}}   # n° -> true (coupé, cassé, vidé)
 var chutes: Array = []          # arbres en train de tomber {i, t, axe}
+var cueillette: Node = null     # cueillette.gd (son état est sauvegardé avec celui de la récolte, clé "c")
 
 
 func installer(w: Node) -> void:
@@ -90,6 +92,11 @@ func _niv(joueur: Node, genre: String) -> int:
 	return int(joueur.prog.comp[c].niv) + (2 if c == "survie" and joueur.prog.a("bucheron") else 0) + (2 if c == "fabrication" and joueur.prog.a("mecanicien") else 0)
 
 
+## Clé à molette en main ou dans l'inventaire (démontage des épaves).
+static func avec_cle(joueur: Node, outil: String) -> bool:
+	return outil == "cle_molette" or (joueur != null and joueur.has_method("count") and joueur.count("cle_molette") > 0)
+
+
 func _coups_requis(genre: String, i: int, outil: String, niv := 0) -> int:
 	return maxi(2, int(round(_coups_base(genre, i, outil) * moins_de_coups(niv))))
 
@@ -119,7 +126,7 @@ func frapper(pos: Vector3, dir: Vector3, outil: String, joueur: Node) -> bool:
 		Game.play_ui("coup", -4.0, 0.1, 0.8)
 		return true
 	if genre == "r" and outil != "pioche":
-		Game.msg("La hache rebondit sur la pierre : il faut une pioche.")
+		Game.msg("Ça rebondit sur la pierre : il faut une pioche.")
 		Game.play_ui("impact_metal", -6.0, 0.1, 0.7)
 		return true
 	var cle := genre + str(i)
@@ -127,6 +134,10 @@ func frapper(pos: Vector3, dir: Vector3, outil: String, joueur: Node) -> bool:
 	var niv := _niv(joueur, genre)
 	var requis := _coups_requis(genre, i, outil, niv)
 	var bonus := plus_de_ressources(niv)
+	var cle_ok := genre == "e" and avec_cle(joueur, outil)
+	if cle_ok:
+		requis = maxi(2, int(round(requis * 0.6)))
+		bonus *= 1.4
 	coups[cle] = n
 	Game.make_noise(pos, 14.0)
 	match genre:
@@ -169,7 +180,7 @@ func frapper(pos: Vector3, dir: Vector3, outil: String, joueur: Node) -> bool:
 			_donner(joueur, "piece_auto", _qte(randi_range(1, 2) * bonus))
 			if randf() < 0.5 * bonus:
 				_donner(joueur, "pneu", 1)
-			if randf() < 0.35:
+			if randf() < (0.55 if cle_ok else 0.35):
 				_donner(joueur, "batterie", 1)
 			if randf() < 0.25:
 				_donner(joueur, "essence", 1)
@@ -281,10 +292,12 @@ func _eclats(pos: Vector3, dir: Vector3, col: Color, nb: int, taille := 0.05) ->
 
 # ================================================================ sauvegarde
 func etat() -> Dictionary:
-	return {"a": faits.a.keys(), "r": faits.r.keys(), "e": faits.e.keys()}
+	return {"a": faits.a.keys(), "r": faits.r.keys(), "e": faits.e.keys(), "c": cueillette.etat() if cueillette else {}}
 
 
 func appliquer(d: Dictionary) -> void:
+	if cueillette and d.get("c") is Dictionary:
+		cueillette.appliquer(d.c)
 	for genre in ["a", "r", "e"]:
 		for v in d.get(genre, []):
 			var i := int(v)
