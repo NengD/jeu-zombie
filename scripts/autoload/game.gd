@@ -449,7 +449,7 @@ func _appliquer_rendu() -> void:
 			RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, RenderingServer.SHADOW_QUALITY_SOFT_HIGH][qualite]
 	RenderingServer.directional_soft_shadow_filter_set_quality(ombres)
 	RenderingServer.positional_soft_shadow_filter_set_quality(ombres)
-	RenderingServer.directional_shadow_atlas_set_size([2048, 4096, 4096, 8192][qualite], true)
+	RenderingServer.directional_shadow_atlas_set_size([2048, 4096, 4096, 4096][qualite], true)   # 8192 en Ultra : +1,5 à 2 ms GPU pour une différence invisible
 	vp.positional_shadow_atlas_size = [2048, 4096, 4096, 8192][qualite]
 
 

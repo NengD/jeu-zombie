@@ -31,7 +31,8 @@ var lunge := 0.0
 var dormant := false
 var dormant_t := 0.0
 var lod_loin := false         # loin du joueur et calme : logique allégée
-var lod_saut := randf() < 0.5  # loin et calme : une image physique sur deux (alternance)
+var lod_n := randi() % 6        # loin et calme : compteur d'images physiques (une sur lod_pas)
+var lod_pas := 1
 var steer_t := 0.0
 var steer_cache := Vector3.ZERO
 var anim_acc := 0.0           # temps d'animation en attente (animation allégée au loin)
@@ -397,12 +398,15 @@ func _physics_process(delta: float) -> void:
 		return
 	# niveau de détail : au-delà de 35 m et sans poursuite, logique allégée
 	lod_loin = dist > 35.0 and state != State.CHASE
-	# loin et calme : une image physique sur deux, pas de temps doublé (moitié moins de move_and_slide)
+	# loin et calme : une image physique sur 2 (sur 3 au-delà de 60 m), pas de temps multiplié d'autant
+	lod_pas = 1
 	if lod_loin:
-		lod_saut = not lod_saut
-		if lod_saut:
+		lod_n += 1
+		var pas := 3 if dist > 60.0 else 2
+		if lod_n % pas != 0:
 			return
-		delta *= 2.0
+		lod_pas = pas
+		delta *= pas
 	steer_t -= delta
 	# immobile, posé au sol, rien à faire : pas de calcul de déplacement cette image
 	if lod_loin and is_on_floor() and Vector2(velocity.x, velocity.z).length() < 0.05 and _flat_dist(target, global_position) < 0.7:
@@ -452,10 +456,10 @@ func _physics_process(delta: float) -> void:
 	var face := desired if desired.length() > 0.1 else to_goal
 	if face.length() > 0.1:
 		rotation.y = lerp_angle(rotation.y, atan2(-face.x, -face.z), 7.0 * delta)
-	if lod_loin:
-		velocity *= 2.0   # move_and_slide avance d'un pas physique : vitesse doublée pour une image sautée
+	if lod_pas > 1:
+		velocity *= lod_pas   # move_and_slide avance d'un pas physique : vitesse multipliée pour les images sautées
 		move_and_slide()
-		velocity *= 0.5
+		velocity /= lod_pas
 	else:
 		move_and_slide()
 	# coincé ?

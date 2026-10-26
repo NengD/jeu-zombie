@@ -109,11 +109,40 @@ static func _creer_modulaire(a: Dictionary) -> Node3D:
 			m3.material_overlay = sang_mat
 			m3.set_instance_shader_parameter("sang", a.sang if zombie else 0.0)
 			m3.set_instance_shader_parameter("graine", a.graine)
+	_fusionner_mains(n, id)
 	if a.has("equipement"):
 		load("res://scripts/equipement_visuel.gd").appliquer(n, a.equipement)
 	else:
 		_equiper_pnj(n, id, a.get("type", ""), r)
 	return n
+
+
+## Pouce fusionné dans le poing (un maillage par main au lieu de deux : -2 appels de rendu par personnage,
+## plus leurs ombres). Maillages fusionnés en cache par modèle et par main.
+static var _mains := {}
+
+static func _fusionner_mains(n: Node3D, id: String) -> void:
+	for cote in ["_l", "_r"]:
+		var ba := n.find_child("MainSimple" + cote, true, false)
+		if ba == null:
+			continue
+		var poing: MeshInstance3D = ba.get_node_or_null("Poing")
+		var pouce: MeshInstance3D = ba.get_node_or_null("Pouce")
+		if poing == null or pouce == null:
+			continue
+		var cle: String = id + cote
+		if not _mains.has(cle):
+			var st := SurfaceTool.new()
+			st.append_from(poing.mesh, 0, Transform3D.IDENTITY)
+			st.append_from(pouce.mesh, 0, poing.transform.affine_inverse() * pouce.transform)
+			var m := st.commit()
+			m.surface_set_material(0, poing.mesh.surface_get_material(0))
+			_mains[cle] = m
+		var mat := poing.get_surface_override_material(0)
+		poing.mesh = _mains[cle]
+		poing.set_surface_override_material(0, mat)
+		ba.remove_child(pouce)
+		pouce.free()
 
 
 ## Tenues de métier : modèle + couleurs par matériau (« maillage:matériau » ou « matériau ») + équipement visible.

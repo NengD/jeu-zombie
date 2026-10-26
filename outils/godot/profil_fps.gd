@@ -16,7 +16,7 @@ func _attendre(n: int) -> void:
 		await process_frame
 
 
-## [image, process, physique, rendu CPU, GPU] en ms, médianes sur n images
+## [image, process, physique, rendu CPU, GPU] en ms, médianes sur n images (process et physique : Godot donne le maximum de la dernière seconde, seule « image » est fiable)
 func _mesure(n: int) -> Array:
 	var cols := [[], [], [], [], []]
 	var t := Time.get_ticks_usec()

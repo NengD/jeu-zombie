@@ -57,7 +57,7 @@ func _go():
 			cpu += RenderingServer.viewport_get_measured_render_time_cpu(vp) + RenderingServer.get_frame_setup_time_cpu()
 			gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
 		var fps := 240.0 / ((Time.get_ticks_usec() - t0) / 1000000.0)
-		var info := " | process %.1f ms, physique %.1f ms, rendu CPU %.1f ms, GPU %.1f ms" % [proc / 0.24, phys / 0.24, cpu / 240.0, gpu / 240.0]
+		var info := " | pics (max sur 1 s) process %.1f ms, physique %.1f ms | rendu CPU %.1f ms, GPU %.1f ms" % [proc / 0.24, phys / 0.24, cpu / 240.0, gpu / 240.0]
 		info += " | objets %d, appels %d, mémoire vidéo %d Mo" % [
 			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
