@@ -94,7 +94,7 @@ const TOUCHES_MODIFIABLES := [["avancer", "Avancer"], ["reculer", "Reculer"], ["
 	["sprint", "Sprinter"], ["sauter", "Sauter"], ["accroupir", "S'accroupir"], ["pencher_gauche", "Se pencher à gauche"], ["pencher_droite", "Se pencher à droite"],
 	["tirer", "Frapper / tirer"], ["viser", "Viser / parer"], ["recharger", "Recharger"], ["interagir", "Fouiller / utiliser"], ["soigner", "Se soigner"],
 	["inventaire", "Inventaire"], ["carte", "Carte"], ["lampe", "Lampe"], ["inspecter", "Inspecter l'arme"], ["construire", "Mode construction"],
-	["ameliorer", "Renforcer / réparer"], ["demonter", "Démonter une pièce"], ["competences", "Personnage"]]
+	["ameliorer", "Renforcer / réparer"], ["demonter", "Démonter une pièce"], ["competences", "Personnage"], ["etat", "État du survivant"]]
 const NOMS_QUALITE := ["Bas", "Moyen", "Élevé", "Ultra"]
 signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
@@ -260,6 +260,7 @@ func _setup_inputs() -> void:
 	_key("ameliorer", KEY_G)
 	_key("demonter", KEY_X)
 	_key("competences", KEY_K)
+	_key("etat", KEY_J)
 	_phys("admin_panneau", KEY_F2)
 	_key("admin_vol", KEY_N)
 	_phys("sauvegarde_rapide", KEY_F5)

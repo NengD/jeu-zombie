@@ -2981,6 +2981,7 @@ func _risque_intoxication(cause: String, k := 1.0) -> void:
 	if randf() < risque:
 		var deja := maladie > 0.0
 		maladie = minf(MALADIE_DUREE * 1.6, maladie + (120.0 if deja else MALADIE_DUREE))
+		causes["maladie"] = cause
 		nausee_t = randf_range(15.0, 30.0)
 		Game.msg(cause + " : tu te sens malade (intoxication)." if not deja else "Ton intoxication s'aggrave.")
 		Game.play_ui("douleur", -6.0, 0.1, 0.8)
@@ -3213,6 +3214,7 @@ var plaie_desinfectee := false
 var infection := 0.0
 var fracture := false
 var _palier_fievre := 0
+var causes := {}                    # cause de chaque état (saignement, fracture, infection, maladie) pour l'écran État (etat_ui.gd)
 
 
 func risque_saignement() -> float:
@@ -3235,6 +3237,7 @@ func _blessures_coup(subi: float, from: Node) -> void:
 			_mordu()
 			return
 	if randf() < (0.25 if from.is_in_group("zombies") else 0.35) * protege * risque_saignement():
+		causes["saignement"] = "coup de zombie" if from.is_in_group("zombies") else ("blessure par balle" if from.is_in_group("bandits") else "morsure ou coup d'un animal")
 		_saigner(60.0 + subi * 2.0)
 
 
@@ -3245,6 +3248,7 @@ func _saigner(duree: float) -> void:
 
 
 func _mordu() -> void:
+	causes["saignement"] = "morsure de zombie"
 	_saigner(90.0)
 	morsure_risque = minf(0.5, (morsure_risque if morsure_t > 0.0 else 0.0) + risque_morsure())
 	morsure_t = MORSURE_DELAI
@@ -3256,6 +3260,7 @@ func _casser(cause: String) -> void:
 	if fracture:
 		return
 	fracture = true
+	causes["fracture"] = cause
 	secousse = maxf(secousse, 1.0)
 	Game.play_ui("douleur", 0.0, 0.1, 0.85)
 	Game.msg(cause + " : fracture ! Tu boites ; pose une attelle [H].")
@@ -3285,6 +3290,7 @@ func _maj_blessures(delta: float) -> void:
 			morsure_t = 0.0
 			if randf() < morsure_risque * (0.3 if plaie_desinfectee else 1.0):
 				infection = 1.0
+				causes["infection"] = "morsure de zombie non soignée"
 				_palier_fievre = 0
 				Game.msg("La morsure s'infecte : tu as de la fièvre. Il te faut des antibiotiques.")
 			else:

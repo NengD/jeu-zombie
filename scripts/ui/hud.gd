@@ -296,6 +296,7 @@ func _ready() -> void:
 	var degats = preload("res://scripts/ui/degats_ui.gd").new()
 	degats.hud = self
 	root.add_child(degats)
+	add_child(preload("res://scripts/ui/etat_ui.gd").new())   # écran État du survivant (touche J)
 	Game.player_died.connect(_on_death)
 
 
@@ -512,6 +513,8 @@ func _etat_blessures(p) -> String:
 		t += "\n❄ Frais"
 	elif p.pres_feu and p.froid > 0.5:
 		t += "\nAu chaud près du feu"
+	if t != "" or p.maladie > 0.0:
+		t += "\n[%s] détails" % Game.texte_touche("etat")
 	return t
 
 

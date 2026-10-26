@@ -22,6 +22,7 @@ const TOUCHES := [
 	["Renforcer / réparer une pièce", "G"],
 	["Démonter une pièce", "X"],
 	["Personnage : arbre de compétences", "K"],
+	["État du survivant (blessures, froid, soins)", "J"],
 	["Pause", "Échap"],
 	["Sauvegarde rapide / chargement", "F5 / F9"],
 	["Aide en jeu", "F1"],
@@ -180,6 +181,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Une grosse chute (plus de 5 m) ou le coup d'un gros zombie peut te casser la jambe : tu boites, ne cours plus et sautes moins haut
   tant que tu n'as pas posé d'[b]attelle[/b] (1 planche + 2 tissus, à la main).
 • [H] choisit tout seul le soin le plus utile. Les états (saignement, infection, fracture, froid) s'affichent sous l'heure.
+• [J] ouvre l'écran [b]État du survivant[/b] : chaque état avec sa valeur, sa cause, ses effets et le soin conseillé (et si tu l'as),
+  une silhouette avec les zones touchées, et les effets actifs (vêtements chauds, feu proche, abri). [H] y applique le soin conseillé.
 
 [b]EAU ET FROID[/b]
 • Face à un lac ou à la rivière, [F] pour boire (l'eau n'est pas potable : risque de maladie) ou, avec une bouteille vide,
