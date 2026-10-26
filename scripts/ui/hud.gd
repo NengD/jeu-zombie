@@ -172,6 +172,7 @@ var boss_barre: ProgressBar
 func _ready() -> void:
 	layer = 5
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_to_group("sauvegarde_auto")   # player.dormir : sauvegarde au réveil
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -272,7 +273,7 @@ func _ready() -> void:
 	help_panel = _panel(_help_text(), Vector2(620, 0))
 	help_panel.visible = false
 	pause_panel = _menu_panel("PAUSE", [["Reprendre", _resume], ["Sauvegarder (F5)", _sauver], ["Charger la sauvegarde (F9)", _charger], ["Commandes (F1)", _toggle_help], ["Paramètres", _ouvrir_parametres], ["Sauvegarder et menu principal", _sauver_menu], ["Quitter le jeu", _quit]])
-	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
+	death_panel = _menu_panel("TU ES MORT", [["Charger la dernière sauvegarde", _charger], ["Charger la sauvegarde automatique", _charger_auto], ["Nouvelle partie", _restart], ["Menu principal", Game.go_to_menu], ["Quitter le jeu", _quit]])
 	# niveau et XP (au-dessus de la barre rapide)
 	lbl_niveau = _label("", 15)
 	lbl_niveau.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -361,6 +362,7 @@ func _process(delta: float) -> void:
 	var vs := root.get_viewport_rect().size
 	var p = Game.player
 	_layout(vs)
+	_maj_sauvegarde_auto(delta)
 	# caché dans un buisson : les zombies te voient beaucoup moins
 	# (ou soin en cours : objet et temps restant)
 	lbl_cache.visible = p.alive and not Game.ui_open and (p.cache_buisson or p.soin_t > 0.0 or p.fab_n > 0)
@@ -683,6 +685,49 @@ func _charger() -> void:
 		Game.charger_partie()
 	else:
 		Game.msg("Aucune sauvegarde.")
+
+
+func _charger_auto() -> void:
+	if Sauvegarde.existe(Sauvegarde.FICHIER_AUTO):
+		Game.charger_partie(Sauvegarde.FICHIER_AUTO)
+	else:
+		Game.msg("Aucune sauvegarde automatique.")
+
+
+# ================================================================ sauvegarde automatique
+## Toutes les 10 minutes, au réveil (player.dormir) et en entrant dans un camp de marchands ;
+## fichier séparé de F5 (Sauvegarde.FICHIER_AUTO), proposé dans le menu de mort.
+const AUTO_DELAI := 600.0
+const RAYON_CAMP_AUTO := 16.0      # plus grand camp de marchands : 14 m
+var auto_t := AUTO_DELAI
+var _dans_camp := true             # pas de sauvegarde au chargement d'une partie commencée dans un camp
+var _camp_t := 2.0
+
+
+func _maj_sauvegarde_auto(delta: float) -> void:
+	var p = Game.player
+	if get_tree().paused or Game.admin or p == null or not p.alive:
+		return
+	auto_t -= delta
+	if auto_t <= 0.0:
+		sauvegarde_auto()
+	_camp_t -= delta
+	if _camp_t <= 0.0:
+		_camp_t = 1.0
+		var m: Dictionary = Game.marchand_proche(p.global_position)
+		var dedans := not m.is_empty() and Vector2(m.pos.x - p.global_position.x, m.pos.z - p.global_position.z).length() < RAYON_CAMP_AUTO
+		if dedans and not _dans_camp:
+			sauvegarde_auto("camp de marchands")
+		_dans_camp = dedans
+
+
+func sauvegarde_auto(raison := "") -> void:
+	auto_t = AUTO_DELAI
+	if Game.admin or Game.player == null or not Game.player.alive:
+		return
+	var m := get_tree().current_scene
+	if m and m.get("world") and Sauvegarde.sauver(m, Sauvegarde.FICHIER_AUTO):
+		Game.msg("Sauvegarde automatique" + (" (%s)." % raison if raison != "" else "."))
 
 
 func _restart() -> void:

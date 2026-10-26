@@ -451,8 +451,14 @@ func _stats_talents(pr, s: Dictionary) -> void:
 	s["Montée de la fièvre (infection)"] = oui_non.call("medecin", "×0,5", "×1")
 	s["Risque d'infection d'une morsure"] = pc.call(maxf(0.04, 0.12 - 0.004 * int(pr.comp.survie.niv)))
 	s["Risque de saignement"] = oui_non.call("seconde_peau", "×0,5", "×1")
-	s["Refroidissement (sans vêtements)"] = pc.call((0.7 if pr.a("seconde_peau") else 1.0) * (1.0 - 0.02 * int(pr.comp.survie.niv)))
-	s["Usure effacée par un kit de réparation"] = pc.call(minf(0.95, 0.5 + 0.03 * int(pr.comp.fabrication.niv)))
+	s["Refroidissement (sans vêtements)"] = pc.call((0.7 if pr.a("endurci") else 1.0) * (1.0 - 0.02 * int(pr.comp.survie.niv)))
+	s["Usure effacée par un kit de réparation"] = pc.call(minf(1.0, (0.5 + 0.03 * int(pr.comp.fabrication.niv)) * (1.25 if pr.a("bricoleur") else 1.0)))
+	s["Usure des armes et outils"] = oui_non.call("bricoleur", "×0,7", "×1")
+	s["Durée des soins"] = "×%.2f" % ((0.75 if pr.a("soigneur") else 1.0) * (0.7 if pr.a("premiers_secours") else 1.0))
+	s["Arrêt naturel d'un saignement"] = oui_non.call("premiers_secours", "×2 plus vite", "×1")
+	s["Cueillette"] = oui_non.call("cueilleur", "+50 %", "+0 %")
+	s["Pêche : temps par poisson"] = oui_non.call("pecheur", "÷1,6", "×1")
+	s["Pêche : poissons gardés par ligne"] = oui_non.call("pecheur", "+2", "+0")
 	s["Sommeil : santé par heure"] = oui_non.call("sommeil", "10 et toute l'endurance", "5")
 	s["Blessure mortelle"] = oui_non.call("increvable", "survie à 15 de santé une fois par jour", "mort")
 	s["Niveau de récolte des arbres et rochers"] = str(int(pr.comp.survie.niv) + (2 if pr.a("bucheron") else 0))
@@ -522,7 +528,7 @@ const ICONES := {
 	"fouilleur": "caisse_stockage", "curieux": "lunettes", "discret": "@pas", "poches": "sac_toile", "coureur": "@eclair",
 	"chanceux": "@etoile", "ombre": "@lune", "poches2": "sac_militaire", "marathonien": "eau", "marchandage": "@piece",
 	"vue_percante": "@oeil", "infatigable": "sac_randonnee", "pied_leger": "@pas",
-	"regeneration": "@coeur", "bucheron": "buche", "endurci": "@eclair", "frugal": "ration", "sommeil": "@lune",
+	"regeneration": "@coeur", "bucheron": "buche", "endurci": "@eclair", "bricoleur": "kit_reparation", "premiers_secours": "attelle", "cueilleur": "pomme", "pecheur": "canne_peche", "frugal": "ration", "sommeil": "@lune",
 	"adrenaline": "@coeur", "estomac": "viande_crue", "medecin": "antidouleur", "vigueur": "@coeur", "chameau": "eau",
 	"seconde_peau": "veste_cuir", "increvable": "@crane", "survivant_ne": "@etoile", "constitution": "@bouclier",
 	"archer": "arc", "depeceur": "couteau_km2000", "tension_rapide": "arc", "pisteur": "@oeil", "tanneur": "cuir",

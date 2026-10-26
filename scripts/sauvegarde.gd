@@ -5,35 +5,37 @@ extends RefCounted
 ## ce qui a changé : joueur, meubles fouillés, objets posés, tas au sol, zombies, heure.
 
 const FICHIER := "user://sauvegarde.json"
+const FICHIER_AUTO := "user://sauvegarde_auto.json"   # sauvegarde automatique (réveil, camp de marchands, 10 min), séparée de F5
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Placeable = preload("res://scripts/placeable.gd")
 const Construction = preload("res://scripts/construction.gd")
 
 
-static func existe() -> bool:
-	return not lire().is_empty()
+static func existe(fichier := FICHIER) -> bool:
+	return not lire(fichier).is_empty()
 
 
 ## Résumé affiché dans le menu : « Jour 3 — 14:20 (sauvegardé le …) ».
-static func resume() -> String:
-	var d := lire()
+static func resume(fichier := FICHIER) -> String:
+	var d := lire(fichier)
 	if d.is_empty():
 		return ""
 	var h := float(d.get("heure", 8.0))
 	return "Jour %d — %02d:%02d   (sauvegardée le %s)" % [int(d.get("jour", 1)), int(h), int(fmod(h, 1.0) * 60.0), d.get("date", "?")]
 
 
-static func lire() -> Dictionary:
-	if not FileAccess.file_exists(FICHIER):
+static func lire(fichier := FICHIER) -> Dictionary:
+	if not FileAccess.file_exists(fichier):
 		return {}
-	var d = JSON.parse_string(FileAccess.get_file_as_string(FICHIER))
+	var d = JSON.parse_string(FileAccess.get_file_as_string(fichier))
 	# les sauvegardes d'avant le relief (collines, lacs) ne correspondent plus à la carte
 	return d if d is Dictionary and int(d.get("version", 1)) >= 3 else {}
 
 
 static func supprimer() -> void:
-	if existe():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(FICHIER))
+	for f in [FICHIER, FICHIER_AUTO]:
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 
 
 # ================================================================ conversion grilles
@@ -83,7 +85,7 @@ static func _vd(a) -> Vector3:
 
 
 # ================================================================ sauvegarde
-static func sauver(main: Node) -> bool:
+static func sauver(main: Node, fichier := FICHIER) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
 		return false
@@ -150,7 +152,7 @@ static func sauver(main: Node) -> bool:
 	d["portes"] = ouvertes
 	d["marqueurs"] = Game.marqueurs
 	d["lieux_fouilles"] = Game.lieux_fouilles.keys()
-	var f := FileAccess.open(FICHIER, FileAccess.WRITE)
+	var f := FileAccess.open(fichier, FileAccess.WRITE)
 	if f == null:
 		return false
 	f.store_string(JSON.stringify(d))

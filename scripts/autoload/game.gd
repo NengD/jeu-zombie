@@ -454,8 +454,8 @@ func _appliquer_rendu() -> void:
 
 
 ## Reprend la partie sauvegardée.
-func charger_partie() -> void:
-	partie_a_charger = Sauvegarde.lire()
+func charger_partie(fichier := Sauvegarde.FICHIER) -> void:
+	partie_a_charger = Sauvegarde.lire(fichier)
 	admin = false
 	get_tree().paused = false
 	ui_open = false

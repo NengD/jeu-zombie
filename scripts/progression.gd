@@ -92,7 +92,7 @@ const TALENTS := {
 	# --- survie (XP : récolte, manger, boire, se soigner, encaisser des coups)
 	"regeneration": {"comp": "survie", "br": "survie", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Régénération", "desc": "La santé remonte deux fois plus vite quand tu es nourri et hydraté."},
 	"bucheron": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": 1, "niv": 2, "nom": "Bûcheron", "desc": "Arbres et rochers : récolte comme avec 2 niveaux de survie de plus."},
-	"endurci": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": 0, "niv": 3, "nom": "Endurci", "desc": "L'endurance remonte 25 % plus vite."},
+	"endurci": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": 0, "niv": 3, "nom": "Endurci", "desc": "L'endurance remonte 25 % plus vite et tu crains moins le froid (-30 %)."},
 	"frugal": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": -1, "niv": 2, "nom": "Frugal", "desc": "La faim et la soif baissent 15 % moins vite."},
 	"sommeil": {"comp": "survie", "br": "survie", "apres": "bucheron", "d": 3, "l": 1, "niv": 4, "nom": "Sommeil réparateur", "desc": "Dormir rend deux fois plus de santé et toute l'endurance."},
 	"adrenaline": {"comp": "survie", "br": "survie", "apres": "endurci", "d": 3, "l": 0, "niv": 5, "nom": "Adrénaline", "desc": "Sous 25 % de santé : +20 % de dégâts et de vitesse."},
@@ -100,7 +100,7 @@ const TALENTS := {
 	"medecin": {"comp": "survie", "br": "survie", "apres": "sommeil", "d": 4, "l": 1, "niv": 7, "nom": "Guérison", "desc": "Les maladies guérissent deux fois plus vite et la fièvre d'une infection monte deux fois moins vite."},
 	"vigueur": {"comp": "survie", "br": "survie", "apres": "adrenaline", "d": 4, "l": 0, "niv": 6, "nom": "Vigueur", "desc": "+20 de santé max."},
 	"chameau": {"comp": "survie", "br": "survie", "apres": "estomac", "d": 4, "l": -1, "niv": 9, "nom": "Chameau", "desc": "La soif baisse encore 20 % moins vite."},
-	"seconde_peau": {"comp": "survie", "br": "survie", "apres": "medecin", "d": 5, "l": 1, "niv": 11, "nom": "Seconde peau", "desc": "Tu subis encore 10 % de dégâts en moins, saignes deux fois moins souvent et crains moins le froid (-30 %)."},
+	"seconde_peau": {"comp": "survie", "br": "survie", "apres": "medecin", "d": 5, "l": 1, "niv": 11, "nom": "Seconde peau", "desc": "Tu subis encore 10 % de dégâts en moins et saignes deux fois moins souvent."},
 	"increvable": {"comp": "survie", "br": "survie", "apres": "vigueur", "d": 5, "l": 0, "niv": 8, "nom": "Increvable", "desc": "Une fois par jour, une blessure mortelle te laisse à 15 de santé."},
 	"survivant_ne": {"comp": "survie", "br": "survie", "apres": "increvable", "d": 6, "l": 0, "niv": 13, "nom": "Survivant-né", "desc": "Faim et soif 10 % plus lentes, santé qui remonte 50 % plus vite."},
 	# --- chasse et arc (XP : flèches qui touchent, animaux tués, dépeçage, collets, cuisine au feu)
@@ -117,6 +117,11 @@ const TALENTS := {
 	"tir_mortel": {"comp": "chasse", "br": "chasse", "apres": "fleches_serie", "d": 5, "l": 0, "niv": 8, "nom": "Tir mortel", "desc": "Une flèche bandée à fond fait 50 % de dégâts en plus."},
 	"empenneur": {"comp": "chasse", "br": "chasse", "apres": "traqueur", "d": 5, "l": -1, "niv": 10, "nom": "Empenneur", "desc": "Fabriquer des flèches en donne 2 de plus."},
 	"silence": {"comp": "chasse", "br": "chasse", "apres": "tir_mortel", "d": 6, "l": 0, "niv": 12, "nom": "Chasseur fantôme", "desc": "Tirer à l'arc ne fait presque plus de bruit."},
+	# --- lot 2 : pêche, cueillette, réparation, premiers secours
+	"bricoleur": {"comp": "fabrication", "br": "fabrication", "apres": "rendement", "d": 6, "l": 1, "niv": 8, "nom": "Bricoleur", "desc": "Les armes et outils s'usent 30 % moins vite ; un kit de réparation répare 25 % de plus."},
+	"premiers_secours": {"comp": "survie", "br": "survie", "apres": "seconde_peau", "d": 6, "l": 1, "niv": 9, "nom": "Premiers secours", "desc": "Les saignements s'arrêtent deux fois plus vite d'eux-mêmes et les soins sont 30 % plus rapides."},
+	"cueilleur": {"comp": "survie", "br": "survie", "apres": "constitution", "d": 6, "l": -1, "niv": 8, "nom": "Cueilleur", "desc": "La cueillette (fruits, raisin, maïs) rapporte 50 % de plus."},
+	"pecheur": {"comp": "chasse", "br": "chasse", "apres": "empenneur", "d": 6, "l": -1, "niv": 8, "nom": "Pêcheur", "desc": "Les lignes de pêche prennent un poisson 1,6 fois plus vite et en gardent 2 de plus."},
 	# --- nœuds à plusieurs rangs (`rangs`) : 1 point par rang, +2 niveaux requis à chaque rang
 	"force": {"comp": "combat", "br": "melee", "apres": "parade_experte", "d": 6, "l": -1, "niv": 10, "rangs": 3, "nom": "Force", "desc": "+5 % de dégâts au corps à corps par rang."},
 	"calibre": {"comp": "combat", "br": "tir", "apres": "maitrise_rafale", "d": 6, "l": 1, "niv": 11, "rangs": 3, "nom": "Main de fer", "desc": "+5 % de dégâts avec les armes à feu par rang."},

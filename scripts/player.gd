@@ -755,6 +755,14 @@ func _update_camera(delta: float) -> void:
 	goupille_t = maxf(0.0, goupille_t - delta)
 	if hand_weapon and is_instance_valid(hand_weapon) and cwi.get("type", "") == "lancer":
 		hand_weapon.visible = not (lancer_t > 0.0 and lancer_t < LANCER_DUREE * 0.45)
+		# Molotov (méta « goulot ») : tenu comme une bouteille, goulot vers le ciel, sauf pendant l'élan du lancer
+		if hand_weapon.has_meta("goulot"):
+			if lancer_t <= 0.0 and goupille_t <= 0.0:
+				var avant := -global_basis.z
+				var b := Basis.looking_at(Vector3.UP, avant)   # -Z (goulot) vers le haut
+				hand_weapon.global_basis = b.scaled(hand_weapon.global_basis.get_scale())
+			else:
+				hand_weapon.rotation = Vector3(deg_to_rad(80), 0, 0)
 	# parade (clic droit avec une arme de mêlée)
 	var est_melee: bool = cwi.get("type", "") == "melee" or cw == "poings"
 	bloque = est_melee and aiming and melee_p >= 1.0 and placing == ""
@@ -2189,6 +2197,12 @@ func dormir(lit: Node3D = null) -> void:
 			if not mort and (z as Node3D).global_position.distance_to(global_position) < SOMMEIL_RAYON:
 				Game.msg("Impossible de dormir : il y a du danger tout près.")
 				return
+	if saignement > 0.0:
+		Game.msg("Impossible de dormir en saignant : arrête d'abord le saignement (bandage) [H].")
+		return
+	if infection >= 60.0:
+		Game.msg("Trop de fièvre pour dormir : prends des antibiotiques.")
+		return
 	var heures := fposmod(7.0 - Game.time_hours, 24.0)
 	var faim_h := 0.045 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.faim_mult()
 	var soif_h := 0.07 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.soif_mult()
@@ -2197,7 +2211,15 @@ func dormir(lit: Node3D = null) -> void:
 		return
 	hunger -= faim_h * heures
 	thirst -= soif_h * heures
-	health = minf(prog.sante_max(), health + (10.0 if prog.a("sommeil") else 5.0) * heures)
+	var s := heures * Game.DAY_SECONDS / 24.0     # secondes de jeu sautées
+	var froid_avant := froid
+	_passer_etats(s)
+	# le froid gâche le repos : moitié moins de santé au-dessus de 50, rien au-dessus de 80
+	var f := maxf(froid_avant, froid)
+	var k_repos := 0.0 if (f > 80.0 or infection >= 30.0) else (0.5 if f > 50.0 else 1.0)
+	health = minf(prog.sante_max(), health + (10.0 if prog.a("sommeil") else 5.0) * heures * k_repos)
+	if k_repos < 1.0:
+		Game.msg("Nuit agitée (%s) : tu récupères mal." % ("fièvre" if infection >= 30.0 else "froid"))
 	if prog.a("sommeil"):
 		stamina = prog.endurance_max()
 	stamina = prog.endurance_max()
@@ -2211,6 +2233,22 @@ func dormir(lit: Node3D = null) -> void:
 	Game.msg("Tu as dormi %d h. Jour %d, 07:00." % [roundi(heures), Game.day])
 	if lit:
 		geste("lit", lit)   # allongé un instant sur le lit, puis on se relève
+	# pièges, lignes de pêche, séchoirs… avancent du temps dormi ; puis sauvegarde automatique
+	get_tree().call_group("passe_temps", "passer_temps", s)
+	get_tree().call_group("sauvegarde_auto", "sauvegarde_auto", "réveil")
+
+
+## Temps sauté (sommeil) : morsure tirée, fièvre qui monte, intoxication qui passe, froid de la nuit.
+func _passer_etats(s: float) -> void:
+	var pas := 10.0
+	var t := 0.0
+	while t < s and alive:
+		var d := minf(pas, s - t)
+		_maj_blessures(d)
+		if maladie > 0.0:
+			maladie = maxf(0.0, maladie - d * (2.0 if prog.a("medecin") else 1.0))
+		froid = clampf(froid + bilan_temperature() * d, 0.0, 100.0)
+		t += d
 
 
 ## Verrouille / déverrouille une case de la barre rapide : verrouillée, elle garde son objet même
@@ -2332,7 +2370,7 @@ func _commencer_soin(id: String, entree = null, grille = null) -> bool:
 		Game.msg("Ta santé est déjà au maximum." if Items.info(id).get("type", "") == "heal" else "Pas de plaie à désinfecter.")
 		return false
 	var s: Array = SOINS.get(id, [0.8, float(Items.info(id).get("heal", 10.0))])
-	soin_total = float(s[0]) * (0.75 if prog.a("soigneur") else 1.0)
+	soin_total = float(s[0]) * (0.75 if prog.a("soigneur") else 1.0) * (0.7 if prog.a("premiers_secours") else 1.0)
 	soin_t = soin_total
 	soin_id = id
 	soin_entree = entree
@@ -3279,7 +3317,7 @@ func _chute(v: float) -> void:
 func _maj_blessures(delta: float) -> void:
 	var sans_degats := Game.admin and Game.admin_invincible
 	if saignement > 0.0:
-		saignement = maxf(0.0, saignement - delta)
+		saignement = maxf(0.0, saignement - delta * (2.0 if prog.a("premiers_secours") else 1.0))
 		if not sans_degats:
 			_hurt(SAIGNE_PV * delta)
 		if saignement <= 0.0:
@@ -3458,7 +3496,7 @@ func user(id: String, n := 1.0) -> void:
 		return
 	var m := durab_max(id)
 	var avant := float(e.get("us", 0.0))
-	e["us"] = minf(float(m), avant + n)
+	e["us"] = minf(float(m), avant + n * (0.7 if prog.a("bricoleur") else 1.0))
 	if e.us >= m:
 		Game.msg("%s : cassé ! Répare-le avec un kit de réparation (clic droit dans l'inventaire)." % Items.nom(id))
 		Game.play_ui("impact_metal", -4.0, 0.1, 0.7)
@@ -3466,9 +3504,9 @@ func user(id: String, n := 1.0) -> void:
 		Game.msg("%s : très usé." % Items.nom(id))
 
 
-## Part de l'usure effacée par un kit de réparation (50 % + 3 %/niveau de fabrication).
+## Part de l'usure effacée par un kit de réparation (50 % + 3 %/niveau de fabrication, ×1,25 avec Bricoleur).
 func part_reparation() -> float:
-	return minf(0.95, 0.5 + 0.03 * niveau_fabrication())
+	return minf(1.0, (0.5 + 0.03 * niveau_fabrication()) * (1.25 if prog.a("bricoleur") else 1.0))
 
 
 func reparer(e: Dictionary) -> bool:
@@ -3507,7 +3545,7 @@ func chaleur_portee() -> float:
 
 ## Protection contre le froid (vêtements, Seconde peau, survie) : multiplie le refroidissement.
 func protection_froid() -> float:
-	return (1.0 - minf(0.75, chaleur_portee() * 0.5)) * (0.7 if prog.a("seconde_peau") else 1.0) * (1.0 - 0.02 * int(prog.comp["survie"].niv))
+	return (1.0 - minf(0.75, chaleur_portee() * 0.5)) * (0.7 if prog.a("endurci") else 1.0) * (1.0 - 0.02 * int(prog.comp["survie"].niv))
 
 
 ## Variation du froid par seconde (+ = on se refroidit).
