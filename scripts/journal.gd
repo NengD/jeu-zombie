@@ -30,6 +30,11 @@ const OBJECTIFS := [
 	{"id": "jours3", "nom": "Survivre 3 jours", "aide": "Mange, bois et dors à l'abri.", "cle": "jours", "n": 3, "rec": {"xp": ["survie", 60]}},
 	{"id": "cerf", "nom": "Chasser un cerf", "aide": "À l'arc, sans bruit, dans les bois et les champs.", "cle": "animaux:cerf", "n": 1, "rec": {"xp": ["chasse", 60]}},
 	{"id": "bandit", "nom": "Tuer un bandit", "aide": "Ils gardent des camps (M) : attaque de loin ou de nuit.", "cle": "bandits", "n": 1, "rec": {"argent": 60}},
+	{"id": "commande", "nom": "Remplir une commande de marchand", "aide": "Chaque marchand a ses commandes du jour (en bas de sa boutique).", "cle": "commandes", "n": 1, "rec": {"argent": 30}},
+	{"id": "potager", "nom": "Première récolte du potager", "aide": "Bac de culture posé dehors, graines, arrose ([F]) puis récolte le plant mûr.", "cle": "recolte_potager", "n": 1, "rec": {"xp": ["survie", 50]}},
+	{"id": "voiture", "nom": "Réparer une voiture et la conduire", "aide": "Voiture garée : pièces auto, batterie et essence, puis [F] au volant.", "cle": "conduite", "n": 1, "rec": {"xp": ["fabrication", 80]}},
+	{"id": "electricite", "nom": "Alimenter un appareil électrique", "aide": "Groupe électrogène ou panneau solaire à moins de 15 m d'une lampe ou d'un frigo.", "cle": "reseau", "n": 1, "rec": {"xp": ["fabrication", 60]}},
+	{"id": "largage", "nom": "Atteindre un largage", "aide": "Écoute la radio et suis la fumée rouge (triangle sur la carte).", "cle": "largages", "n": 1, "rec": {"xp": ["exploration", 40]}},
 	{"id": "jours7", "nom": "Survivre 7 jours", "aide": "", "cle": "jours", "n": 7, "rec": {"xp": ["survie", 120]}},
 	{"id": "zombies100", "nom": "Tuer 100 zombies", "aide": "", "cle": "zombies", "n": 100, "rec": {"argent": 120}},
 	{"id": "prison", "nom": "Fouiller la prison", "aide": "Au nord-ouest, bien gardée par des zombies.", "cle": "prison", "n": 1, "rec": {"xp": ["exploration", 150]}},
@@ -66,7 +71,19 @@ const SUCCES := [
 	{"id": "intouchable", "nom": "Intouchable", "desc": "Rester 30 minutes de jeu sans prendre de dégâts.", "cle": "serie_max", "n": 1800},
 	{"id": "proprietaire", "nom": "Propriétaire", "desc": "Construire une base.", "cle": "base", "n": 1},
 	{"id": "riche", "nom": "Bas de laine", "desc": "Avoir 500 € en poche.", "cle": "argent", "n": 500},
+	{"id": "un_des_leurs", "nom": "Un des leurs", "desc": "Se couvrir de tripes de zombie.", "cle": "deguise", "n": 1},
+	{"id": "main_verte", "nom": "Main verte", "desc": "Récolter 20 légumes au potager.", "cle": "recolte_potager", "n": 20},
+	{"id": "mecano", "nom": "Mécano", "desc": "Réparer une voiture et la conduire.", "cle": "conduite", "n": 1},
+	{"id": "electricien", "nom": "Fée électricité", "desc": "Alimenter un appareil électrique.", "cle": "reseau", "n": 1},
+	{"id": "fournisseur", "nom": "Fournisseur", "desc": "Remplir 10 commandes de marchands.", "cle": "commandes", "n": 10},
+	{"id": "manne", "nom": "Manne céleste", "desc": "Atteindre 3 largages de ravitaillement.", "cle": "largages", "n": 3},
+	{"id": "convoi", "nom": "Pillard de convoi", "desc": "Atteindre un convoi militaire accidenté.", "cle": "convois", "n": 1},
+	{"id": "horde", "nom": "Dans l'œil de la horde", "desc": "Survivre au passage d'une horde migrante.", "cle": "hordes_survecues", "n": 1},
 ]
+
+const Commandes = preload("res://scripts/commandes.gd")
+const LEGUMES_POTAGER := ["tomate", "carotte", "pomme_de_terre"]
+static var _cmd_vues := {}           # commandes remplies déjà comptées (jour:marchand:n°)
 
 
 static func compter(cle: String, n: float = 1.0) -> void:
@@ -143,7 +160,44 @@ static func maj(delta: float) -> void:
 		var r := 220.0 if Game.lieu_vaste(poi.name) else 50.0
 		if Vector2(poi.pos.x - pos.x, poi.pos.z - pos.z).length() < r:
 			decouverts[k] = true
+	_suivre_systemes(p)
 	_verifier_progres()
+
+
+## Systèmes récents suivis sans toucher à leurs scripts : déguisement, conduite, réseau électrique,
+## commandes remplies (sondés chaque seconde) et récolte du potager (signal Game.objet_recu près d'un bac).
+static func _suivre_systemes(p: Node) -> void:
+	if not Game.objet_recu.is_connected(_recu):
+		Game.objet_recu.connect(_recu)
+	var tr = p.get("tripes_t")
+	if tr != null and float(tr) > 0.0:
+		compteurs["deguise"] = 1.0
+	var v = p.get("vehicule")
+	if v != null and v is Object and is_instance_valid(v):
+		compteurs["conduite"] = 1.0
+	if not compteurs.has("reseau"):
+		for a in p.get_tree().get_nodes_in_group("elec_conso"):
+			if bool(a.get_meta("alimente", false)):
+				compteurs["reseau"] = 1.0
+				break
+	for k in Commandes.par_marchand:
+		var liste: Array = Commandes.par_marchand[k]
+		for i in liste.size():
+			if liste[i] is Dictionary and bool(liste[i].get("fait", false)):
+				var cle := "%d:%s:%d" % [Commandes.jour, k, i]
+				if not _cmd_vues.has(cle):
+					_cmd_vues[cle] = true
+					compter("commandes")
+
+
+static func _recu(id: String, n: int) -> void:
+	if n <= 0 or not id in LEGUMES_POTAGER or Game.player == null:
+		return
+	var pos: Vector3 = Game.player.global_position
+	for b in Game.player.get_tree().get_nodes_in_group("placeables"):
+		if b.get("kind") == "bac_culture" and b.global_position.distance_to(pos) < 4.0:
+			compter("recolte_potager", n)
+			return
 
 
 static func _verifier_progres() -> void:
@@ -190,12 +244,13 @@ static func _vider() -> void:
 	succes = {}
 	serie = 0.0
 	serie_max = 0.0
+	_cmd_vues = {}
 	_der_pos = Vector3.INF
 
 
 static func etat() -> Dictionary:
 	return {"c": compteurs.duplicate(), "d": decouverts.keys(), "o": objectifs_faits.duplicate(),
-			"s": succes.duplicate(), "serie": serie, "serie_max": serie_max}
+			"s": succes.duplicate(), "serie": serie, "serie_max": serie_max, "cv": _cmd_vues.keys()}
 
 
 ## Rétablit l'état (chargement) ; {} = partie sans journal (ancienne sauvegarde).
@@ -209,3 +264,5 @@ static func appliquer(d: Dictionary) -> void:
 	succes = (d.get("s", {}) as Dictionary).duplicate()
 	serie = float(d.get("serie", 0.0))
 	serie_max = float(d.get("serie_max", 0.0))
+	for k in d.get("cv", []):
+		_cmd_vues[str(k)] = true

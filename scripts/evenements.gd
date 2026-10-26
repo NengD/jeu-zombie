@@ -11,6 +11,7 @@ extends Node3D
 const Decor = preload("res://scripts/decor.gd")
 const LootContainer = preload("res://scripts/loot_container.gd")
 const Bandit = preload("res://scripts/bandit.gd")
+const Journal = preload("res://scripts/journal.gd")
 
 const TYPES := ["largage", "convoi", "horde", "bandits"]
 const POIDS := {"largage": 35.0, "convoi": 25.0, "horde": 25.0, "bandits": 15.0}
@@ -272,11 +273,28 @@ func _caisse(r: Dictionary, parent: Node3D, label: String, tables: Array, taille
 
 
 ## Contenu tiré tout de suite (jamais vide) : [[table, tirages], …].
+## Objets propres à chaque caisse d'événement, tirés avant les tables (« +nom » dans `tables`) :
+## [id, chance, min, max] ; objets absents d'Items.DB ignorés (ex. `tuyau` avant son ajout).
+const EXTRAS := {
+	"largage": [["graines_tomate", 0.5, 2, 4], ["graines_carotte", 0.45, 2, 4], ["graines_pomme_de_terre", 0.4, 2, 3],
+		["graines_mais", 0.35, 2, 4], ["essence", 0.4, 1, 1], ["tuyau", 0.3, 1, 1], ["lampe", 0.3, 1, 1], ["batterie", 0.2, 1, 1]],
+	"convoi_tete": [["essence", 0.85, 1, 2], ["piece_auto", 0.9, 2, 4], ["tuyau", 0.5, 1, 1], ["batterie", 0.5, 1, 1], ["kit_reparation", 0.4, 1, 1]],
+	"convoi": [["essence", 0.4, 1, 1], ["piece_auto", 0.5, 1, 2], ["lampe", 0.3, 1, 2], ["panneau_solaire", 0.12, 1, 1],
+		["groupe_electrogene", 0.08, 1, 1], ["cloture_electrique", 0.15, 1, 2], ["batterie", 0.25, 1, 1], ["tuyau", 0.2, 1, 1]],
+}
+
+
 func _remplir(c: LootContainer, tables: Array) -> void:
 	var gs: Vector2i = c._grid_size()
 	c.grille = Grille.creer(c.label, gs.x, gs.y)
 	for t in tables:
-		var found: Dictionary = Items.roll_loot(str(t[0]), int(t[1]), 0.0)
+		var found := {}
+		if str(t[0]).begins_with("+"):
+			for x in EXTRAS.get(str(t[0]).substr(1), []):
+				if Items.DB.has(x[0]) and randf() < float(x[1]):
+					found[x[0]] = randi_range(int(x[2]), int(x[3]))
+		else:
+			found = Items.roll_loot(str(t[0]), int(t[1]), 0.0)
 		for id in found:
 			if Items.grid(id).x > 0:
 				for i in int(found[id]):
@@ -336,8 +354,8 @@ func _poser_caisse(e: Dictionary, caisses := [], chute := false) -> void:
 	var para := Node3D.new()
 	para.name = "Colis"
 	r.racine.add_child(para)
-	var c := _caisse(r, para, "Caisse de ravitaillement", [["armurerie_mil", 3], ["militaire", 3], ["pharmacie", 2]],
-			Vector3(1.3, 0.8, 0.9), caisses[0] if not caisses.is_empty() else null)
+	var c := _caisse(r, para, "Caisse de ravitaillement", [["+largage", 0], ["armurerie_mil", 3], ["militaire", 3], ["pharmacie", 2]],
+			Vector3(1.4, 0.85, 0.9), caisses[0] if not caisses.is_empty() else null)
 	c.rotation.y = randf() * TAU
 	if chute:
 		para.position.y = ALT_VOL - 4.0
@@ -500,8 +518,8 @@ func _construire_convoi(e: Dictionary, r: Dictionary, caisses: Array) -> void:
 	for k in 3:
 		var a := rng.randf() * TAU
 		var off := Vector3(cos(a), 0, sin(a)) * rng.randf_range(4.0, 8.0) + d * rng.randf_range(-8.0, 8.0)
-		var tables := [["militaire", 3]] if k > 0 else [["armurerie_mil", 3], ["militaire", 1]]
-		var c := _caisse(r, racine, "Caisse militaire", tables, Vector3(1.2, 0.7, 0.7), caisses[k] if k < caisses.size() else null)
+		var tables := [["+convoi", 0], ["militaire", 3]] if k > 0 else [["+convoi_tete", 0], ["armurerie_mil", 3], ["militaire", 1]]
+		var c := _caisse(r, racine, "Caisse militaire", tables, Vector3(1.4, 0.8, 0.9), caisses[k] if k < caisses.size() else null)
 		var w := racine.global_position + off
 		c.position = Vector3(off.x, Game.hauteur(w.x, w.z) - racine.global_position.y, off.z)
 		c.rotation.y = rng.randf() * TAU
@@ -544,6 +562,12 @@ func _maj(e: Dictionary, dt: float) -> void:
 					e.appel = true
 					_attirer_zombies(Vector3(e.x, Game.hauteur(e.x, e.z), e.z), randi_range(5, 9))
 			var d := Vector2(pp.x - e.x, pp.z - e.z).length()
+			if not e.get("atteint", false) and d < 20.0 and (e.type == "convoi" or (e.phase == "sol" and not r.has("para"))):
+				e.atteint = true
+				var xp := 60 if e.type == "largage" else 80
+				Game.player.prog.gagner("exploration", xp)
+				Journal.compter("largages" if e.type == "largage" else "convois")
+				Game.msg("%s atteint : +%d XP d'exploration." % [NOMS[e.type], xp])
 			if e.fini:
 				e.reste -= dt
 				if e.reste <= 0.0 and d > 60.0:
@@ -607,6 +631,7 @@ func _maj_groupe(e: Dictionary, r: Dictionary, dt: float) -> void:
 	if int(e.n) <= 0:
 		if e.type == "bandits":
 			Game.msg("La bande de bandits en maraude a été éliminée.")
+		_horde_survecue(e)
 		_terminer(e)
 		return
 	# but : détour vers un bruit, sinon le bord d'en face
@@ -632,6 +657,7 @@ func _maj_groupe(e: Dictionary, r: Dictionary, dt: float) -> void:
 		e.z = c.z
 	if e.dt <= 0.0 and Vector2(e.bx - c.x, e.bz - c.z).length() < 25.0 or e.age > e.duree:
 		if not reel or c.distance_to(Vector3(pp.x, 0, pp.z)) > DIST_VIRTUEL:
+			_horde_survecue(e)
 			_terminer(e)   # sortie de la carte
 			return
 	var dj := Vector2(pp.x - c.x, pp.z - c.z).length()
@@ -681,10 +707,22 @@ func _materialiser(e: Dictionary, r: Dictionary) -> void:
 	e.n = membres.size()
 	r.membres = membres
 	r.reel = true
+	e.vu = true   # la horde est passée près du joueur (XP s'il en réchappe)
 	_guider(e, r)
 
 
+## Le joueur a vu passer la horde migrante et en réchappe (elle s'éloigne, sort de la carte ou est détruite).
+func _horde_survecue(e: Dictionary) -> void:
+	if e.type != "horde" or not e.get("vu", false) or e.get("survecue", false) or not Game.player.alive:
+		return
+	e.survecue = true
+	Game.player.prog.gagner("exploration", 100)
+	Journal.compter("hordes_survecues")
+	Game.msg("Tu as survécu au passage de la horde migrante : +100 XP d'exploration.")
+
+
 func _virtualiser(e: Dictionary, r: Dictionary) -> void:
+	_horde_survecue(e)
 	var n := 0
 	for m in r.membres:
 		if _vivant(m, e.type):
