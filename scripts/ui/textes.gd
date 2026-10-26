@@ -164,6 +164,24 @@ const GUIDE := """[b]LES BASES[/b]
   les deux démontent les [b]épaves de voitures[/b] (ferraille, pièces auto, pneu, batterie, essence, tissu ; l'épave vidée noircit).
 • Rendement selon la compétence (écran Personnage, K) : par niveau, 4 % de coups en moins et 6 % de ressources en plus
   (niveau 10 : -40 % de coups, +60 % de ressources) ; [b]Survie[/b] pour les arbres et rochers, [b]Fabrication[/b] pour les épaves.
+[b]POTAGER[/b]
+• Graines de tomate, de carotte, de maïs et plants de pomme de terre : dans les fermes, les granges, les quincailleries
+  (parfois dans les maisons). Bac de culture (4 planches, 3 clous, à la main) : à poser dehors.
+• [F] sème, puis la plante passe par trois étapes visibles : pousse, plant, plant mûr (12 à 18 minutes de pousse).
+  Elle ne pousse que si la terre est humide : [F] arrose avec une bouteille d'eau, même sale (la bouteille vide est rendue) ;
+  la pluie arrose toute seule. Le bac avance aussi pendant que tu dors.
+• Plant mûr : [F] récolte 3 à 6 légumes (souvent des graines en plus). Tomates et carottes se mangent crues ; au feu :
+  pomme de terre cuite, maïs grillé, soupe de légumes (tomate + carotte + pomme de terre + eau).
+
+[b]ÉLECTRICITÉ[/b]
+• Sources (établi) : le [b]groupe électrogène[/b] (1500 W) brûle un jerrican d'essence en 12 minutes ; [F] le démarre (en versant
+  un jerrican si le réservoir n'est pas plein, 3 au plus) ou l'arrête. Il fait du bruit et attire les zombies. Le [b]panneau
+  solaire[/b] (400 W) est silencieux mais ne produit que le jour, moins sous la pluie.
+• Appareils alimentés à moins de 15 m d'une source : [b]lampe[/b] (60 W, s'allume la nuit, [F] : auto / allumée / éteinte),
+  [b]clôture électrique[/b] (250 W : électrocute et ralentit les zombies qui la touchent), [b]frigo[/b] (150 W : rangement où
+  la nourriture ne se gâte pas). Regarde un appareil pour voir la production et la consommation de son réseau ; s'il n'y a
+  pas assez de courant, les appareils les plus proches de la source passent d'abord.
+
 • Les coups font du bruit (les zombies viennent voir). Rien ne repousse, mais il y a des milliers d'arbres et de rochers.
 • Bûche → 3 planches à l'établi (1 seule à la main) ; minerai + bûche → ferraille au feu ; 4 pierres + eau → ciment (établi) ;
   feu de camp en pierres et bûches ; barricade de pneus ; projecteur sur batterie ; flèches à pointe de pierre.

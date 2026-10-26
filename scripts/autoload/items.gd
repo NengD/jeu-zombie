@@ -24,6 +24,16 @@ const DB := {
 	"raisin": {"name": "Grappe de raisin", "type": "food", "food": 8.0, "water": 8.0, "weight": 0.15, "desc": "Cueillie dans une vigne."},
 	"epi_mais": {"name": "Épi de maïs", "type": "food", "food": 12.0, "weight": 0.3, "desc": "Cueilli dans un champ. Meilleur grillé au feu."},
 	"mais_grille": {"name": "Maïs grillé", "type": "food", "food": 25.0, "weight": 0.25, "desc": "Épi grillé au feu."},
+	# potager (bac de culture, placeable.gd)
+	"graines_tomate": {"name": "Graines de tomate", "type": "material", "weight": 0.02, "desc": "À semer dans un bac de culture ([F])."},
+	"graines_carotte": {"name": "Graines de carotte", "type": "material", "weight": 0.02, "desc": "À semer dans un bac de culture ([F])."},
+	"graines_pomme_de_terre": {"name": "Plants de pomme de terre", "type": "material", "weight": 0.1, "desc": "À planter dans un bac de culture ([F])."},
+	"graines_mais": {"name": "Graines de maïs", "type": "material", "weight": 0.02, "desc": "À semer dans un bac de culture ([F])."},
+	"tomate": {"name": "Tomate", "type": "food", "food": 8.0, "water": 10.0, "weight": 0.15, "desc": "Récoltée au potager."},
+	"carotte": {"name": "Carotte", "type": "food", "food": 12.0, "water": 3.0, "weight": 0.1, "desc": "Récoltée au potager."},
+	"pomme_de_terre": {"name": "Pomme de terre", "type": "food", "food": 6.0, "weight": 0.2, "desc": "Crue, elle nourrit peu : à cuire au feu."},
+	"pomme_de_terre_cuite": {"name": "Pomme de terre cuite", "type": "food", "food": 28.0, "weight": 0.2, "desc": "Cuite sous la braise."},
+	"soupe_legumes": {"name": "Soupe de légumes", "type": "food", "food": 45.0, "water": 30.0, "weight": 0.6, "desc": "Légumes du potager mijotés au feu."},
 	# --- matériaux
 	"tissu": {"name": "Tissu", "type": "material", "weight": 0.1},
 	"planche": {"name": "Planche", "type": "material", "weight": 1.0},
@@ -151,6 +161,12 @@ const DB := {
 	"recuperateur_eau": {"name": "Récupérateur d'eau de pluie (à placer)", "type": "placeable", "weight": 5.0, "desc": "À poser dehors : garde l'eau de pluie (jusqu'à 6 bouteilles). [F] remplit tes bouteilles vides."},
 	"sechoir": {"name": "Séchoir à viande (à placer)", "type": "placeable", "weight": 4.0, "desc": "[F] pour y suspendre la viande crue : elle sèche en quelques minutes (moins vite sous la pluie)."},
 	"canne_peche": {"name": "Ligne de pêche (à poser)", "type": "placeable", "weight": 0.8, "desc": "À poser au bord d'une rivière ou d'un lac : un poisson finit par mordre. [F] pour le prendre."},
+	"bac_culture": {"name": "Bac de culture (à placer)", "type": "placeable", "weight": 5.0, "desc": "Potager : [F] sème des graines, arrose avec de l'eau (la pluie arrose toute seule), puis récolte les légumes mûrs."},
+	"groupe_electrogene": {"name": "Groupe électrogène (à placer)", "type": "placeable", "weight": 8.0, "desc": "Brûle de l'essence pour alimenter les lampes, clôtures et frigos à 15 m. Bruyant : attire les zombies."},
+	"panneau_solaire": {"name": "Panneau solaire (à placer)", "type": "placeable", "weight": 5.0, "desc": "Silencieux et sans carburant, mais ne produit que le jour (moins sous la pluie). Alimente les appareils à 15 m."},
+	"lampe": {"name": "Lampe électrique (à placer)", "type": "placeable", "weight": 1.0, "desc": "S'allume la nuit si elle est alimentée (groupe électrogène ou panneau solaire à 15 m)."},
+	"cloture_electrique": {"name": "Clôture électrique (à placer)", "type": "placeable", "weight": 4.0, "desc": "Alimentée, elle électrocute et ralentit les zombies qui la touchent."},
+	"frigo": {"name": "Frigo (à placer)", "type": "placeable", "weight": 10.0, "desc": "Rangement : alimenté, la nourriture qu'il contient ne se gâte pas."},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
 	"point_rouge": {"name": "Point rouge Holosun HS403R", "type": "accessoire", "desc": "Viseur point rouge compact : visée bien plus précise."},
 	"viseur_reflex": {"name": "Viseur reflex Holosun 510C", "type": "accessoire", "desc": "Viseur ouvert à large fenêtre (va aussi sur les pistolets à plaque optique)."},
@@ -197,6 +213,7 @@ const SIZES := {
 	"lunette": [2, 1], "lunette_uar": [2, 1], "lunette_hawke": [2, 1], "lunette_sb": [2, 1], "viseur_aimpoint": [1, 1],
 	"silencieux": [2, 1], "silencieux_socom": [2, 1], "silencieux_9mm": [2, 1], "silencieux_mp7": [2, 1], "silencieux_762": [2, 1], "silencieux_slx": [2, 1],
 	"chargeur_etendu": [1, 2], "poignee": [1, 1], "poignee_rk1": [1, 1], "laser": [1, 1],
+	"bac_culture": [3, 2], "groupe_electrogene": [3, 2], "panneau_solaire": [3, 2], "lampe": [1, 2], "cloture_electrique": [2, 2], "frigo": [2, 3], "soupe_legumes": [1, 2],
 }
 
 # Quantité maximale par case (piles). Par défaut 1.
@@ -205,6 +222,7 @@ const STACKS := {
 	"mun_762": 40, "mun_762r": 40, "mun_338": 20, "mun_127": 10, "mun_4570": 20, "fleche": 20, "plume": 20, "viande_crue": 4, "peau": 2, "os": 6, "graisse": 4, "viande_cuite": 4, "medicament": 5, "collet": 5, "rgd5": 3, "clous": 50, "tissu": 10, "ferraille": 5, "planche": 4, "ruban": 3,
 	"poudre": 10, "cuir": 3, "piece_auto": 3, "buche": 4, "pierre": 10, "minerai": 10, "bandage": 5, "antidouleur": 5, "barre": 4, "soda": 2, "conserve": 2,
 	"antibiotiques": 5, "attelle": 2, "bouteille_vide": 4, "molotov": 2, "kit_reparation": 2, "poisson_cru": 2, "poisson_cuit": 2, "pomme": 4, "raisin": 4, "epi_mais": 3, "mais_grille": 3,
+	"graines_tomate": 10, "graines_carotte": 10, "graines_pomme_de_terre": 6, "graines_mais": 10, "tomate": 4, "carotte": 4, "pomme_de_terre": 4, "pomme_de_terre_cuite": 4, "soupe_legumes": 2, "lampe": 2,
 }
 
 # Grille de rangement apportée par les vêtements et sacs (largeur, hauteur).
@@ -241,6 +259,13 @@ const RECIPES := [
 	{"out": "piques", "qty": 1, "needs": {"planche": 3, "clous": 2}, "cat": "construction", "station": "", "duree": 5.0, "niv": 0},
 	{"out": "lit", "qty": 1, "needs": {"planche": 4, "clous": 4, "tissu": 4}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 0},
 	{"out": "recuperateur_eau", "qty": 1, "needs": {"ferraille": 3, "tissu": 2, "planche": 2}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 1},
+	# potager et électricité (placeable.gd)
+	{"out": "bac_culture", "qty": 1, "needs": {"planche": 4, "clous": 3}, "cat": "construction", "station": "", "duree": 6.0, "niv": 0},
+	{"out": "groupe_electrogene", "qty": 1, "needs": {"piece_auto": 3, "ferraille": 4, "batterie": 1}, "cat": "construction", "station": "etabli", "duree": 12.0, "niv": 3},
+	{"out": "panneau_solaire", "qty": 1, "needs": {"ferraille": 3, "piece_auto": 1, "batterie": 1}, "cat": "construction", "station": "etabli", "duree": 10.0, "niv": 3},
+	{"out": "lampe", "qty": 1, "needs": {"ferraille": 1, "piece_auto": 1}, "cat": "construction", "station": "etabli", "duree": 4.0, "niv": 1},
+	{"out": "cloture_electrique", "qty": 1, "needs": {"ferraille": 4, "clous": 2, "piece_auto": 1}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 2},
+	{"out": "frigo", "qty": 1, "needs": {"ferraille": 6, "piece_auto": 2}, "cat": "construction", "station": "etabli", "duree": 10.0, "niv": 2},
 	{"out": "sechoir", "qty": 1, "needs": {"planche": 4, "clous": 2}, "cat": "construction", "station": "", "duree": 6.0, "niv": 0},
 	{"out": "piege_machoires", "qty": 1, "needs": {"ferraille": 5, "clous": 3}, "cat": "construction", "station": "etabli", "duree": 8.0, "niv": 2},
 	{"out": "caisse_stockage", "qty": 1, "needs": {"planche": 4, "clous": 4}, "cat": "construction", "station": "etabli", "duree": 6.0, "niv": 0},
@@ -308,18 +333,20 @@ const RECIPES := [
 	{"out": "kit_reparation", "qty": 1, "needs": {"ruban": 1, "ferraille": 2}, "cat": "outils", "station": "etabli", "duree": 6.0, "niv": 1},
 	{"out": "canne_peche", "qty": 1, "needs": {"planche": 1, "tissu": 1, "ferraille": 1}, "cat": "outils", "station": "", "duree": 5.0, "niv": 0},
 	{"out": "poisson_cuit", "qty": 1, "needs": {"poisson_cru": 1}, "cat": "nourriture", "station": "feu", "duree": 6.0, "niv": 0},
+	{"out": "pomme_de_terre_cuite", "qty": 1, "needs": {"pomme_de_terre": 1}, "cat": "nourriture", "station": "feu", "duree": 5.0, "niv": 0},
+	{"out": "soupe_legumes", "qty": 1, "needs": {"tomate": 1, "carotte": 1, "pomme_de_terre": 1, "eau": 1}, "cat": "nourriture", "station": "feu", "duree": 8.0, "niv": 0},
 	{"out": "mais_grille", "qty": 1, "needs": {"epi_mais": 1}, "cat": "nourriture", "station": "feu", "duree": 5.0, "niv": 0},
 ]
 
 # Tables de loot : [id, poids, min, max]
 const LOOT := {
-	"maison": [["bouteille_vide", 4, 1, 2], ["canne_peche", 0.5, 1, 1], ["pomme", 1, 1, 2], ["casquette", 1.5, 1, 1], ["bonnet", 1.5, 1, 1], ["sac_sport", 1, 1, 1], ["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
+	"maison": [["graines_tomate", 1, 1, 2], ["graines_carotte", 0.8, 1, 2],["bouteille_vide", 4, 1, 2], ["canne_peche", 0.5, 1, 1], ["pomme", 1, 1, 2], ["casquette", 1.5, 1, 1], ["bonnet", 1.5, 1, 1], ["sac_sport", 1, 1, 1], ["conserve", 10, 1, 2], ["eau", 9, 1, 2], ["soda", 6, 1, 2], ["barre", 6, 1, 3], ["tissu", 10, 1, 3], ["bandage", 6, 1, 2], ["antidouleur", 3, 1, 1], ["alcool", 3, 1, 1], ["batte", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["planche", 4, 1, 2], ["clous", 4, 3, 8], ["ruban", 4, 1, 1], ["veste_cuir", 1, 1, 1], ["sac_a_dos", 1, 1, 1], ["casque_moto", 1, 1, 1], ["mun_9mm", 1, 3, 8], ["mun_12", 0.8, 2, 5], ["glock19", 0.3, 1, 1], ["m45a1", 0.15, 1, 1]],
 	"magasin": [["raisin", 1.5, 1, 2], ["bouteille_vide", 2, 1, 2], ["pomme", 2, 1, 3], ["casquette", 2, 1, 1], ["bonnet", 2, 1, 1], ["lunettes", 1, 1, 1], ["sac_sport", 1.5, 1, 1], ["conserve", 12, 1, 3], ["eau", 12, 1, 3], ["soda", 10, 1, 3], ["barre", 10, 1, 4], ["tissu", 6, 1, 3], ["sac_a_dos", 2, 1, 1], ["ruban", 3, 1, 2], ["alcool", 4, 1, 1], ["cuir", 2, 1, 2], ["batte", 1, 1, 1]],
 	"bureau": [["bouteille_vide", 3, 1, 2], ["barre", 6, 1, 2], ["soda", 6, 1, 1], ["eau", 5, 1, 1], ["ruban", 5, 1, 2], ["tissu", 4, 1, 2], ["antidouleur", 3, 1, 1], ["ferraille", 3, 1, 1], ["mun_9mm", 0.5, 2, 6]],
-	"quincaillerie": [["kit_reparation", 3, 1, 1], ["cle_molette", 2, 1, 1], ["casque_chantier", 3, 1, 1], ["lunettes", 3, 1, 1], ["masque_gaz", 1, 1, 1], ["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["pioche", 1.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
+	"quincaillerie": [["graines_tomate", 4, 2, 5], ["graines_carotte", 4, 2, 5], ["graines_pomme_de_terre", 3, 1, 3], ["graines_mais", 3, 2, 5], ["lampe", 1.5, 1, 1], ["groupe_electrogene", 0.5, 1, 1], ["panneau_solaire", 0.4, 1, 1],["kit_reparation", 3, 1, 1], ["cle_molette", 2, 1, 1], ["casque_chantier", 3, 1, 1], ["lunettes", 3, 1, 1], ["masque_gaz", 1, 1, 1], ["planche", 12, 2, 4], ["clous", 12, 6, 15], ["ferraille", 10, 1, 3], ["ruban", 8, 1, 2], ["hache", 2, 1, 1], ["pioche", 1.5, 1, 1], ["machette", 2, 1, 1], ["batte", 2, 1, 1], ["ciment", 5, 1, 2], ["marteau", 2, 1, 1]],
 	"hopital": [["antibiotiques", 5, 1, 2], ["attelle", 4, 1, 1], ["bouteille_vide", 2, 1, 1], ["masque_gaz", 1, 1, 1], ["medicament", 6, 1, 2], ["bandage", 12, 1, 3], ["trousse", 5, 1, 1], ["antidouleur", 10, 1, 2], ["alcool", 8, 1, 1], ["tissu", 8, 2, 4], ["eau", 4, 1, 1]],
 	"pharmacie": [["antibiotiques", 6, 1, 2], ["attelle", 1.5, 1, 1], ["medicament", 8, 1, 2], ["bandage", 12, 1, 3], ["antidouleur", 12, 1, 3], ["trousse", 6, 1, 1], ["alcool", 5, 1, 1], ["tissu", 4, 1, 2], ["eau", 3, 1, 1], ["soda", 2, 1, 1], ["barre", 2, 1, 1]],
-	"garage": [["kit_reparation", 3, 1, 1], ["bouteille_vide", 2, 1, 1], ["lunettes", 2, 1, 1], ["casque_chantier", 1, 1, 1], ["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
+	"garage": [["groupe_electrogene", 0.6, 1, 1],["kit_reparation", 3, 1, 1], ["bouteille_vide", 2, 1, 1], ["lunettes", 2, 1, 1], ["casque_chantier", 1, 1, 1], ["ferraille", 12, 1, 3], ["piece_auto", 10, 1, 2], ["ruban", 8, 1, 2], ["essence", 5, 1, 1], ["cle_molette", 3, 1, 1], ["clous", 5, 3, 10], ["marteau", 1.5, 1, 1], ["batte", 1, 1, 1], ["soda", 2, 1, 1]],
 	"bar": [["bouteille_vide", 5, 1, 3], ["alcool", 12, 1, 2], ["soda", 10, 1, 3], ["eau", 7, 1, 2], ["conserve", 6, 1, 2], ["barre", 5, 1, 2], ["tissu", 2, 1, 2], ["batte", 0.8, 1, 1]],
 	"armurerie": [["kit_reparation", 3, 1, 1], ["mun_545", 2, 6, 15], ["mun_762x39", 2, 6, 15], ["mun_9mm", 12, 8, 20], ["mun_45", 6, 6, 14], ["mun_12", 10, 4, 10], ["mun_50ae", 2, 4, 10], ["mun_4570", 3, 4, 10], ["mun_762r", 3, 5, 15], ["mun_762", 2, 5, 12], ["mun_556", 3, 10, 20], ["poudre", 8, 1, 3], ["couteau_km2000", 2, 1, 1], ["machette", 3, 1, 1],
 		["glock19", 2, 1, 1], ["mr920", 1.5, 1, 1], ["m45a1", 1.5, 1, 1], ["desert_eagle", 0.6, 1, 1], ["toz34", 1.2, 1, 1], ["benelli_m4", 0.8, 1, 1], ["marlin", 1, 1, 1], ["mosin", 0.8, 1, 1], ["lr300", 0.5, 1, 1],
@@ -333,7 +360,7 @@ const LOOT := {
 		["urgi", 1.5, 1, 1], ["mcx", 1.2, 1, 1], ["ak74m", 1.2, 1, 1], ["draco", 1, 1, 1], ["uar10", 1, 1, 1], ["mcx_spear", 0.8, 1, 1], ["spear_assaulter", 0.8, 1, 1], ["l96", 0.6, 1, 1], ["c14", 0.4, 1, 1], ["mg5", 0.4, 1, 1], ["gepard", 0.2, 1, 1],
 		["lunette_uar", 1.5, 1, 1], ["lunette_hawke", 1, 1, 1], ["lunette_sb", 0.6, 1, 1], ["viseur_holo", 1.5, 1, 1], ["silencieux_socom", 0.8, 1, 1], ["silencieux_762", 1, 1, 1], ["silencieux_slx", 0.6, 1, 1], ["frein_762", 1.2, 1, 1], ["silencieux_mp7", 0.6, 1, 1]],
 	"station": [["bouteille_vide", 4, 1, 2], ["kit_reparation", 0.6, 1, 1], ["soda", 10, 1, 3], ["barre", 10, 1, 3], ["eau", 8, 1, 2], ["ferraille", 6, 1, 2], ["ruban", 6, 1, 2], ["alcool", 3, 1, 1], ["batte", 1, 1, 1], ["ciment", 1.5, 1, 1]],
-	"ferme": [["epi_mais", 3, 1, 3], ["pomme", 3, 1, 3], ["bouteille_vide", 2, 1, 1], ["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
+	"ferme": [["graines_tomate", 3, 1, 4], ["graines_carotte", 3, 1, 4], ["graines_pomme_de_terre", 3, 1, 3], ["graines_mais", 3, 1, 4], ["groupe_electrogene", 0.4, 1, 1],["epi_mais", 3, 1, 3], ["pomme", 3, 1, 3], ["bouteille_vide", 2, 1, 1], ["conserve", 8, 1, 3], ["eau", 6, 1, 2], ["planche", 10, 2, 4], ["clous", 8, 4, 10], ["ferraille", 6, 1, 3], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["cuir", 6, 1, 3], ["tissu", 6, 1, 3], ["mun_12", 4, 2, 6], ["mun_4570", 2, 2, 6], ["mun_762r", 1.5, 3, 8], ["toz34", 0.6, 1, 1], ["marlin", 0.4, 1, 1], ["mosin", 0.3, 1, 1], ["arc", 0.6, 1, 1], ["fleche", 2, 2, 6], ["plume", 3, 2, 6]],
 	"camp_bandit": [["molotov", 1.5, 1, 2], ["kit_reparation", 1, 1, 1], ["bouteille_vide", 2, 1, 2], ["bonnet", 2, 1, 1], ["masque_gaz", 0.5, 1, 1], ["sac_sport", 1, 1, 1], ["mun_9mm", 10, 8, 20], ["mun_12", 8, 4, 10], ["mun_45", 5, 6, 14], ["mun_545", 4, 10, 20], ["mun_762r", 4, 5, 12], ["mun_4570", 3, 4, 8],
 		["bandage", 6, 1, 3], ["trousse", 2, 1, 1], ["antidouleur", 4, 1, 2], ["conserve", 6, 1, 3], ["eau", 5, 1, 2], ["alcool", 4, 1, 2],
 		["ferraille", 5, 1, 3], ["poudre", 4, 1, 3], ["glock19", 1.5, 1, 1], ["mr920", 1, 1, 1], ["draco", 0.6, 1, 1], ["rgd5", 1.2, 1, 2],
@@ -341,7 +368,7 @@ const LOOT := {
 	"camping": [["canne_peche", 2, 1, 1], ["bouteille_vide", 4, 1, 2], ["sac_randonnee", 2, 1, 1], ["bonnet", 3, 1, 1], ["casquette", 2, 1, 1], ["conserve", 10, 1, 2], ["eau", 10, 1, 2], ["barre", 8, 1, 3], ["soda", 6, 1, 2], ["tissu", 8, 1, 3], ["bandage", 5, 1, 2], ["alcool", 3, 1, 1], ["couteau_km2000", 1, 1, 1], ["hache", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["fleche", 4, 3, 8], ["sac_a_dos", 1.5, 1, 1], ["ruban", 3, 1, 1], ["mun_12", 0.8, 2, 4]],
 	"chasseur": [["canne_peche", 1.5, 1, 1], ["kit_reparation", 1, 1, 1], ["bonnet", 2, 1, 1], ["casquette", 2, 1, 1], ["mun_12", 10, 3, 8], ["mun_4570", 6, 3, 8], ["mun_762r", 5, 4, 10], ["fleche", 8, 3, 8], ["plume", 4, 2, 6], ["conserve", 6, 1, 2], ["eau", 5, 1, 2], ["cuir", 6, 1, 3], ["bandage", 4, 1, 2], ["hache", 1.5, 1, 1], ["couteau_km2000", 1.5, 1, 1], ["arc", 1.2, 1, 1], ["toz34", 0.8, 1, 1], ["marlin", 0.8, 1, 1], ["mosin", 0.6, 1, 1], ["lunette", 0.6, 1, 1]],
 	"cachette": [["antibiotiques", 2, 1, 1], ["molotov", 1, 1, 2], ["mun_9mm", 8, 10, 25], ["mun_556", 5, 10, 25], ["mun_12", 6, 4, 10], ["trousse", 6, 1, 2], ["medicament", 5, 1, 2], ["bandage", 8, 2, 4], ["conserve", 8, 2, 4], ["eau", 8, 2, 3], ["ration", 5, 1, 3], ["glock19", 2, 1, 1], ["m45a1", 1.2, 1, 1], ["toz34", 1.2, 1, 1], ["ak74", 0.6, 1, 1], ["m4a1", 0.5, 1, 1], ["sac_a_dos", 2, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["silencieux_9mm", 0.8, 1, 1]],
-	"grange": [["epi_mais", 2, 1, 3], ["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
+	"grange": [["graines_pomme_de_terre", 3, 1, 3], ["graines_mais", 3, 1, 4],["epi_mais", 2, 1, 3], ["planche", 12, 2, 5], ["clous", 10, 4, 12], ["ferraille", 10, 1, 3], ["cuir", 6, 1, 2], ["hache", 3, 1, 1], ["pioche", 2, 1, 1], ["machette", 1.5, 1, 1], ["ciment", 3, 1, 2], ["ruban", 4, 1, 1], ["mun_12", 1.5, 2, 5]],
 	"infeste": [["molotov", 0.8, 1, 1], ["antibiotiques", 1, 1, 1], ["mun_9mm", 10, 6, 18], ["mun_12", 7, 3, 8], ["mun_556", 5, 6, 15], ["mun_545", 3, 6, 15], ["mun_45", 3, 4, 10], ["trousse", 4, 1, 1], ["bandage", 8, 1, 3], ["conserve", 8, 1, 3], ["eau", 8, 1, 2], ["sac_a_dos", 2, 1, 1], ["poudre", 4, 1, 3],
 		["glock19", 1.2, 1, 1], ["desert_eagle", 0.5, 1, 1], ["mp5k", 0.6, 1, 1], ["toz34", 0.6, 1, 1], ["ak74", 0.4, 1, 1], ["rgd5", 1.5, 1, 2], ["point_rouge", 1, 1, 1], ["chargeur_etendu", 1, 1, 1]],
 	"boss": [["mun_762", 8, 30, 60], ["mun_338", 4, 10, 20], ["mun_127", 3, 5, 10], ["gilet_militaire", 4, 1, 1], ["casque_militaire", 4, 1, 1], ["sac_militaire", 4, 1, 1], ["trousse", 6, 2, 3], ["rgd5", 5, 2, 4],
@@ -364,7 +391,7 @@ const PRIX := {
 	"tissu": 2, "planche": 3, "clous": 1, "ferraille": 4, "ruban": 4, "poudre": 3, "alcool": 6, "cuir": 5, "ciment": 12,
 	"marteau": 20, "arc": 120, "fleche": 3, "plume": 1, "viande_crue": 4, "peau": 4, "os": 1, "graisse": 2, "viande_cuite": 8, "viande_sechee": 10, "piege_machoires": 30, "sechoir": 25, "recuperateur_eau": 30, "bouillon": 6, "ragout": 16, "medicament": 15, "collet": 6, "sac_chasse": 90, "piece_auto": 6, "essence": 18, "buche": 2, "pierre": 1, "minerai": 4, "pneu": 5, "batterie": 25, "pioche": 45, "cle_molette": 12, "rgd5": 60, "etabli": 60, "feu_camp": 15, "plan_couture": 40, "barricade": 25, "caisse_stockage": 35, "piques": 20, "barbeles": 35, "projecteur": 45, "torche": 6, "lit": 40,
 	"sac_toile": 25, "sac_a_dos": 70, "sac_militaire": 150, "sac_randonnee": 110, "sac_sport": 40, "poings": 0,
-	"attelle": 12, "antibiotiques": 35, "eau_sale": 2, "bouteille_vide": 1, "poisson_cru": 4, "poisson_cuit": 8, "pomme": 3, "raisin": 3, "epi_mais": 3, "mais_grille": 6, "molotov": 40, "kit_reparation": 25, "canne_peche": 15,
+	"attelle": 12, "antibiotiques": 35, "eau_sale": 2, "bouteille_vide": 1, "poisson_cru": 4, "poisson_cuit": 8, "graines_tomate": 2, "graines_carotte": 2, "graines_pomme_de_terre": 2, "graines_mais": 2, "tomate": 2, "carotte": 2, "pomme_de_terre": 1, "pomme_de_terre_cuite": 4, "soupe_legumes": 12, "bac_culture": 15, "groupe_electrogene": 140, "panneau_solaire": 110, "lampe": 12, "cloture_electrique": 30, "frigo": 50, "pomme": 3, "raisin": 3, "epi_mais": 3, "mais_grille": 6, "molotov": 40, "kit_reparation": 25, "canne_peche": 15,
 }
 const PRIX_FAMILLE := {"pistolet": 180, "smg": 380, "pompe": 300, "fusil": 260, "levier": 280, "ak": 520, "dmr": 650, "sniper": 750, "mitrailleuse": 1200}
 ## Recul par famille d'arme (la valeur « recoil » de chaque arme reste la base) :

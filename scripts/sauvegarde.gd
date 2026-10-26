@@ -140,6 +140,8 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 				if not n.grille.vide():
 					tas.append(item)
 			else:
+				if n.is_in_group("frigo"):
+					item["k"] = "frigo"
 				caisses.append(item)
 		elif n is Placeable:
 			objets.append({"type": n.kind, "pos": _v(n.global_position), "rot": n.rotation.y, "pv": n.health, "s": n.stock, "m": n.minuteur, "sec": n.secs, "arm": n.armee})
@@ -319,9 +321,13 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 		pl.armee = bool(o.get("arm", true))
 		pl._maj_visuel_stock()
 	for c in d.get("caisses", []):
-		var crate = LootContainer.new()
-		crate.setup("Caisse de stockage", "", Vector3(1.2, 0.8, 0.8), Color(0.45, 0.32, 0.18))
-		crate.make_storage(8, 6)
+		var crate
+		if c.get("k", "") == "frigo":
+			crate = Placeable.creer_frigo()
+		else:
+			crate = LootContainer.new()
+			crate.setup("Caisse de stockage", "", Vector3(1.2, 0.8, 0.8), Color(0.45, 0.32, 0.18))
+			crate.make_storage(8, 6)
 		crate.grille = grille_depuis(c.get("g"))
 		main.add_child(crate)
 		crate.global_position = _vd(c.pos)

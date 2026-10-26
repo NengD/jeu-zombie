@@ -27,8 +27,8 @@ const CAM_EPAULE := Vector3(0.5, 0.15, 0.0)
 const CAM_EPAULE_VISEE := Vector3(0.75, 0.1, 0.0)
 const FOV_AIM := 50.0
 const HAND_ROT := Vector3(90, 0, 0)      # orientation de l'arme dans la main du modèle (ombre)
-const PLACE_SIZES := {"etabli": Vector3(1.2, 1.05, 1.1), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25), "lit": Vector3(1.0, 0.5, 2.0), "piege_machoires": Vector3(0.7, 0.2, 0.8), "recuperateur_eau": Vector3(1.2, 1.6, 1.2), "sechoir": Vector3(1.6, 1.6, 0.8), "canne_peche": Vector3(0.6, 1.0, 0.9)}
-const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche", "piege_machoires", "recuperateur_eau", "sechoir", "canne_peche"]   # se posent n'importe où
+const PLACE_SIZES := {"etabli": Vector3(1.2, 1.05, 1.1), "barricade": Vector3(2.1, 2.4, 0.2), "caisse_stockage": Vector3(1.2, 0.8, 0.8), "piques": Vector3(2.0, 1.0, 1.0), "barbeles": Vector3(2.4, 1.0, 1.0), "projecteur": Vector3(0.7, 1.9, 0.7), "feu_camp": Vector3(1.2, 0.6, 1.2), "plan_couture": Vector3(1.6, 1.0, 0.8), "collet": Vector3(0.5, 0.3, 0.5), "torche": Vector3(0.25, 1.5, 0.25), "lit": Vector3(1.0, 0.5, 2.0), "piege_machoires": Vector3(0.7, 0.2, 0.8), "recuperateur_eau": Vector3(1.2, 1.6, 1.2), "sechoir": Vector3(1.6, 1.6, 0.8), "canne_peche": Vector3(0.6, 1.0, 0.9), "bac_culture": Vector3(1.4, 0.4, 0.9), "groupe_electrogene": Vector3(1.0, 0.8, 0.7), "panneau_solaire": Vector3(1.6, 1.2, 1.1), "lampe": Vector3(0.3, 1.8, 0.3), "cloture_electrique": Vector3(2.4, 1.3, 0.3), "frigo": Vector3(0.8, 1.8, 0.75)}
+const POSE_DEHORS := ["barricade", "piques", "barbeles", "projecteur", "feu_camp", "collet", "torche", "piege_machoires", "recuperateur_eau", "sechoir", "canne_peche", "bac_culture", "groupe_electrogene", "panneau_solaire", "lampe", "cloture_electrique"]   # se posent n'importe où
 
 # --- état de survie
 var health := 100.0
@@ -2867,6 +2867,8 @@ func _p_anim(nom: String, vitesse := 1.0, verrou := 0.0) -> void:
 	if pap == null or not pap.has_animation(nom):
 		return
 	if verrou > 0.0:
+	elif placing == "frigo":
+		obj = Placeable.creer_frigo()
 		p_lock = verrou
 		pap.play(nom, 0.08)
 		pap.seek(0.0)
@@ -3223,6 +3225,8 @@ func _anim_geste(delta: float, hs: float) -> bool:
 			_p_anim("recolter", 2.2)
 		"lit":
 			# couché : première image de « se relever », sans fondu (il ne progresserait pas à vitesse nulle)
+		"planter":
+			fini = geste_t > 1.3
 			if p_anim != "relever":
 				pap.play("relever", 0.0)
 				p_anim = "relever"
@@ -3245,6 +3249,8 @@ func _lieu_arme(id: String) -> String:
 		return "dos"
 	return ""
 
+		"planter":
+			_p_anim("planter", 1.2)
 
 ## Roulade d'esquive (s'accroupir en plein sprint) : élan vers l'avant, coups évités pendant la
 ## partie centrale de la roulade (ROULADE_DUREE), endurance dépensée.
