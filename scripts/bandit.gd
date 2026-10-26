@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## tire sur le joueur (et sur les zombies trop proches), alerte ses camarades,
 ## garde ses distances et recharge. À sa mort : son arme et des munitions au sol, de l'argent.
 
+const LodAnim = preload("res://scripts/lod_anim.gd")
 const Perso = preload("res://scripts/perso.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
 const Effets = preload("res://scripts/effets.gd")
@@ -42,6 +43,7 @@ var ralenti_k := 1.0
 var mort_t := 0.0
 var modele: Node3D = null
 var pap: AnimationPlayer = null
+var lod = null                # animation à niveau de détail (lod_anim.gd)
 var arme_noeud: Node3D = null
 var bras_ik: Node = null
 var pieds_ik = null                 # pieds posés sur le sol (scripts/pieds_ik.gd)
@@ -112,6 +114,7 @@ func setup(p_camp: int, centre: Vector3, rng: RandomNumberGenerator) -> void:
 			sk_b.add_child(pieds_ik)
 			sk_b.add_child(bras_ik)
 		ModeleUtil.distance_visible(modele, 160.0)
+		lod = LodAnim.new(pap, ModeleUtil.squelette(modele))
 
 
 func _ready() -> void:
@@ -119,6 +122,11 @@ func _ready() -> void:
 
 
 # ---------------------------------------------------------------- boucle
+func _process(delta: float) -> void:
+	if lod:
+		lod.maj(delta, global_position, state == COMBAT or state == REPLI or state == MORT)
+
+
 func _physics_process(delta: float) -> void:
 	if state == MORT:
 		_mort_process(delta)
@@ -127,6 +135,7 @@ func _physics_process(delta: float) -> void:
 	var dj := 9999.0
 	if p:
 		dj = global_position.distance_to(p.global_position)
+	LodAnim.ombres(modele, dj < LodAnim.OMBRE_DIST)
 	if pieds_ik:
 		pieds_ik.active = dj < 22.0
 	if corps_v:

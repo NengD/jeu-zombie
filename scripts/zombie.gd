@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 enum State { WANDER, INVESTIGATE, CHASE, DEAD }
 
+const LodAnim = preload("res://scripts/lod_anim.gd")
 const GRAVITY := 14.0
 
 var kind := "civil"
@@ -30,6 +31,7 @@ var lunge := 0.0
 var dormant := false
 var dormant_t := 0.0
 var lod_loin := false         # loin du joueur et calme : logique allégée
+var lod_saut := randf() < 0.5  # loin et calme : une image physique sur deux (alternance)
 var steer_t := 0.0
 var steer_cache := Vector3.ZERO
 var anim_acc := 0.0           # temps d'animation en attente (animation allégée au loin)
@@ -252,6 +254,8 @@ func _apply_look() -> void:
 			ModeleUtil.boucler(ap, ["idle", "marche", "course", "rampe"])
 			ap.playback_default_blend_time = 0.2
 			ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL   # avancée par _process (niveau de détail)
+			if squelette:
+				squelette.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL   # idem pour pieds, corps, posture
 			_anim("idle")
 			ap.seek(randf() * 2.0)
 		return
@@ -379,6 +383,7 @@ func _physics_process(delta: float) -> void:
 	if p:
 		dist = global_position.distance_to(p.global_position)
 	dormant = dist > 90.0 and state != State.CHASE
+	LodAnim.ombres(modele, dist < LodAnim.OMBRE_DIST)
 	if pieds_ik:
 		pieds_ik.active = dist < 22.0 and state != State.DEAD and not rampant
 	if corps_v:
@@ -392,6 +397,12 @@ func _physics_process(delta: float) -> void:
 		return
 	# niveau de détail : au-delà de 35 m et sans poursuite, logique allégée
 	lod_loin = dist > 35.0 and state != State.CHASE
+	# loin et calme : une image physique sur deux, pas de temps doublé (moitié moins de move_and_slide)
+	if lod_loin:
+		lod_saut = not lod_saut
+		if lod_saut:
+			return
+		delta *= 2.0
 	steer_t -= delta
 	# immobile, posé au sol, rien à faire : pas de calcul de déplacement cette image
 	if lod_loin and is_on_floor() and Vector2(velocity.x, velocity.z).length() < 0.05 and _flat_dist(target, global_position) < 0.7:
@@ -441,7 +452,12 @@ func _physics_process(delta: float) -> void:
 	var face := desired if desired.length() > 0.1 else to_goal
 	if face.length() > 0.1:
 		rotation.y = lerp_angle(rotation.y, atan2(-face.x, -face.z), 7.0 * delta)
-	move_and_slide()
+	if lod_loin:
+		velocity *= 2.0   # move_and_slide avance d'un pas physique : vitesse doublée pour une image sautée
+		move_and_slide()
+		velocity *= 0.5
+	else:
+		move_and_slide()
 	# coincé ?
 	if desired.length() > 0.1 and Vector2(velocity.x, velocity.z).length() < 0.25:
 		stuck_t += delta
@@ -1227,13 +1243,15 @@ func _process(delta: float) -> void:
 	if p and state != State.CHASE:
 		var d := global_position.distance_to(p.global_position)
 		if not p.camera.is_position_in_frustum(global_position + Vector3.UP):
-			palier = 6
-		elif d > 50.0:
+			palier = 8
+		elif d > 45.0:
 			palier = 4
-		elif d > 25.0:
+		elif d > 20.0:
 			palier = 2
 	if anim_image % palier == 0:
 		ap.advance(anim_acc)
+		if squelette:
+			squelette.advance(anim_acc)
 		anim_acc = 0.0
 
 

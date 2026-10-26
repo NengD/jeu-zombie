@@ -29,7 +29,7 @@ func _go():
 	g.admin = true
 	g.admin_invisible = true
 	g.admin_invincible = true
-	g.time_hours = 11.0
+	g.time_hours = float(OS.get_environment("HEURE")) if OS.get_environment("HEURE") != "" else 11.0
 	var w = main.world
 	var vp := root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)

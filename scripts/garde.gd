@@ -3,6 +3,7 @@ extends StaticBody3D
 ## Il scrute les alentours et abat les zombies qui approchent ; il ne tire jamais sur le joueur.
 ## [F] : quelques mots avec lui.
 
+const LodAnim = preload("res://scripts/lod_anim.gd")
 const Perso = preload("res://scripts/perso.gd")
 const ModeleUtil = preload("res://scripts/modele_util.gd")
 const Effets = preload("res://scripts/effets.gd")
@@ -21,6 +22,7 @@ var portee := 30.0
 var regard_base := 0.0          # direction surveillée (rotation.y globale)
 var modele: Node3D
 var pap: AnimationPlayer
+var lod = null                # animation à niveau de détail (lod_anim.gd)
 var arme_noeud: Node3D
 var bras_ik: Node
 var cible: Node3D = null
@@ -71,10 +73,18 @@ func setup(rng: RandomNumberGenerator) -> void:
 		bras_ik.point_main_g = preload("res://scripts/fps_arms.gd").hand_points(arme, Items.info(arme), Accessoires.points(arme, m)).L
 		ModeleUtil.squelette(modele).add_child(bras_ik)
 	ModeleUtil.distance_visible(modele, 160.0)
+	lod = LodAnim.new(pap, ModeleUtil.squelette(modele))
+
+
+func _process(delta: float) -> void:
+	if lod:
+		lod.maj(delta, global_position, cible != null)
 
 
 func _physics_process(delta: float) -> void:
 	var p = Game.player
+	if p:
+		LodAnim.ombres(modele, global_position.distance_to(p.global_position) < LodAnim.OMBRE_DIST)
 	if p == null or global_position.distance_to(p.global_position) > 140.0:
 		if pap:
 			pap.active = false

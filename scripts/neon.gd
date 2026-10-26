@@ -7,15 +7,18 @@ var base := 0.9
 var t := 0.0
 var tube: MeshInstance3D = null
 var mat_tube: StandardMaterial3D = null
+var verif := randf() * 0.3   # distance au joueur revue toutes les 0,3 s
 
 
 func _process(delta: float) -> void:
 	var p = Game.player
 	if p == null:
 		return
-	var loin := global_position.distance_squared_to(p.global_position) > 45.0 * 45.0
-	visible = not loin
-	if loin or not clignote:
+	verif -= delta
+	if verif <= 0.0:
+		verif = 0.3
+		visible = global_position.distance_squared_to(p.global_position) < 45.0 * 45.0
+	if not visible or not clignote:
 		return
 	t -= delta
 	if t <= 0.0:

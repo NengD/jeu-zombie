@@ -85,6 +85,7 @@ const MODELES_MEUBLES := {
 
 var rng := RandomNumberGenerator.new()
 var sts := {}         # "chunk|matériau" -> SurfaceTool
+var occ := {}         # chunk -> PackedVector3Array : murs pleins pour l'occlusion (quads, 4 sommets chacun)
 var bodies := {}      # chunk -> StaticBody3D
 var mat: StandardMaterial3D
 var mats := {}        # nom -> matériau
@@ -298,6 +299,22 @@ func _commit() -> void:
 		mi.material_override = mats.get(str(k).get_slice("|", 2), mat)
 		add_child(mi)
 	sts.clear()
+	# occulteurs : un par chunk (murs pleins), le moteur ne dessine pas ce qu'ils cachent
+	for k in occ:
+		var v: PackedVector3Array = occ[k]
+		var centre := Vector3((k.x + 0.5) * CHUNK, 0.0, (k.y + 0.5) * CHUNK)
+		var idx := PackedInt32Array()
+		for q in v.size() / 4:
+			idx.append_array([q * 4, q * 4 + 1, q * 4 + 2, q * 4, q * 4 + 2, q * 4 + 3])
+		for i in v.size():
+			v[i] -= centre
+		var ao := ArrayOccluder3D.new()
+		ao.set_arrays(v, idx)
+		var oi := OccluderInstance3D.new()
+		oi.occluder = ao
+		oi.position = centre
+		add_child(oi)
+	occ.clear()
 
 
 # ================================================================ sol
@@ -1117,10 +1134,30 @@ func _wall(along_x: bool, fixed: float, a0: float, a1: float, y0: float, y1: flo
 		return
 	var mid := (a0 + a1) / 2.0
 	var cy := (y0 + y1) / 2.0
+	if a1 - a0 >= 1.5 and y1 - y0 >= 1.8:
+		_occulteur(along_x, fixed, a0, a1, y0, y1)
 	if along_x:
 		_box(Vector3(mid, cy, fixed), Vector3(a1 - a0, y1 - y0, WALL_T), col)
 	else:
 		_box(Vector3(fixed, cy, mid), Vector3(WALL_T, y1 - y0, a1 - a0), col)
+
+
+## Mur plein (au moins 1,5 × 1,8 m) ajouté aux occulteurs de son chunk : un quad dans le plan du mur,
+## un peu rentré pour ne pas cacher ce qui dépasse à peine (bords, encadrements).
+func _occulteur(along_x: bool, fixed: float, a0: float, a1: float, y0: float, y1: float) -> void:
+	a0 += 0.15
+	a1 -= 0.15
+	y0 += 0.1
+	y1 -= 0.1
+	var q: Array
+	if along_x:
+		q = [Vector3(a0, y0, fixed), Vector3(a1, y0, fixed), Vector3(a1, y1, fixed), Vector3(a0, y1, fixed)]
+	else:
+		q = [Vector3(fixed, y0, a0), Vector3(fixed, y0, a1), Vector3(fixed, y1, a1), Vector3(fixed, y1, a0)]
+	var k := _chunk((q[0] + q[2]) / 2.0)
+	if not occ.has(k):
+		occ[k] = PackedVector3Array()
+	occ[k].append_array(PackedVector3Array(q))
 
 
 func _furnish(zone: Dictionary, kind: String, count: int, placed: Array) -> void:
