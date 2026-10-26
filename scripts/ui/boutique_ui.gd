@@ -112,7 +112,7 @@ func _maj() -> void:
 		if pv <= 0:
 			continue
 		var nb: int = objets[id]
-		var ligne := _ligne(vente, id, "%s  (×%d)%s" % [Items.nom(id), nb, "  ★" if id in vendeur.specialites() else ""], "%d € / u" % pv)
+		var ligne := _ligne(vente, id, "%s  (×%d)%s" % [Items.nom(id), nb, "  ★" if vendeur.est_specialite(id) else ""], "%d € / u" % pv)
 		var n1 := mini(lot(id), nb)
 		_bouton(ligne, "Vendre %d" % n1, _vendre.bind(id, n1))
 		if nb > n1:

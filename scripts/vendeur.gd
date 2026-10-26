@@ -10,22 +10,25 @@ const METIERS := {
 		"batte", "matraque", "machette", "couteau_km2000", "hache", "pioche",
 		"glock19", "m45a1", "mr920", "toz34", "marlin", "mp5k",
 		"mun_9mm", "mun_45", "mun_12", "mun_4570", "mun_762r", "mun_556",
-		"rgd5", "point_rouge", "silencieux_9mm", "chargeur_etendu", "laser"]},
+		"mun_545", "mun_762x39", "rgd5", "molotov", "kit_reparation", "point_rouge", "silencieux_9mm", "chargeur_etendu", "laser"],
+		"rachat": ["type:gun", "type:ammo", "type:accessoire", "type:lancer", "kit_reparation"]},
 	"quincaillier": {"titre": "Quincaillier", "toile": Color(0.2, 0.35, 0.6), "stock": [
 		"planche", "clous", "ferraille", "ruban", "tissu", "ciment", "marteau",
 		"piques", "barbeles", "projecteur", "barricade", "etabli", "caisse_stockage", "sac_toile", "sac_a_dos",
-		"sac_sport", "sac_randonnee", "casque_chantier", "lunettes", "bonnet", "casquette"]},
+		"sac_sport", "sac_randonnee", "casque_chantier", "lunettes", "bonnet", "casquette", "kit_reparation", "canne_peche"],
+		"rachat": ["planche", "clous", "ferraille", "ruban", "tissu", "ciment", "buche", "pierre", "minerai", "cuir", "bouteille_vide"]},
 	"medecin": {"titre": "Médecin", "toile": Color(0.85, 0.85, 0.82), "stock": [
-		"bandage", "antidouleur", "trousse", "alcool", "eau", "soda", "barre", "conserve", "ration",
-		"veste_cuir", "casque_moto", "masque_gaz"]},
+		"bandage", "antidouleur", "trousse", "medicament", "antibiotiques", "attelle", "alcool", "eau", "soda", "barre", "conserve", "ration",
+		"veste_cuir", "casque_moto", "masque_gaz"],
+		"rachat": ["type:heal", "alcool"]},
 	"boucher": {"titre": "Boucher-chasseur", "toile": Color(0.5, 0.32, 0.2), "stock": [
 		"arc", "fleche", "couteau_km2000", "hache", "collet", "piege_machoires", "sechoir", "feu_camp",
 		"viande_cuite", "viande_sechee", "bouillon", "ragout", "cuir", "sac_chasse", "capuche_cuir", "veste_cuir"],
-		"rachat": ["viande_crue", "viande_cuite", "viande_sechee", "peau", "cuir", "graisse", "os", "plume"]},
+		"rachat": ["viande_crue", "viande_cuite", "viande_sechee", "peau", "cuir", "graisse", "os", "plume", "poisson_cru", "poisson_cuit"]},
 	"epicier": {"titre": "Épicier", "toile": Color(0.3, 0.55, 0.25), "stock": [
 		"eau", "soda", "barre", "conserve", "ration", "viande_sechee", "bouillon", "alcool", "medicament",
 		"torche", "feu_camp", "lit", "recuperateur_eau", "sac_toile", "sac_sport", "casquette", "bonnet"],
-		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool"]},
+		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool", "pomme", "raisin", "epi_mais", "mais_grille", "poisson_cuit"]},
 	"mecanicien": {"titre": "Mécanicien", "toile": Color(0.75, 0.55, 0.12), "stock": [
 		"cle_molette", "marteau", "pioche", "batte_cloutee", "piece_auto", "essence", "batterie", "pneu", "ferraille",
 		"ruban", "clous", "projecteur", "barbeles", "casque_chantier", "lunettes", "masque_gaz", "veste_renforcee"],
@@ -215,9 +218,15 @@ func interact(_player: Node) -> void:
 ## Prix de rachat d'une unité : 40 %, plus pour les spécialités du métier.
 func prix_rachat(id: String) -> int:
 	var k := 1.15 if Game.player and Game.player.prog.a("marchandage") else 1.0   # talent Marchandage
-	return roundi(Items.prix_vente(id, BONUS_RACHAT if id in METIERS[metier].get("rachat", []) else 1.0) * k)
+	return roundi(Items.prix_vente(id, BONUS_RACHAT if est_specialite(id) else 1.0) * k)
 
 
 ## Spécialités rachetées plus cher (affichées dans la boutique).
 func specialites() -> Array:
 	return METIERS[metier].get("rachat", [])
+
+
+## Spécialité de ce marchand : id listé dans « rachat », ou « type:<type> » (armurier : toutes les armes à feu…).
+func est_specialite(id: String) -> bool:
+	var r: Array = METIERS[metier].get("rachat", [])
+	return id in r or ("type:" + str(Items.info(id).get("type", ""))) in r
