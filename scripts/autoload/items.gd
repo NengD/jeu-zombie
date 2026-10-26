@@ -148,7 +148,7 @@ const DB := {
 	"torche": {"name": "Torche (à planter)", "type": "placeable", "weight": 0.5, "desc": "Se plante n'importe où : éclaire les alentours la nuit."},
 	"collet": {"name": "Collet à lapin (piège à placer)", "type": "placeable", "weight": 0.2, "desc": "À poser dehors, loin de la ville : un lapin s'y prend au bout de quelques minutes si personne ne rôde autour."},
 	"piege_machoires": {"name": "Piège à mâchoires (à placer)", "type": "placeable", "weight": 3.0, "desc": "Se referme sur le premier zombie qui marche dessus : grosse blessure, immobilisé 7 s. [F] pour le réarmer."},
-	"recuperateur_eau": {"name": "Récupérateur d'eau de pluie (à placer)", "type": "placeable", "weight": 5.0, "desc": "À poser dehors : se remplit quand il pleut (jusqu'à 4 bouteilles d'eau)."},
+	"recuperateur_eau": {"name": "Récupérateur d'eau de pluie (à placer)", "type": "placeable", "weight": 5.0, "desc": "À poser dehors : garde l'eau de pluie (jusqu'à 6 bouteilles). [F] remplit tes bouteilles vides."},
 	"sechoir": {"name": "Séchoir à viande (à placer)", "type": "placeable", "weight": 4.0, "desc": "[F] pour y suspendre la viande crue : elle sèche en quelques minutes (moins vite sous la pluie)."},
 	"canne_peche": {"name": "Ligne de pêche (à poser)", "type": "placeable", "weight": 0.8, "desc": "À poser au bord d'une rivière ou d'un lac : un poisson finit par mordre. [F] pour le prendre."},
 	# accessoires d'armes (vue d'inspection : touche T) — modèles D_U
