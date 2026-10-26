@@ -167,6 +167,7 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	d["marqueurs"] = Game.marqueurs
 	d["lieux_fouilles"] = Game.lieux_fouilles.keys()
 	d["commandes"] = Commandes.etat()   # commandes des marchands (commandes.gd)
+	d["journal"] = preload("res://scripts/journal.gd").etat()   # journal du survivant (journal.gd)
 	var f := FileAccess.open(fichier, FileAccess.WRITE)
 	if f == null:
 		return false
@@ -181,6 +182,8 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 	var cont: Dictionary = d.get("conteneurs", {})
 	var cmd = d.get("commandes", {})
 	Commandes.appliquer(cmd if cmd is Dictionary else {})
+	var jrn = d.get("journal", {})
+	preload("res://scripts/journal.gd").appliquer(jrn if jrn is Dictionary else {})
 	if main.has_method("appliquer_camps") and d.has("camps"):
 		main.appliquer_camps(d.camps)
 		main.primes_payees = Array(d.get("primes", []))

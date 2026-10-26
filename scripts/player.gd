@@ -1834,6 +1834,8 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 			else:
 				amount *= 0.6
 				Game.msg("Trop épuisé pour parer !")
+	if amount > 0.0:
+		preload("res://scripts/journal.gd").touche()   # journal : fin de la série sans dégâts
 	if Game.admin and Game.admin_invincible:
 		hurt_flash = 0.3
 		return
@@ -2762,6 +2764,8 @@ func start_placement(id: String) -> void:
 	bm.size = PLACE_SIZES[id]
 	ghost.mesh = bm
 	ghost_mat = StandardMaterial3D.new()
+	preload("res://scripts/journal.gd").compter("fabriques", qty)   # journal du survivant
+	preload("res://scripts/journal.gd").compter("fab:" + str(r.out), qty)
 	ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ghost_mat.albedo_color = Color(0.2, 1.0, 0.3, 0.35)
@@ -3378,6 +3382,7 @@ func _soin_utile(id: String) -> bool:
 				return true
 	if it.get("desinfecte", false) and morsure_t > 0.0 and not plaie_desinfectee:
 		return true
+				preload("res://scripts/journal.gd").compter("morsures_soignees")
 	return id == "medicament" and maladie > 0.0
 
 
@@ -3433,6 +3438,7 @@ func _soin_conseille() -> String:
 	return ""
 
 
+				preload("res://scripts/journal.gd").compter("morsures_soignees")
 # --- eau des lacs et de la rivière : [F] pour boire, ou remplir une bouteille vide
 var face_eau := false
 

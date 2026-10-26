@@ -23,6 +23,7 @@ const TOUCHES := [
 	["Démonter une pièce", "X"],
 	["Personnage : arbre de compétences", "K"],
 	["État du survivant (blessures, froid, soins)", "J"],
+	["Journal : statistiques, objectifs, succès", "O"],
 	["Pause", "Échap"],
 	["Sauvegarde rapide / chargement", "F5 / F9"],
 	["Aide en jeu", "F1"],
@@ -218,6 +219,10 @@ const GUIDE := """[b]LES BASES[/b]
   à l'établi en poudre à canon (ex. 12 balles de 9 mm, 6 cartouches de calibre 12 ou 8 balles de 5.56 → 1 poudre).
 • La [b]clé à molette[/b] est une arme de mêlée. En main ou dans ton sac, elle fait démonter les épaves plus vite
   (4 coups sur 10 en moins) et rapporte 40 % de pièces en plus.
+• [O] ouvre le [b]Journal du survivant[/b] (Tab, Q / E : changer d'onglet) : [b]Statistiques[/b] (zombies tués par type et par arme,
+  animaux, bandits, distance à pied et en véhicule, objets fabriqués, lieux découverts, plus longue série sans dégâts…),
+  [b]Objectifs[/b] (étapes guidées pour bien débuter, cochées toutes seules, avec une petite récompense en XP ou en euros)
+  et [b]Succès[/b] (28 à débloquer, annoncés à l'écran).
 
 [b]PÊCHE ET CUEILLETTE[/b]
 • [b]Ligne de pêche[/b] (planche + tissu + ferraille, à la main) : plante-la au bord d'une rivière, d'un lac ou d'une mare

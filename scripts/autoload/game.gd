@@ -94,7 +94,7 @@ const TOUCHES_MODIFIABLES := [["avancer", "Avancer"], ["reculer", "Reculer"], ["
 	["sprint", "Sprinter"], ["sauter", "Sauter"], ["accroupir", "S'accroupir"], ["pencher_gauche", "Se pencher à gauche"], ["pencher_droite", "Se pencher à droite"],
 	["tirer", "Frapper / tirer"], ["viser", "Viser / parer"], ["recharger", "Recharger"], ["interagir", "Fouiller / utiliser"], ["soigner", "Se soigner"],
 	["inventaire", "Inventaire"], ["carte", "Carte"], ["lampe", "Lampe"], ["inspecter", "Inspecter l'arme"], ["construire", "Mode construction"],
-	["ameliorer", "Renforcer / réparer"], ["demonter", "Démonter une pièce"], ["competences", "Personnage"], ["etat", "État du survivant"]]
+	["ameliorer", "Renforcer / réparer"], ["demonter", "Démonter une pièce"], ["competences", "Personnage"], ["etat", "État du survivant"], ["journal", "Journal du survivant"]]
 const NOMS_QUALITE := ["Bas", "Moyen", "Élevé", "Ultra"]
 signal graphismes_changes
 const SETTINGS_PATH := "user://parametres.cfg"
@@ -195,6 +195,7 @@ func lieu_vaste(nom: String) -> bool:
 ## Après une fouille en `pos` : le lieu le plus proche (60 m) est marqué fouillé quand 80 % de ses meubles
 ## (à 40 m de son centre) l'ont été.
 func maj_lieu_fouille(pos: Vector3) -> void:
+	preload("res://scripts/journal.gd").compter("fouilles")   # journal du survivant : meubles fouillés
 	var best: Dictionary = {}
 	var dmin := 60.0
 	for poi in pois:
@@ -267,6 +268,7 @@ func _setup_inputs() -> void:
 	_key("demonter", KEY_X)
 	_key("competences", KEY_K)
 	_key("etat", KEY_J)
+	_key("journal", KEY_O)
 	_phys("admin_panneau", KEY_F2)
 	_key("admin_vol", KEY_N)
 	_phys("sauvegarde_rapide", KEY_F5)

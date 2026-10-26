@@ -517,6 +517,7 @@ func _mourir(par_joueur: bool) -> void:
 	if par_joueur and Game.player:
 		Game.player.prog.gagner("combat", 70)
 		Game.player.gagner_argent(randi_range(10, 40))
+		preload("res://scripts/journal.gd").compter("bandits")   # journal du survivant
 	_lacher_butin()
 
 

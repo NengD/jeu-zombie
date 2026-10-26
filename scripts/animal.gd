@@ -325,6 +325,8 @@ func _mourir() -> void:
 	if Game.player:
 		Game.player.prog.gagner("chasse", 10)
 		Game.player.prog.gagner("survie", 3)
+		preload("res://scripts/journal.gd").compter("animaux")   # journal du survivant
+		preload("res://scripts/journal.gd").compter("animaux:" + kind)
 	if faune and is_instance_valid(faune):
 		faune.mort(self)
 	if ap and ap.has_animation("Death"):
