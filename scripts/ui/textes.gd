@@ -111,7 +111,7 @@ const GUIDE := """[b]LES BASES[/b]
 [b]NIVEAUX ET ARBRE DE COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), récolter, manger, boire, se soigner et encaisser des coups (Survie), toucher avec une flèche, tuer et dépecer des animaux, relever un collet, cuisiner au feu (Chasse).
 • L'écran Personnage est un [b]arbre[/b] qui part du survivant (au centre) : une branche par compétence (Combat se sépare en corps à corps et armes à feu, puis Fabrication, Exploration, Survie, Chasse et arc). Un nœud ne se débloque que si le précédent l'est, et plus on s'éloigne du centre, plus le niveau de compétence demandé est élevé.
-• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 78 talents (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
+• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 90 talents (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
 • Chaque nœud montre une icône, le niveau requis (petite pastille) et une coche verte une fois acquis. Nœuds à rangs (« 0/3 ») : un point par rang, 2 niveaux de plus demandés à chaque rang. Ponts (losanges, traits en pointillés) entre deux branches voisines : il faut les deux nœuds reliés.
 • Couleurs : nœud plein = acquis, anneau doré qui pulse = disponible (clic pour débloquer), gris = verrouillé. Survol : description, coût, prérequis, niveau requis et aperçu chiffré de chaque talent (« avant → après » : statistiques, arme en main, chances, prix, détection…). Clic-glisser pour déplacer, molette pour zoomer, Espace pour recentrer.
 • Bouton « Réinitialiser » : rend tous les points dépensés contre de l'argent (100 € + 40 € par niveau) ; les rangées de poches restent acquises.
@@ -172,6 +172,45 @@ const GUIDE := """[b]LES BASES[/b]
 • Manger de la viande crue peut rendre malade (intoxication) : faim et soif baissent vite, endurance réduite, nausées.
   Ça passe avec le temps, ou tout de suite avec des médicaments anti-nausée (pharmacies, hôpitaux).
 
+[b]BLESSURES ET SOINS[/b]
+• Un coup peut te faire [b]saigner[/b] : tu perds de la santé peu à peu (elle ne remonte plus) jusqu'à ce qu'un bandage ou une trousse arrête le saignement.
+• Une [b]morsure[/b] de zombie peut s'infecter : désinfecte-la à l'alcool dans la minute qui suit (risque bien plus faible).
+  Une plaie infectée donne de la fièvre qui monte (soif, endurance réduite, puis santé qui baisse) : seuls les [b]antibiotiques[/b]
+  (hôpital, pharmacie, médecin) la guérissent.
+• Une grosse chute (plus de 5 m) ou le coup d'un gros zombie peut te casser la jambe : tu boites, ne cours plus et sautes moins haut
+  tant que tu n'as pas posé d'[b]attelle[/b] (1 planche + 2 tissus, à la main).
+• [H] choisit tout seul le soin le plus utile. Les états (saignement, infection, fracture, froid) s'affichent sous l'heure.
+
+[b]EAU ET FROID[/b]
+• Face à un lac ou à la rivière, [F] pour boire (l'eau n'est pas potable : risque de maladie) ou, avec une bouteille vide,
+  pour la remplir d'eau non potable, à faire bouillir au feu de camp. Boire une bouteille (eau, soda) te rend la bouteille vide.
+• La nuit, la pluie et l'eau refroidissent ; le jour, un abri et surtout un feu de camp (à moins de 6 m) réchauffent.
+  Les vêtements chauds (bonnet, vestes, gilets…) ralentissent le refroidissement. Avoir froid réduit l'endurance et empêche
+  la santé de remonter ; transi de froid, ta santé baisse (indicateur ❄ sous l'heure).
+
+[b]USURE ET RÉPARATION[/b]
+• Les armes, l'arc et les outils s'usent (coup qui porte, tir, flèche, coup de récolte). La barre sous l'objet et l'infobulle
+  montrent son état ; une arme cassée ne sert plus.
+• Clic droit > [b]Réparer[/b] avec un kit de réparation (établi : 1 ruban + 2 ferrailles) ; il faut aussi une clé à molette
+  pour une arme à feu. Chaque kit efface la moitié de l'usure (+3 % par niveau de fabrication).
+
+[b]MOLOTOV, MUNITIONS ET CLÉ À MOLETTE[/b]
+• [b]Cocktail Molotov[/b] (essence + alcool + tissu, à la main) : se lance comme la grenade. La bouteille se brise au premier choc
+  et le sol brûle environ 7 s sur 3 m : zombies et bandits dans les flammes prennent des dégâts… et toi aussi. Bruyant.
+• L'établi fabrique aussi les balles 7.62×39, 7.62×54R et .45-70. Les cartouches d'un calibre que tu n'utilises pas se démontent
+  à l'établi en poudre à canon (ex. 12 balles de 9 mm, 6 cartouches de calibre 12 ou 8 balles de 5.56 → 1 poudre).
+• La [b]clé à molette[/b] est une arme de mêlée. En main ou dans ton sac, elle fait démonter les épaves plus vite
+  (4 coups sur 10 en moins) et rapporte 40 % de pièces en plus.
+
+[b]PÊCHE ET CUEILLETTE[/b]
+• [b]Ligne de pêche[/b] (planche + tissu + ferraille, à la main) : plante-la au bord d'une rivière, d'un lac ou d'une mare
+  (refusée loin de l'eau ou en eau profonde) et éloigne-toi : un poisson mord toutes les 3 à 5 minutes quand personne ne rôde
+  à moins de 20 m (plus vite sous la pluie, deux fois plus vite avec le talent Piégeur). Le seau garde 3 poissons : [F] pour les prendre.
+  Le poisson cru se grille au feu.
+• [b]Cueillette[/b] : dans les vergers, les vignobles et les champs de maïs, vise un pommier, un rang de vigne ou un pied de maïs et
+  appuie sur [F] (pommes, raisin, épis de maïs à griller au feu). Chaque plant se cueille une fois par jour ; les fruits encore
+  à cueillir se voient sur les arbres et les vignes.
+
 [b]CONSTRUIRE SA BASE[/b]
 1. Fabrique un établi (Tab) : 4 planches + 6 clous + 2 ferrailles.
 2. Vide un bâtiment de tous ses zombies : le coin en haut à droite affiche « bâtiment sûr ».
@@ -214,7 +253,10 @@ const GUIDE := """[b]LES BASES[/b]
   ou revendre tes objets à 40 % de leur prix.
 • Nouveaux métiers : [b]boucher-chasseur[/b] (arc, flèches, pièges, séchoir, viande préparée), [b]épicier[/b] (nourriture, boissons,
   feu de camp, lit, récupérateur d'eau) et [b]mécanicien[/b] (pièces auto, essence, batteries, pneus, outils). Chaque marchand rachète
-  ses [b]spécialités[/b] (marquées ★) à 70 % : viande, peaux et cuir chez le boucher, nourriture chez l'épicier, pièces auto chez le mécanicien.
+  ses [b]spécialités[/b] (marquées ★) à 70 % : viande, peaux, cuir et poisson chez le boucher, nourriture, fruits et maïs chez l'épicier, pièces auto chez le mécanicien,
+  armes, munitions, accessoires, grenades et kits de réparation chez l'armurier, matériaux chez le quincaillier, soins et alcool chez le médecin.
+• L'armurier vend aussi les balles 5.45 et 7.62×39, le Molotov et le kit de réparation ; le médecin, les médicaments anti-nausée,
+  les antibiotiques et les attelles.
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 • [b]Vendre tout le bric-à-brac[/b] (avec confirmation) : armes et vêtements en double, munitions qu'aucune de tes armes
   ne tire, matériaux qui ne servent à rien. Les cases verrouillées de la barre rapide sont épargnées.
