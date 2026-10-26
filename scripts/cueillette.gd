@@ -191,7 +191,7 @@ func cueillir(corps: Parcelle, joueur: Node) -> void:
 		return
 	var g: Dictionary = GENRES[pl.id]
 	var niv := int(joueur.prog.comp["survie"].niv) if joueur.get("prog") else 0
-	var x := randi_range(g.q[0], g.q[1]) * Recolte.plus_de_ressources(niv)
+	var x := randi_range(g.q[0], g.q[1]) * Recolte.plus_de_ressources(niv) * (1.5 if joueur.get("prog") and joueur.prog.a("cueilleur") else 1.0)   # talent Cueilleur : +50 %
 	var qte := int(floor(x)) + (1 if randf() < x - floor(x) else 0)
 	joueur.add_item(pl.id, maxi(1, qte))
 	if joueur.get("prog"):

@@ -12,6 +12,8 @@ var health_max := 250.0
 func setup(p_kind: String) -> void:
 	kind = p_kind
 	add_to_group("placeables")
+	if kind in ["collet", "canne_peche", "sechoir", "recuperateur_eau"]:
+		add_to_group("passe_temps")   # minuteurs avancés par le sommeil (passer_temps)
 	collision_layer = Game.LAYER_WORLD | Game.LAYER_INTERACT
 	collision_mask = 0
 	var wood := Color(0.5, 0.36, 0.2)
@@ -159,7 +161,7 @@ func setup(p_kind: String) -> void:
 			seau.material_override = _mat_acier()
 			seau.position = Vector3(0.4, 0.15, 0.25)
 			add_child(seau)
-			for k in PECHE_MAX:
+			for k in PECHE_MAX + 2:   # (+2 : talent Pêcheur)
 				var po := _part(Vector3(0.4 + (k - 1) * 0.06, 0.24 + k * 0.025, 0.25), Vector3(0.05, 0.03, 0.2), Color(0.55, 0.6, 0.62))
 				po.rotation.y = k * 0.9
 				poissons.append(po)
@@ -345,11 +347,11 @@ func get_prompt() -> String:
 		"torche":
 			return "Torche"
 		"recuperateur_eau":
-			return "[F] Récupérateur d'eau : %d / %d bouteilles%s" % [stock, EAU_MAX, " (il pleut)" if Game.pluie > 0.3 else ""]
+			return "[F] Récupérateur d'eau : remplir tes bouteilles vides (%d / %d d'eau de pluie%s)" % [stock, EAU_MAX, ", il pleut" if Game.pluie > 0.3 else ""]
 		"sechoir":
 			return "[F] Séchoir à viande : %d / %d sèche(s)" % [secs, stock] if stock > 0 else "[F] Séchoir à viande : mettre de la viande crue à sécher"
 		"canne_peche":
-			return "[F] Ligne de pêche : %d / %d poisson(s)" % [stock, PECHE_MAX] if stock > 0 else "Ligne de pêche (rien pour l'instant : les poissons mordent quand personne ne rôde)"
+			return "[F] Ligne de pêche : %d / %d poisson(s)" % [stock, peche_max()] if stock > 0 else "Ligne de pêche (rien pour l'instant : les poissons mordent quand personne ne rôde)"
 		"piege_machoires":
 			return "Piège à mâchoires (armé)" if armee else "[F] Réarmer le piège à mâchoires"
 		"lit":
@@ -373,7 +375,7 @@ func _modele(id: String, pos: Vector3, k: Vector3, rot_y := 0.0) -> Node3D:
 
 
 # ---------------------------------------------------------------- récupérateur d'eau, séchoir, piège à mâchoires
-const EAU_MAX := 4                  # bouteilles d'eau stockées au plus
+const EAU_MAX := 6                  # bouteilles d'eau de pluie en réserve au plus (puisées dans des bouteilles vides)
 const PLUIE_PAR_BOUTEILLE := 90.0   # secondes de pluie franche par bouteille
 const SECHAGE := 240.0              # secondes pour sécher une lanière de viande
 const SECHOIR_MAX := 6
@@ -419,40 +421,66 @@ func _maj_visuel_stock() -> void:
 		machoires.scale.y = 1.1 if armee else 0.5
 
 
-## Le temps passe pour les objets « lents » (pluie récoltée, viande qui sèche).
-func _maj_lent(delta: float) -> void:
+## Poissons gardés dans le seau (talent Pêcheur : +2).
+func peche_max() -> int:
+	return PECHE_MAX + (2 if Game.player and Game.player.prog.a("pecheur") else 0)
+
+
+## Temps sauté par le sommeil (player.dormir -> groupe « passe_temps ») : même progression, plafonnée par le stock.
+func passer_temps(s: float) -> void:
+	if kind == "collet":
+		if not lapin_pris.visible and not Game.in_city(global_position):
+			collet_t -= s
+			lapin_pris.visible = collet_t <= 0.0
+		return
+	_maj_lent(s, true)
+
+
+## Le temps passe pour les objets « lents » (pluie récoltée, poissons, viande qui sèche) ;
+## `dort` = temps sauté par le sommeil (personne ne rôde : la pêche avance même près du joueur).
+func _maj_lent(delta: float, dort := false) -> void:
+	var avant := stock + secs
 	if kind == "recuperateur_eau" and stock < EAU_MAX and Game.pluie > 0.3:
 		minuteur += delta * Game.pluie
-		if minuteur >= PLUIE_PAR_BOUTEILLE:
-			minuteur = 0.0
+		while minuteur >= PLUIE_PAR_BOUTEILLE and stock < EAU_MAX:
+			minuteur -= PLUIE_PAR_BOUTEILLE
 			stock += 1
-			_maj_visuel_stock()
-	elif kind == "canne_peche" and stock < PECHE_MAX:
+	elif kind == "canne_peche" and stock < peche_max():
 		# comme le collet : ça ne mord que si personne ne rôde (joueur à plus de 20 m)
 		var p = Game.player
-		if p and global_position.distance_squared_to(p.global_position) < 400.0:
+		if not dort and p and global_position.distance_squared_to(p.global_position) < 400.0:
 			return
-		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.3 if Game.pluie > 0.3 else 1.0)
-		if minuteur >= PECHE_DUREE:
-			minuteur = randf_range(-60.0, 30.0)
+		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.6 if p and p.prog.a("pecheur") else 1.0) * (1.3 if Game.pluie > 0.3 else 1.0)
+		while minuteur >= PECHE_DUREE and stock < peche_max():
+			minuteur -= PECHE_DUREE + randf_range(-30.0, 60.0)
 			stock += 1
-			_maj_visuel_stock()
 	elif kind == "sechoir" and secs < stock:
 		minuteur += delta * (1.5 if Game.pluie < 0.2 else 0.5)   # sèche mal sous la pluie
-		if minuteur >= SECHAGE:
-			minuteur = 0.0
+		while minuteur >= SECHAGE and secs < stock:
+			minuteur -= SECHAGE
 			secs += 1
-			_maj_visuel_stock()
+	else:
+		return
+	if (kind == "recuperateur_eau" and stock >= EAU_MAX) or (kind == "canne_peche" and stock >= peche_max()) or (kind == "sechoir" and secs >= stock):
+		minuteur = 0.0   # plein : rien ne s'accumule d'avance
+	if stock + secs != avant:
+		_maj_visuel_stock()
 
 
 func _interagir_stock(player: Node) -> void:
 	match kind:
 		"recuperateur_eau":
+			# l'eau de pluie reste dans le fût : [F] en remplit les bouteilles vides du joueur
 			if stock <= 0:
 				Game.msg("Le fût est vide : il se remplit quand il pleut.")
 				return
-			player.add_item("eau", stock)
-			stock = 0
+			var n := mini(stock, player.count("bouteille_vide"))
+			if n <= 0:
+				Game.msg("Il faut des bouteilles vides pour puiser l'eau de pluie (%d dans le fût)." % stock)
+				return
+			player.remove_item("bouteille_vide", n)
+			player.add_item("eau", n)
+			stock -= n
 			Game.play_ui("fouille", -6.0, 0.1, 1.2)
 		"sechoir":
 			if secs > 0:
