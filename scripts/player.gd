@@ -191,7 +191,7 @@ func _ready() -> void:
 	add_item("tissu", 2)
 	slot = 0
 	_refresh_weapon_model()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Game.capturer_souris()
 
 
 func _build_rig() -> void:
@@ -286,7 +286,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not alive or Game.ui_open:
 		return
 	if event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Game.capturer_souris()
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM * Game.sens_visee if aiming else 1.0)

@@ -296,7 +296,7 @@ func fermer() -> void:
 	fond.visible = false
 	Game.ui_open = false
 	if Game.player and Game.player.alive:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Game.capturer_souris()
 
 
 func _input(event: InputEvent) -> void:

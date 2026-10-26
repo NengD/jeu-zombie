@@ -664,7 +664,7 @@ func _resume() -> void:
 	Game.ui_open = false
 	pause_panel.visible = false
 	help_panel.visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Game.capturer_souris()
 
 
 func _sauver() -> void:

@@ -417,7 +417,7 @@ func close() -> void:
 		storage.on_closed()
 	storage = null
 	if Game.player and Game.player.alive:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Game.capturer_souris()
 
 
 func _set_tab(craft: bool) -> void:

@@ -113,15 +113,21 @@ func _ready() -> void:
 		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	_setup_inputs()
 	load_settings()
-
-
-func _process(_delta: float) -> void:
-	# mode test : le jeu (joueur, menus) capture la souris à plusieurs endroits ; on la relâche aussitôt
-	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	blood_mat = StandardMaterial3D.new()
 	blood_mat.albedo_color = Color(0.35, 0.02, 0.02)
 	blood_mat.roughness = 0.4
+
+
+## Capture la souris pour jouer, jamais en mode test (JZ_TEST=1 : la souris reste à l'utilisateur).
+func capturer_souris() -> void:
+	if not mode_test:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _process(_delta: float) -> void:
+	# mode test : filet de sécurité si une capture passe quand même
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func reset() -> void:

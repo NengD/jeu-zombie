@@ -95,7 +95,7 @@ func fermer() -> void:
 	visible = false
 	Game.ui_open = false
 	if Game.player and Game.player.alive and not Game.mode_test:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Game.capturer_souris()
 
 
 func _process(delta: float) -> void:

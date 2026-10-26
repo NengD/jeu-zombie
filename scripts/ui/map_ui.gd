@@ -264,7 +264,7 @@ func _fermer() -> void:
 	_fermer_saisie()
 	view.visible = false
 	Game.ui_open = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Game.capturer_souris()
 
 
 func _recentrer() -> void:

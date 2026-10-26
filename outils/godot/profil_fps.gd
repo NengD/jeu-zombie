@@ -117,7 +117,8 @@ func _go():
 	var par_script := {}
 	for n in tous:
 		var s = n.get_script()
-		if s and (n.is_processing() or n.is_physics_processing()):
+		# jamais les autoloads (Game relâche la souris en mode test)
+		if s and not s.resource_path.contains("/autoload/") and (n.is_processing() or n.is_physics_processing()):
 			var cle: String = s.resource_path.get_file()
 			if not par_script.has(cle):
 				par_script[cle] = []
