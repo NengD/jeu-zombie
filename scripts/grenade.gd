@@ -34,9 +34,12 @@ func preparer(id: String) -> void:
 	sp.radius = 0.035
 	cs.shape = sp
 	add_child(cs)
-	var m := ModeleUtil.arme(id)
-	if m == null and info.get("feu", false):
+	var m: Node3D = null
+	if info.get("feu", false):
 		m = bouteille()
+		m.position.y = -0.12                     # tourne autour du milieu de la bouteille
+	else:
+		m = ModeleUtil.arme(id)
 	if m:
 		add_child(m)
 	feu = bool(info.get("feu", false))
@@ -171,8 +174,20 @@ func _briser() -> void:
 	queue_free()
 
 
-## Bouteille d'alcool bouchée d'un chiffon enflammé (pas de modèle 3D pour le Molotov).
+## Molotov en vol : modèle res://modeles/objets/molotov.scn (outils/godot/creer_molotov.gd), chiffon enflammé.
+## Sans le modèle : bouteille faite de cylindres.
 static func bouteille() -> Node3D:
+	var modele := ModeleUtil.charger("res://modeles/objets/molotov.scn")
+	if modele:
+		var fm := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.07, 0.1)
+		fm.mesh = q
+		fm.material_override = ZoneFeu.materiau_flamme()
+		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fm.position.y = 0.3 + q.size.y * 0.4
+		modele.add_child(fm)
+		return modele
 	var n := Node3D.new()
 	var corps := MeshInstance3D.new()
 	var cm := CylinderMesh.new()

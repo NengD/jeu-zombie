@@ -43,7 +43,7 @@ const ETAL := {
 		"res://modeles/objets/bandage.scn", "res://modeles/objets/conserve.scn", "res://modeles/objets/barre.scn"],
 	"quincaillier": ["res://modeles/props/seau.scn", "res://modeles/objets/essence.scn", "res://modeles/armes/hache.scn"],
 	"armurier": ["res://modeles/armes/glock19.scn", "res://modeles/armes/m45a1.scn", "res://modeles/props/caisse_munitions.scn",
-		"res://modeles/armes/machette.scn"],
+		"res://modeles/armes/machette.scn", "res://modeles/objets/molotov.scn"],
 	"boucher": ["res://modeles/armes/couteau_km2000.scn", "res://modeles/armes/hache.scn", "res://modeles/objets/conserve_ouverte.scn"],
 	"epicier": ["res://modeles/objets/conserve.scn", "res://modeles/objets/eau.scn", "res://modeles/objets/barre.scn",
 		"res://modeles/objets/bouteille2.scn", "res://modeles/objets/conserve.scn", "res://modeles/objets/eau.scn"],
