@@ -445,7 +445,7 @@ func passer_temps(s: float) -> void:
 		return
 	if kind == "groupe_electrogene":
 		if armee:
-			minuteur = maxf(0.0, minuteur - s)
+			minuteur = maxf(0.0, minuteur - s * conso_essence())
 		return
 	_maj_lent(s, true)
 
@@ -795,7 +795,7 @@ func _maj_bac(delta: float) -> void:
 	var c := culture()
 	if c != "" and minuteur < POUSSE[c]:
 		var t := minf(delta, e / EAU_PAR_S)
-		minuteur = minf(minuteur + t, POUSSE[c])
+		minuteur = minf(minuteur + t * (1.4 if _talent("jardinier") else 1.0), POUSSE[c])
 		e -= t * EAU_PAR_S
 	e = clampf(e, 0.0, 100.0)
 	var avant := secs
@@ -912,7 +912,7 @@ func _interagir_bac(player: Node) -> void:
 		Game.msg("%s semé(e)s. Garde la terre humide (eau ou pluie)." % NOMS_CULTURES[g])
 	elif etape() == 2:
 		var r: Array = RECOLTE_CULTURE[c]
-		player.add_item(r[0], randi_range(r[1], r[2]))
+		player.add_item(r[0], randi_range(r[1], r[2]) + (1 if _talent("jardinier") else 0))
 		if randf() < 0.6:
 			player.add_item("graines_" + c, randi_range(1, 2))
 		player.prog.gagner("survie", 8)
@@ -1096,8 +1096,26 @@ static func creer_frigo() -> Node3D:
 
 
 ## Nourriture rangée dans ce conteneur gardée au frais (frigo alimenté) : à utiliser par une future péremption.
+## Réseau recalculé au besoin (au plus une fois par seconde) : juste même si aucun appareil ne tourne.
 static func au_frais(conteneur: Node) -> bool:
-	return conteneur != null and conteneur.is_in_group("frigo") and bool(conteneur.get_meta("alimente", false))
+	if conteneur == null or not is_instance_valid(conteneur) or not conteneur.is_in_group("frigo"):
+		return false
+	if conteneur.is_inside_tree():
+		maj_reseau(conteneur.get_tree())
+	return bool(conteneur.get_meta("alimente", false))
+
+
+static func _talent(t: String) -> bool:
+	return Game.player != null and Game.player.prog.a(t)
+
+
+## Talent Électricien : portée du réseau +5 m, groupe électrogène ×0,6 d'essence.
+static func rayon_elec() -> float:
+	return RAYON_ELEC + (5.0 if _talent("electricien") else 0.0)
+
+
+static func conso_essence() -> float:
+	return 0.6 if _talent("electricien") else 1.0
 
 
 func produit() -> float:
@@ -1134,7 +1152,7 @@ static func maj_reseau(tree: SceneTree, forcer := false) -> void:
 	for a in tree.get_nodes_in_group("elec_conso"):
 		if not a.is_queued_for_deletion():
 			appareils.append(a)
-	var r2 := RAYON_ELEC * RAYON_ELEC
+	var r2 := rayon_elec() * rayon_elec()
 	var vu := {}
 	for depart in sources:
 		if vu.has(depart):
@@ -1206,7 +1224,7 @@ func _maj_elec(delta: float) -> void:
 		"groupe_electrogene":
 			var marche := armee and minuteur > 0.0
 			if marche:
-				minuteur = maxf(0.0, minuteur - delta)
+				minuteur = maxf(0.0, minuteur - delta * conso_essence())
 				bruit_t -= delta
 				if bruit_t <= 0.0:
 					bruit_t = 2.0
@@ -1256,18 +1274,18 @@ func _prompt_elec() -> String:
 	var bilan := "production %d W, consommation %d W" % [int(r.x), int(r.y)]
 	match kind:
 		"groupe_electrogene":
-			var essence := "essence %d min" % ceili(minuteur / 60.0) if minuteur > 0.0 else "réservoir vide"
+			var essence := "essence %d min" % ceili(minuteur / 60.0 / conso_essence()) if minuteur > 0.0 else "réservoir vide"
 			var action := "[F] Éteindre" if armee and minuteur > 0.0 else "[F] Démarrer (verse un jerrican si le réservoir n'est pas plein)"
 			return "%s — groupe électrogène : %s ; %s" % [action, essence, bilan]
 		"panneau_solaire":
 			return "Panneau solaire : %s%s" % [bilan, " (nuit : ne produit rien)" if Game.is_night() else ""]
 		"lampe":
-			var etat := "alimentée" if alimente() else "sans courant (source à moins de 15 m)"
+			var etat := "alimentée" if alimente() else "sans courant (source à moins de %d m)" % int(rayon_elec())
 			return "[F] Lampe : %s, %s (%d W)" % ["automatique (la nuit)" if mode == 0 else MODES[mode], etat, int(CONSO.lampe)]
 		"cloture_electrique":
 			if alimente():
 				return "Clôture électrique sous tension (%d W ; réseau : %s)" % [int(CONSO.cloture_electrique), bilan]
-			return "Clôture électrique sans courant : pose un groupe électrogène ou un panneau solaire à moins de 15 m"
+			return "Clôture électrique sans courant : pose un groupe électrogène ou un panneau solaire à moins de %d m" % int(rayon_elec())
 	return ""
 
 
@@ -1286,7 +1304,7 @@ func _interagir_elec(player: Node) -> void:
 					return
 				armee = true
 				Game.play_3d("construire", global_position, -8.0, 0.1, 20.0, 0.7)
-				Game.msg("Groupe électrogène en marche : %d min d'essence. Il fait du bruit !" % ceili(minuteur / 60.0))
+				Game.msg("Groupe électrogène en marche : %d min d'essence. Il fait du bruit !" % ceili(minuteur / 60.0 / conso_essence()))
 			maj_reseau(get_tree(), true)
 		"lampe":
 			mode = (mode + 1) % MODES.size()
