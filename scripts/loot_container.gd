@@ -317,8 +317,9 @@ func interact(player: Node) -> void:
 		if not is_storage and player.has_method("count"):
 			player.prog.gagner("exploration", 6)
 			var arg: Array = Items.ARGENT_TABLE.get(table, [0.3, 5, 25])
-			if randf() < float(arg[0]):
-				player.gagner_argent(randi_range(int(arg[1]), int(arg[2])))
+			var chance: bool = player.prog.a("chanceux")
+			if randf() < float(arg[0]) * (1.5 if chance else 1.0):
+				player.gagner_argent(roundi(randi_range(int(arg[1]), int(arg[2])) * (1.3 if chance else 1.0)))
 		if modele == null:
 			mat.albedo_color = mat.albedo_color.darkened(0.35)
 		Game.make_noise(global_position, 5.0)

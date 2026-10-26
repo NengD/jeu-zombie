@@ -415,7 +415,7 @@ func _update_stats(delta: float) -> void:
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
 	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
-		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0))
+		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0) * (1.5 if prog.a("survivant_ne") else 1.0))
 
 
 var surbrillance_t := 0.0
@@ -1212,6 +1212,8 @@ func arme_stats(id: String) -> Dictionary:
 			w.recoil = float(w.recoil) * 0.65
 		if prog.a("tir_hanche"):
 			w.dispersion_hanche = float(w.get("dispersion_hanche", 1.0)) * 0.7
+		if prog.a("visee_stable"):
+			w.dispersion_visee = float(w.get("dispersion_visee", 0.45)) * 0.75
 		if prog.a("gachette"):
 			w.rate = float(w.rate) * 0.87
 		if prog.a("balistique"):
@@ -1403,12 +1405,13 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 			Game.msg("Plus de munitions (%s)." % Items.nom(w.ammo))
 		return
 	if not (Game.admin and Game.admin_munitions):
-		mags[id] = int(mags[id]) - 1
+		if not (prog.a("econome_balles") and randf() < 0.15):
+			mags[id] = int(mags[id]) - 1
 	cooldown = w.rate
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
 	var spread := deg_to_rad(dispersion(w))
-	bloom = minf(bloom + 0.3, 1.2)
+	bloom = minf(bloom + 0.3 * (0.6 if prog.a("maitrise_rafale") else 1.0), 1.2)
 	var right := camera.global_basis.x.normalized()
 	var up := camera.global_basis.y.normalized()
 	var touche := false
@@ -1475,6 +1478,9 @@ func _relacher_grenade(id: String) -> void:
 	remove_item(id, 1)
 	var g: RigidBody3D = Grenade.new()
 	g.preparer(id)
+	if prog.a("grenadier"):
+		g.degats *= 1.3
+		g.rayon *= 1.3
 	get_parent().add_child(g)
 	var dir := -camera.global_basis.z
 	g.global_position = head.global_position + dir * 0.6 + global_basis.x * 0.3
@@ -1487,8 +1493,8 @@ func _relacher_grenade(id: String) -> void:
 
 
 func _melee(w: Dictionary) -> void:
-	var cost: float = w.stamina * (0.7 if prog.a("souffle") else 1.0)
-	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0)
+	var cost: float = w.stamina * (0.7 if prog.a("souffle") else 1.0) * (0.85 if prog.a("maitre_armes") else 1.0)
+	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0) * (1.2 if prog.a("maitre_armes") else 1.0)
 	coup_crit = prog.a("critique") and randf() < 0.2
 	if coup_crit:
 		dmg *= 2.0
@@ -1500,6 +1506,8 @@ func _melee(w: Dictionary) -> void:
 	var maintenant := Time.get_ticks_msec() / 1000.0
 	# enchaînement : un coup donné moins de 0,5 s après la fin du précédent passe au coup suivant (3 au plus)
 	combo_n = (combo_n + 1) % 3 if maintenant - combo_fin < 0.5 else 0
+	if combo_n == 2 and prog.a("enchainement"):
+		dmg *= 1.4
 	if id == "poings":
 		cooldown = w.rate
 		coup_gauche = not coup_gauche
@@ -1766,8 +1774,8 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 		vers.y = 0.0
 		if vers.normalized().dot(-global_basis.z) > 0.25:
 			if stamina >= 10.0:
-				_depenser_endurance(12.0)
-				amount *= 0.2
+				_depenser_endurance(6.0 if prog.a("parade_experte") else 12.0)
+				amount *= 0.1 if prog.a("parade_experte") else 0.2
 				Game.play_ui("parade", -2.0, 0.1)
 				rec_rvel += Vector3(-2.0, 0.0, 1.0)
 				if _from.has_method("repousser"):
@@ -1778,7 +1786,7 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 	if Game.admin and Game.admin_invincible:
 		hurt_flash = 0.3
 		return
-	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0))
+	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0) * (0.9 if prog.a("seconde_peau") else 1.0))
 	if soin_t > 0.0 and soin_id == "trousse":
 		soin_t = 0.0
 		soin_entree = null
@@ -2159,7 +2167,9 @@ func dormir(lit: Node3D = null) -> void:
 		return
 	hunger -= faim_h * heures
 	thirst -= soif_h * heures
-	health = minf(prog.sante_max(), health + 5.0 * heures)
+	health = minf(prog.sante_max(), health + (10.0 if prog.a("sommeil") else 5.0) * heures)
+	if prog.a("sommeil"):
+		stamina = prog.endurance_max()
 	stamina = prog.endurance_max()
 	if Game.time_hours >= 12.0:
 		Game.day += 1      # couché avant minuit
@@ -2619,13 +2629,21 @@ func craft(r: Dictionary) -> bool:
 	var munition: bool = Items.info(r.out).get("type", "") == "ammo"
 	if munition and prog.a("cartoucherie"):
 		qty = int(ceil(qty * 1.5))
+	if munition and prog.a("armurier"):
+		qty = int(ceil(qty * 1.25))
 	if not munition and prog.a("maitre_artisan") and randf() < 0.5:
 		qty *= 2
 	var au_feu: bool = r.get("station", "") == "feu"
 	if au_feu and not munition and prog.a("chef") and randf() < 0.5:
 		qty += 1
+	if r.get("cat", "") == "soins" and prog.a("chimiste") and randf() < 0.5:
+		qty += 1
+	if r.out == "cuir" and prog.a("tanneur"):
+		qty += 1
+	if r.out == "fleche" and prog.a("empenneur"):
+		qty += 2
 	add_item(r.out, qty)
-	if prog.a("econome") and randf() < 0.3:
+	if prog.a("econome") and randf() < (0.5 if prog.a("ingeniosite") else 0.3):
 		var ids: Array = r.needs.keys()
 		var rendu: String = ids[randi() % ids.size()]
 		add_item(rendu, 1)
@@ -2857,7 +2875,7 @@ func _maj_arc(delta: float, can_act: bool) -> void:
 	elif arc_tension > 0.0:
 		if arc_tension > 0.12:
 			_tirer_fleche(arc_tension)
-			cooldown = 0.45
+			cooldown = 0.45 * (0.6 if prog.a("fleches_serie") else 1.0)
 		arc_tension = 0.0
 		arc_plein_t = 0.0
 
@@ -2879,7 +2897,7 @@ func _tirer_fleche(k: float) -> void:
 	get_parent().add_child(f)
 	Game.play_ui("vent_leger", -6.0, 0.1, 1.7)
 	Game.play_ui("clic_vide", -10.0, 0.05, 0.45)   # claquement de la corde
-	Game.make_noise(global_position, float(w.noise))
+	Game.make_noise(global_position, float(w.noise) * (0.25 if prog.a("silence") else 1.0))
 	if count("fleche") <= 0 and not (Game.admin and Game.admin_munitions):
 		Game.msg("Dernière flèche tirée.")
 
@@ -2914,7 +2932,7 @@ func _manger(id: String) -> void:
 func _maj_maladie(delta: float) -> void:
 	if maladie <= 0.0:
 		return
-	maladie = maxf(0.0, maladie - delta)
+	maladie = maxf(0.0, maladie - delta * (2.0 if prog.a("medecin") else 1.0))
 	hunger = maxf(0.0, hunger - delta * 0.04)
 	thirst = maxf(0.0, thirst - delta * 0.06)
 	stamina = minf(stamina, prog.endurance_max() * 0.6)
@@ -3117,7 +3135,7 @@ func _lieu_arme(id: String) -> String:
 ## partie centrale de la roulade (ROULADE_DUREE), endurance dépensée.
 func _roulade() -> void:
 	roulade_t = ROULADE_DUREE
-	_depenser_endurance(12.0)
+	_depenser_endurance(6.0 if prog.a("acrobate") else 12.0)
 	var duree_anim := pap.get_animation("roulade").length if pap.has_animation("roulade") else 1.0
 	_p_anim("roulade", duree_anim / ROULADE_DUREE, ROULADE_DUREE)
 	Game.play_ui("atterrissage", -10.0, 0.1)

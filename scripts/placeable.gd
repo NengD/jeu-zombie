@@ -137,7 +137,7 @@ func setup(p_kind: String) -> void:
 				la.position = Vector3(0, 0.08, -0.05)
 				la.rotation = Vector3(0, 0.4, PI / 2.0)
 				lapin_pris.add_child(la)
-			collet_t = randf_range(150.0, 400.0)
+			collet_t = randf_range(150.0, 400.0) * (0.5 if Game.player and Game.player.prog.a("piegeur") else 1.0)
 			_shape(Vector3(0, 0.15, 0), Vector3(0.5, 0.3, 0.5))
 		"piege_machoires":
 			# piège à mâchoires (Quaternius, CC0) : blesse et immobilise le premier zombie qui marche dessus ; [F] pour le réarmer
@@ -492,7 +492,7 @@ func _physics_process(delta: float) -> void:
 			if z.has_method("take_hit") and z.get("state") != 3:
 				# les mâchoires se referment : grosse blessure, zombie cloué sur place
 				armee = false
-				z.take_hit(45.0, z.global_position + Vector3.UP * 0.3, global_position)
+				z.take_hit(45.0 * (1.6 if Game.player and Game.player.prog.a("ingenieur") else 1.0), z.global_position + Vector3.UP * 0.3, global_position)
 				if z.has_method("ralentir"):
 					z.ralentir(7.0, 0.0)
 				health -= 15.0
@@ -531,7 +531,7 @@ func interact(player: Node) -> void:
 		_interagir_stock(player)
 	elif kind == "collet" and lapin_pris.visible:
 		lapin_pris.visible = false
-		collet_t = randf_range(200.0, 450.0)
+		collet_t = randf_range(200.0, 450.0) * (0.5 if Game.player and Game.player.prog.a("piegeur") else 1.0)
 		player.add_item("viande_crue", 1)
 		player.add_item("peau", 1)
 		if randf() < 0.5:

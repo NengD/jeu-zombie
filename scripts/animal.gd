@@ -286,6 +286,8 @@ func _calmer() -> void:
 func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if etat == Etat.MORT:
 		return
+	if Game.player and Game.player.prog.a("traqueur") and from.distance_to(Game.player.global_position) < 2.5:
+		dmg *= 1.3
 	Game.signaler_degats(self, dmg, pv, pos, from, false)
 	pv -= dmg
 	Game.spawn_blood(pos, get_parent())

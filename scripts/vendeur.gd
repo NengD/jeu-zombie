@@ -214,7 +214,8 @@ func interact(_player: Node) -> void:
 
 ## Prix de rachat d'une unité : 40 %, plus pour les spécialités du métier.
 func prix_rachat(id: String) -> int:
-	return Items.prix_vente(id, BONUS_RACHAT if id in METIERS[metier].get("rachat", []) else 1.0)
+	var k := 1.15 if Game.player and Game.player.prog.a("marchandage") else 1.0   # talent Marchandage
+	return roundi(Items.prix_vente(id, BONUS_RACHAT if id in METIERS[metier].get("rachat", []) else 1.0) * k)
 
 
 ## Spécialités rachetées plus cher (affichées dans la boutique).

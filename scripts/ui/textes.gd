@@ -111,7 +111,7 @@ const GUIDE := """[b]LES BASES[/b]
 [b]NIVEAUX ET ARBRE DE COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), récolter, manger, boire, se soigner et encaisser des coups (Survie), toucher avec une flèche, tuer et dépecer des animaux, relever un collet, cuisiner au feu (Chasse).
 • L'écran Personnage est un [b]arbre[/b] qui part du survivant (au centre) : une branche par compétence (Combat se sépare en corps à corps et armes à feu, puis Fabrication, Exploration, Survie, Chasse et arc). Un nœud ne se débloque que si le précédent l'est, et plus on s'éloigne du centre, plus le niveau de compétence demandé est élevé.
-• Chaque niveau de compétence donne 1 point de talent pour sa branche (1 point par nœud). Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
+• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 78 talents (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
 • Couleurs : nœud plein = acquis, anneau doré qui pulse = disponible (clic pour débloquer), gris = verrouillé. Survol : description, coût, prérequis, niveau requis. Clic-glisser pour déplacer, molette pour zoomer, Espace pour recentrer.
 • Bouton « Réinitialiser » : rend tous les points dépensés contre de l'argent (100 € + 40 € par niveau) ; les rangées de poches restent acquises.
 

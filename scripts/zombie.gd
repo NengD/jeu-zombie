@@ -521,7 +521,7 @@ func _think() -> void:
 	if Game.is_night():
 		sight = 8.0 + (12.0 if p.flashlight_on else 0.0)
 	if p.crouching:
-		sight *= 0.5
+		sight *= 0.3 if p.prog.a("ombre") else 0.5
 	if p.get("cache_buisson"):
 		sight *= 0.45
 	if p.prog.a("discret"):
@@ -790,7 +790,9 @@ func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if dmg >= 40.0 and not est_boss and a_terre <= 0.0 and randf() < (0.1 if kind == "gros" else 0.3) and health - dmg * (1.0 - armor) > 0.0:
 		renverser(randf_range(2.5, 4.0))
 	if headshot:
-		dmg *= 2.5
+		# talent « Tireur de précision » : ×3 pour les coups du joueur (tir, flèche ou mêlée)
+		var du_joueur: bool = Game.player != null and from.distance_to(Game.player.global_position) < 2.5
+		dmg *= 3.0 if du_joueur and Game.player.prog.a("tir_tete") else 2.5
 	else:
 		dmg *= (1.0 - armor)
 	Game.signaler_degats(self, dmg, health, pos, from, headshot)
@@ -838,6 +840,10 @@ const XP_TYPE := {"civil": 20, "patient": 25, "police": 35, "militaire": 50, "bo
 
 func _die() -> void:
 	if Game.player and state != State.DEAD:
+		var p = Game.player
+		if p.prog.a("furie"):   # talent Furie : chaque zombie tué redonne un peu de souffle et de santé
+			p.stamina = minf(p.prog.endurance_max(), p.stamina + 8.0)
+			p.health = minf(p.prog.sante_max(), p.health + 3.0)
 		Game.player.prog.gagner("combat", XP_TYPE.get(kind, 20))
 		# quelques billets sur le corps
 		if randf() < 0.45:

@@ -82,7 +82,7 @@ func _maj() -> void:
 		if not Items.DB.has(id):
 			continue
 		var n := lot(id)
-		var prix: int = Items.prix(id) * n
+		var prix: int = roundi(Items.prix(id) * n * (0.85 if p.prog.a("marchandage") else 1.0))
 		var ligne := _ligne(achat, id, ("%d× " % n if n > 1 else "") + Items.nom(id), "%d €" % prix)
 		var b := _bouton(ligne, "Acheter", _acheter.bind(id, n, prix))
 		b.disabled = p.argent < prix

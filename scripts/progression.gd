@@ -2,7 +2,7 @@ class_name Progression
 extends RefCounted
 ## Niveaux, attributs et compétences du survivant.
 ## - Niveau global : chaque niveau donne 1 point d'attribut (endurance, santé, soif, faim).
-## - Compétences Combat / Fabrication / Exploration / Survie / Chasse : XP propre, niveaux 1 à 10 ;
+## - Compétences Combat / Fabrication / Exploration / Survie / Chasse : XP propre, niveaux 1 à 15 ;
 ##   chaque niveau de compétence donne 1 point de talent à dépenser dans sa branche de l'arbre.
 ## Les actions rapportent de l'XP de compétence et de l'XP globale.
 
@@ -12,7 +12,7 @@ signal xp_gagnee(comp: String, qte: int)
 
 const COMPETENCES := ["combat", "fabrication", "exploration", "survie", "chasse"]
 const NOMS := {"combat": "Combat", "fabrication": "Fabrication", "exploration": "Exploration", "survie": "Survie", "chasse": "Chasse"}
-const NIVEAU_MAX_COMP := 10
+const NIVEAU_MAX_COMP := 15
 
 const ATTRIBUTS := {
 	"endurance": {"nom": "Endurance", "desc": "+10 d'endurance max et récupération +8 %"},
@@ -38,53 +38,85 @@ const TALENTS := {
 	"lame_aiguisee": {"comp": "combat", "br": "melee", "apres": "coup_puissant", "d": 2, "l": -1, "niv": 2, "nom": "Lame aiguisée", "desc": "Hache, machette et couteau : +20 % de dégâts et plus de sang."},
 	"souffle": {"comp": "combat", "br": "melee", "apres": "coup_puissant", "d": 2, "l": 0, "niv": 3, "nom": "Second souffle", "desc": "Les coups au corps à corps coûtent 30 % d'endurance en moins."},
 	"frappeur": {"comp": "combat", "br": "melee", "apres": "coup_puissant", "d": 2, "l": 1, "niv": 3, "nom": "Frappeur", "desc": "Battes et matraque repoussent les zombies à chaque coup."},
+	"enchainement": {"comp": "combat", "br": "melee", "apres": "lame_aiguisee", "d": 3, "l": -1, "niv": 5, "nom": "Enchaînement", "desc": "Le 3e coup d'un enchaînement fait 40 % de dégâts en plus."},
 	"charge_rapide": {"comp": "combat", "br": "melee", "apres": "souffle", "d": 3, "l": 0, "niv": 4, "nom": "Concentration", "desc": "Le coup puissant se charge 40 % plus vite."},
-	"robuste": {"comp": "combat", "br": "melee", "apres": "souffle", "d": 3, "l": -1, "niv": 5, "nom": "Peau dure", "desc": "Tu subis 15 % de dégâts en moins."},
-	"balayage": {"comp": "combat", "br": "melee", "apres": "charge_rapide", "d": 4, "l": 1, "niv": 6, "nom": "Grand balayage", "desc": "Le balayage latéral touche jusqu'à deux zombies."},
+	"acrobate": {"comp": "combat", "br": "melee", "apres": "frappeur", "d": 3, "l": 1, "niv": 4, "nom": "Acrobate", "desc": "La roulade coûte deux fois moins d'endurance."},
+	"robuste": {"comp": "combat", "br": "melee", "apres": "enchainement", "d": 4, "l": -1, "niv": 5, "nom": "Peau dure", "desc": "Tu subis 15 % de dégâts en moins."},
 	"critique": {"comp": "combat", "br": "melee", "apres": "charge_rapide", "d": 4, "l": 0, "niv": 7, "nom": "Coup critique", "desc": "20 % de chances d'infliger double dégâts au corps à corps."},
+	"balayage": {"comp": "combat", "br": "melee", "apres": "acrobate", "d": 4, "l": 1, "niv": 6, "nom": "Grand balayage", "desc": "Le balayage latéral touche jusqu'à deux zombies."},
+	"parade_experte": {"comp": "combat", "br": "melee", "apres": "robuste", "d": 5, "l": -1, "niv": 8, "nom": "Parade experte", "desc": "Une parade bloque 90 % des dégâts (au lieu de 80 %) et coûte deux fois moins d'endurance."},
 	"brute": {"comp": "combat", "br": "melee", "apres": "critique", "d": 5, "l": 0, "niv": 8, "nom": "Brute", "desc": "Un coup puissant chargé à fond renverse toujours le zombie."},
+	"maitre_armes": {"comp": "combat", "br": "melee", "apres": "brute", "d": 6, "l": 0, "niv": 12, "nom": "Maître d'armes", "desc": "+20 % de dégâts au corps à corps et coups 15 % moins fatigants."},
+	"furie": {"comp": "combat", "br": "melee", "apres": "maitre_armes", "d": 7, "l": 0, "niv": 14, "nom": "Furie", "desc": "Chaque zombie tué rend 8 d'endurance et 3 de santé."},
 	# --- combat : armes à feu
 	"main_sure": {"comp": "combat", "br": "tir", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Main sûre", "desc": "Tirs 25 % plus précis (armes à feu et arc)."},
+	"visee_stable": {"comp": "combat", "br": "tir", "apres": "main_sure", "d": 2, "l": -1, "niv": 4, "nom": "Visée stable", "desc": "En visant, tirs encore 25 % plus précis."},
 	"recharge_rapide": {"comp": "combat", "br": "tir", "apres": "main_sure", "d": 2, "l": 0, "niv": 2, "nom": "Recharge rapide", "desc": "Rechargement 25 % plus rapide."},
 	"tir_hanche": {"comp": "combat", "br": "tir", "apres": "main_sure", "d": 2, "l": 1, "niv": 3, "nom": "Tir instinctif", "desc": "Tir sans viser 30 % plus précis."},
 	"tireur": {"comp": "combat", "br": "tir", "apres": "recharge_rapide", "d": 3, "l": 0, "niv": 4, "nom": "Tireur d'élite", "desc": "+20 % de dégâts avec les armes à feu."},
-	"gachette": {"comp": "combat", "br": "tir", "apres": "tireur", "d": 4, "l": 1, "niv": 6, "nom": "Doigt léger", "desc": "Cadence de tir 15 % plus rapide."},
+	"grenadier": {"comp": "combat", "br": "tir", "apres": "tir_hanche", "d": 3, "l": 1, "niv": 7, "nom": "Grenadier", "desc": "Grenades : +30 % de dégâts et d'étendue de l'explosion."},
 	"balistique": {"comp": "combat", "br": "tir", "apres": "tireur", "d": 4, "l": -1, "niv": 7, "nom": "Balistique", "desc": "Portée des armes à feu +25 %."},
-	"sang_froid": {"comp": "combat", "br": "tir", "apres": "tireur", "d": 5, "l": 0, "niv": 9, "nom": "Sang-froid", "desc": "Recul des armes réduit de 35 %."},
+	"econome_balles": {"comp": "combat", "br": "tir", "apres": "tireur", "d": 4, "l": 0, "niv": 8, "nom": "Tir économe", "desc": "15 % de chances qu'un tir ne consomme pas de cartouche."},
+	"gachette": {"comp": "combat", "br": "tir", "apres": "tireur", "d": 4, "l": 1, "niv": 6, "nom": "Doigt léger", "desc": "Cadence de tir 15 % plus rapide."},
+	"sang_froid": {"comp": "combat", "br": "tir", "apres": "econome_balles", "d": 5, "l": 0, "niv": 9, "nom": "Sang-froid", "desc": "Recul des armes réduit de 35 %."},
+	"maitrise_rafale": {"comp": "combat", "br": "tir", "apres": "gachette", "d": 5, "l": 1, "niv": 10, "nom": "Maîtrise du tir", "desc": "Les tirs rapprochés dispersent 40 % moins."},
+	"tir_tete": {"comp": "combat", "br": "tir", "apres": "sang_froid", "d": 6, "l": 0, "niv": 12, "nom": "Tireur de précision", "desc": "Tes coups à la tête des zombies font ×3 dégâts (au lieu de ×2,5)."},
 	# --- fabrication
 	"econome": {"comp": "fabrication", "br": "fabrication", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Économe", "desc": "30 % de chances de récupérer un matériau en fabriquant."},
 	"soigneur": {"comp": "fabrication", "br": "fabrication", "apres": "econome", "d": 2, "l": 1, "niv": 1, "nom": "Soigneur", "desc": "Les soins rendent 30 % de santé en plus."},
 	"charpentier": {"comp": "fabrication", "br": "fabrication", "apres": "econome", "d": 2, "l": 0, "niv": 3, "nom": "Charpentier", "desc": "Barricades et établis posés ont 60 % de solidité en plus."},
 	"cartoucherie": {"comp": "fabrication", "br": "fabrication", "apres": "econome", "d": 2, "l": -1, "niv": 2, "nom": "Cartoucherie", "desc": "Les munitions fabriquées sont 50 % plus nombreuses."},
-	"cuisinier": {"comp": "fabrication", "br": "fabrication", "apres": "charpentier", "d": 3, "l": 1, "niv": 4, "nom": "Débrouillard", "desc": "Nourriture et boissons nourrissent 25 % de plus."},
-	"artisan_rapide": {"comp": "fabrication", "br": "fabrication", "apres": "charpentier", "d": 3, "l": -1, "niv": 5, "nom": "Mains agiles", "desc": "Fabrication 25 % plus rapide."},
-	"atelier": {"comp": "fabrication", "br": "fabrication", "apres": "charpentier", "d": 4, "l": 0, "niv": 6, "nom": "Atelier portatif", "desc": "Fabrique les recettes d'établi partout."},
-	"recuperateur": {"comp": "fabrication", "br": "fabrication", "apres": "artisan_rapide", "d": 4, "l": -1, "niv": 7, "nom": "Récupérateur", "desc": "Le démontage rend 50 % de matériaux en plus."},
+	"cuisinier": {"comp": "fabrication", "br": "fabrication", "apres": "soigneur", "d": 3, "l": 1, "niv": 4, "nom": "Débrouillard", "desc": "Nourriture et boissons nourrissent 25 % de plus."},
+	"artisan_rapide": {"comp": "fabrication", "br": "fabrication", "apres": "charpentier", "d": 3, "l": 0, "niv": 5, "nom": "Mains agiles", "desc": "Fabrication 25 % plus rapide."},
+	"mecanicien": {"comp": "fabrication", "br": "fabrication", "apres": "cartoucherie", "d": 3, "l": -1, "niv": 5, "nom": "Mécanicien", "desc": "Épaves : récolte comme avec 2 niveaux de fabrication de plus."},
+	"chimiste": {"comp": "fabrication", "br": "fabrication", "apres": "cuisinier", "d": 4, "l": 1, "niv": 9, "nom": "Chimiste", "desc": "Recettes de soins : une chance sur deux d'avoir un objet de plus."},
+	"atelier": {"comp": "fabrication", "br": "fabrication", "apres": "artisan_rapide", "d": 4, "l": 0, "niv": 6, "nom": "Atelier portatif", "desc": "Fabrique les recettes d'établi partout."},
+	"recuperateur": {"comp": "fabrication", "br": "fabrication", "apres": "mecanicien", "d": 4, "l": -1, "niv": 7, "nom": "Récupérateur", "desc": "Le démontage rend 50 % de matériaux en plus."},
 	"maitre_artisan": {"comp": "fabrication", "br": "fabrication", "apres": "atelier", "d": 5, "l": 0, "niv": 8, "nom": "Maître artisan", "desc": "Une chance sur deux d'obtenir un objet fabriqué en double (hors munitions)."},
+	"ingenieur": {"comp": "fabrication", "br": "fabrication", "apres": "recuperateur", "d": 5, "l": -1, "niv": 9, "nom": "Ingénieur", "desc": "Les pièges à mâchoires font 60 % de dégâts en plus."},
+	"ingeniosite": {"comp": "fabrication", "br": "fabrication", "apres": "maitre_artisan", "d": 6, "l": 0, "niv": 13, "nom": "Ingéniosité", "desc": "Économe : une chance sur deux de récupérer un matériau (au lieu de 30 %)."},
+	"armurier": {"comp": "fabrication", "br": "fabrication", "apres": "ingenieur", "d": 6, "l": -1, "niv": 11, "nom": "Armurier", "desc": "Munitions fabriquées : encore 25 % de plus."},
 	# --- exploration
 	"fouilleur": {"comp": "exploration", "br": "exploration", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Fouilleur", "desc": "Les meubles contiennent plus d'objets."},
+	"curieux": {"comp": "exploration", "br": "exploration", "apres": "fouilleur", "d": 2, "l": 2, "niv": 2, "nom": "Curieux", "desc": "+25 % d'XP d'exploration."},
 	"discret": {"comp": "exploration", "br": "exploration", "apres": "fouilleur", "d": 2, "l": 1, "niv": 1, "nom": "Pas de loup", "desc": "Les zombies te repèrent de 30 % moins loin."},
 	"poches": {"comp": "exploration", "br": "exploration", "apres": "fouilleur", "d": 2, "l": 0, "niv": 3, "nom": "Poches profondes", "desc": "+1 rangée à ton inventaire de base (8×6)."},
 	"coureur": {"comp": "exploration", "br": "exploration", "apres": "fouilleur", "d": 2, "l": -1, "niv": 2, "nom": "Coureur", "desc": "Sprint 12 % plus rapide."},
+	"chanceux": {"comp": "exploration", "br": "exploration", "apres": "curieux", "d": 3, "l": 2, "niv": 4, "nom": "Chanceux", "desc": "Tu trouves de l'argent plus souvent en fouillant, et 30 % de plus."},
+	"ombre": {"comp": "exploration", "br": "exploration", "apres": "discret", "d": 3, "l": 1, "niv": 9, "nom": "Ombre", "desc": "Accroupi, les zombies te voient encore 40 % moins loin."},
+	"poches2": {"comp": "exploration", "br": "exploration", "apres": "poches", "d": 3, "l": 0, "niv": 6, "nom": "Poches de cargo", "desc": "+1 rangée supplémentaire (8×7)."},
 	"marathonien": {"comp": "exploration", "br": "exploration", "apres": "coureur", "d": 3, "l": -1, "niv": 4, "nom": "Marathonien", "desc": "Le sprint consomme 35 % d'endurance en moins."},
-	"poches2": {"comp": "exploration", "br": "exploration", "apres": "poches", "d": 4, "l": 0, "niv": 6, "nom": "Poches de cargo", "desc": "+1 rangée supplémentaire (8×7)."},
-	"vue_percante": {"comp": "exploration", "br": "exploration", "apres": "poches2", "d": 5, "l": 0, "niv": 8, "nom": "Œil de lynx", "desc": "Les meubles contiennent encore plus d'objets."},
+	"marchandage": {"comp": "exploration", "br": "exploration", "apres": "chanceux", "d": 4, "l": 2, "niv": 5, "nom": "Marchandage", "desc": "Achats 15 % moins chers et reventes 15 % plus chères chez les marchands."},
+	"vue_percante": {"comp": "exploration", "br": "exploration", "apres": "poches2", "d": 4, "l": 0, "niv": 8, "nom": "Œil de lynx", "desc": "Les meubles contiennent encore plus d'objets."},
+	"infatigable": {"comp": "exploration", "br": "exploration", "apres": "marathonien", "d": 4, "l": -1, "niv": 12, "nom": "Infatigable", "desc": "+25 d'endurance max."},
 	# --- survie (XP : récolte, manger, boire, se soigner, encaisser des coups)
 	"regeneration": {"comp": "survie", "br": "survie", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Régénération", "desc": "La santé remonte deux fois plus vite quand tu es nourri et hydraté."},
 	"bucheron": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": 1, "niv": 2, "nom": "Bûcheron", "desc": "Arbres et rochers : récolte comme avec 2 niveaux de survie de plus."},
 	"endurci": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": 0, "niv": 3, "nom": "Endurci", "desc": "L'endurance remonte 25 % plus vite."},
 	"frugal": {"comp": "survie", "br": "survie", "apres": "regeneration", "d": 2, "l": -1, "niv": 2, "nom": "Frugal", "desc": "La faim et la soif baissent 15 % moins vite."},
-	"estomac": {"comp": "survie", "br": "survie", "apres": "frugal", "d": 3, "l": -1, "niv": 4, "nom": "Estomac de fer", "desc": "Risque d'intoxication par la viande crue divisé par deux."},
+	"sommeil": {"comp": "survie", "br": "survie", "apres": "bucheron", "d": 3, "l": 1, "niv": 4, "nom": "Sommeil réparateur", "desc": "Dormir rend deux fois plus de santé et toute l'endurance."},
 	"adrenaline": {"comp": "survie", "br": "survie", "apres": "endurci", "d": 3, "l": 0, "niv": 5, "nom": "Adrénaline", "desc": "Sous 25 % de santé : +20 % de dégâts et de vitesse."},
-	"increvable": {"comp": "survie", "br": "survie", "apres": "adrenaline", "d": 5, "l": 0, "niv": 8, "nom": "Increvable", "desc": "Une fois par jour, une blessure mortelle te laisse à 15 de santé."},
+	"estomac": {"comp": "survie", "br": "survie", "apres": "frugal", "d": 3, "l": -1, "niv": 4, "nom": "Estomac de fer", "desc": "Risque d'intoxication par la viande crue divisé par deux."},
+	"medecin": {"comp": "survie", "br": "survie", "apres": "sommeil", "d": 4, "l": 1, "niv": 7, "nom": "Guérison", "desc": "Les maladies guérissent deux fois plus vite."},
+	"vigueur": {"comp": "survie", "br": "survie", "apres": "adrenaline", "d": 4, "l": 0, "niv": 6, "nom": "Vigueur", "desc": "+20 de santé max."},
+	"chameau": {"comp": "survie", "br": "survie", "apres": "estomac", "d": 4, "l": -1, "niv": 9, "nom": "Chameau", "desc": "La soif baisse encore 20 % moins vite."},
+	"seconde_peau": {"comp": "survie", "br": "survie", "apres": "medecin", "d": 5, "l": 1, "niv": 11, "nom": "Seconde peau", "desc": "Tu subis encore 10 % de dégâts en moins."},
+	"increvable": {"comp": "survie", "br": "survie", "apres": "vigueur", "d": 5, "l": 0, "niv": 8, "nom": "Increvable", "desc": "Une fois par jour, une blessure mortelle te laisse à 15 de santé."},
+	"survivant_ne": {"comp": "survie", "br": "survie", "apres": "increvable", "d": 6, "l": 0, "niv": 13, "nom": "Survivant-né", "desc": "Faim et soif 10 % plus lentes, santé qui remonte 50 % plus vite."},
 	# --- chasse et arc (XP : flèches qui touchent, animaux tués, dépeçage, collets, cuisine au feu)
 	"archer": {"comp": "chasse", "br": "chasse", "apres": "", "d": 1, "l": 0, "niv": 1, "nom": "Archer", "desc": "+20 % de dégâts avec les flèches."},
 	"depeceur": {"comp": "chasse", "br": "chasse", "apres": "archer", "d": 2, "l": 1, "niv": 2, "nom": "Dépeceur", "desc": "Le dépeçage rend une viande et une peau de plus."},
 	"tension_rapide": {"comp": "chasse", "br": "chasse", "apres": "archer", "d": 2, "l": 0, "niv": 4, "nom": "Bras d'archer", "desc": "L'arc se bande 35 % plus vite."},
 	"pisteur": {"comp": "chasse", "br": "chasse", "apres": "archer", "d": 2, "l": -1, "niv": 3, "nom": "Pisteur", "desc": "Les animaux te repèrent de 30 % moins loin."},
-	"chef": {"comp": "chasse", "br": "chasse", "apres": "depeceur", "d": 3, "l": 1, "niv": 6, "nom": "Cuisine de camp", "desc": "Recettes au feu : une chance sur deux d'avoir une portion de plus."},
+	"tanneur": {"comp": "chasse", "br": "chasse", "apres": "depeceur", "d": 3, "l": 1, "niv": 5, "nom": "Tanneur", "desc": "Le tannage donne un cuir de plus."},
 	"recup_fleches": {"comp": "chasse", "br": "chasse", "apres": "tension_rapide", "d": 3, "l": 0, "niv": 5, "nom": "Flèches solides", "desc": "Les flèches plantées se récupèrent presque toujours."},
-	"tir_mortel": {"comp": "chasse", "br": "chasse", "apres": "recup_fleches", "d": 4, "l": 0, "niv": 8, "nom": "Tir mortel", "desc": "Une flèche bandée à fond fait 50 % de dégâts en plus."},
+	"piegeur": {"comp": "chasse", "br": "chasse", "apres": "pisteur", "d": 3, "l": -1, "niv": 3, "nom": "Piégeur", "desc": "Les lapins se prennent deux fois plus vite dans les collets."},
+	"chef": {"comp": "chasse", "br": "chasse", "apres": "tanneur", "d": 4, "l": 1, "niv": 6, "nom": "Cuisine de camp", "desc": "Recettes au feu : une chance sur deux d'avoir une portion de plus."},
+	"fleches_serie": {"comp": "chasse", "br": "chasse", "apres": "recup_fleches", "d": 4, "l": 0, "niv": 7, "nom": "Encochage rapide", "desc": "40 % de délai en moins entre deux flèches."},
+	"traqueur": {"comp": "chasse", "br": "chasse", "apres": "piegeur", "d": 4, "l": -1, "niv": 9, "nom": "Traqueur", "desc": "+30 % de dégâts contre les animaux."},
+	"tir_mortel": {"comp": "chasse", "br": "chasse", "apres": "fleches_serie", "d": 5, "l": 0, "niv": 8, "nom": "Tir mortel", "desc": "Une flèche bandée à fond fait 50 % de dégâts en plus."},
+	"empenneur": {"comp": "chasse", "br": "chasse", "apres": "traqueur", "d": 5, "l": -1, "niv": 10, "nom": "Empenneur", "desc": "Fabriquer des flèches en donne 2 de plus."},
+	"silence": {"comp": "chasse", "br": "chasse", "apres": "tir_mortel", "d": 6, "l": 0, "niv": 12, "nom": "Chasseur fantôme", "desc": "Tirer à l'arc ne fait presque plus de bruit."},
 }
 
 var niveau := 1
@@ -117,6 +149,8 @@ func a(talent: String) -> bool:
 func gagner(c: String, qte: int) -> void:
 	if qte <= 0:
 		return
+	if c == "exploration" and a("curieux"):
+		qte = roundi(qte * 1.25)
 	xp_gagnee.emit(c, qte)
 	xp += qte
 	while xp >= xp_niveau(niveau):
@@ -210,11 +244,11 @@ func reinitialiser() -> void:
 
 # ---------------------------------------------------------------- effets
 func sante_max() -> float:
-	return 100.0 + 10.0 * attributs.sante
+	return 100.0 + 10.0 * attributs.sante + (20.0 if a("vigueur") else 0.0)
 
 
 func endurance_max() -> float:
-	return 100.0 + 10.0 * attributs.endurance
+	return 100.0 + 10.0 * attributs.endurance + (25.0 if a("infatigable") else 0.0)
 
 
 func recup_endurance() -> float:
@@ -222,11 +256,11 @@ func recup_endurance() -> float:
 
 
 func faim_mult() -> float:
-	return pow(0.93, attributs.faim) * (0.85 if a("frugal") else 1.0)
+	return pow(0.93, attributs.faim) * (0.85 if a("frugal") else 1.0) * (0.9 if a("survivant_ne") else 1.0)
 
 
 func soif_mult() -> float:
-	return pow(0.93, attributs.soif) * (0.85 if a("frugal") else 1.0)
+	return pow(0.93, attributs.soif) * (0.85 if a("frugal") else 1.0) * (0.8 if a("chameau") else 1.0) * (0.9 if a("survivant_ne") else 1.0)
 
 
 func lignes_inventaire() -> int:

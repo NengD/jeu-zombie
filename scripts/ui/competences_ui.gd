@@ -356,8 +356,8 @@ class Arbre extends Control:
 	const R_HUB_NOEUD := 34.0
 	const R_ATTR := 18.0
 	const R_CENTRE := 42.0
-	const ETENDUE := Vector2(880, 495)   # demi-taille de l'arbre (avec les titres), après écrasement
-	const ECRASE := Vector2(1.0, 0.72)    # arbre aplati : les écrans sont plus larges que hauts
+	var etendue := Vector2(600, 400)        # demi-taille de l'arbre (calculée dans _init)
+	const ECRASE := Vector2(1.22, 0.7)    # arbre étiré en largeur : les écrans sont plus larges que hauts
 
 	var ui
 	var zoom := 1.0
@@ -368,6 +368,8 @@ class Arbre extends Control:
 	var survol := ""
 	var pos := {}                        # id -> position dans l'arbre (zoom 1, centre = 0)
 	var parent_de := {}                  # id -> id du nœud parent (traits)
+	var rang_max := {}                   # branche -> rang le plus éloigné
+	var titres := {}                     # branche -> position du titre
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
@@ -383,15 +385,30 @@ class Arbre extends Control:
 			var ang: float = ANGLES[t.br]
 			pos[id] = _dir(ang) * (R_HUB + float(t.d) * PAS) * ECRASE + _dir(ang + 90.0) * float(t.l) * COTE
 			parent_de[id] = t.apres if t.apres != "" else "hub:" + str(t.comp)
+			rang_max[t.br] = maxi(int(rang_max.get(t.br, 0)), int(t.d))
+		# titres des branches : au bout du bras (horizontal) ou à côté du dernier nœud, vers l'extérieur (diagonale)
+		for br in ANGLES:
+			var ang: float = ANGLES[br]
+			var n := float(rang_max.get(br, 5))
+			var pt := _dir(ang) * (R_HUB + (n + 1.0) * PAS) * ECRASE
+			if absf(sin(deg_to_rad(ang))) > 0.5:
+				var cote := _dir(ang + 90.0)
+				if cote.x * _dir(ang).x < 0.0:
+					cote = -cote
+				pt = _dir(ang) * (R_HUB + n * PAS) * ECRASE + cote * 1.7 * COTE
+			titres[br] = pt
+		# demi-taille de l'arbre (noms et titres compris) pour le zoom de départ et les bornes du déplacement
+		for p in pos.values() + titres.values():
+			etendue = etendue.max(Vector2(absf(p.x) + 90.0, absf(p.y) + 55.0))
 
 	static func _dir(deg: float) -> Vector2:
 		return Vector2.from_angle(deg_to_rad(deg))
 
-	## Centre l'arbre et choisit un zoom qui le fait tenir dans l'écran (lisible au moins à 0,55).
+	## Centre l'arbre et choisit un zoom qui le fait tenir dans l'écran (lisible au moins à 0,5).
 	func recentrer() -> void:
 		var haut := 110.0
 		var dispo := size - Vector2(40, haut + 50)
-		zoom = clampf(minf(dispo.x / (2.0 * ETENDUE.x), dispo.y / (2.0 * ETENDUE.y)), 0.55, 1.3)
+		zoom = clampf(minf(dispo.x / (2.0 * etendue.x), dispo.y / (2.0 * etendue.y)), 0.5, 1.3)
 		centre = Vector2(size.x * 0.5, haut + (size.y - haut - 40) * 0.5)
 		queue_redraw()
 
@@ -440,7 +457,7 @@ class Arbre extends Control:
 
 	## L'arbre ne sort jamais entièrement de l'écran.
 	func _borner() -> void:
-		var e := ETENDUE * zoom
+		var e := etendue * zoom
 		centre.x = clampf(centre.x, 120.0 - e.x, size.x - 120.0 + e.x)
 		centre.y = clampf(centre.y, 160.0 - e.y, size.y - 120.0 + e.y)
 
@@ -487,14 +504,7 @@ class Arbre extends Control:
 		var fs_titre := int(clampf(18.0 * sqrt(zoom), 12.0, 28.0))
 		for br in ANGLES:
 			var c: String = Progression.BRANCHES[br].comp
-			var ang: float = ANGLES[br]
-			var pt := _dir(ang) * (R_HUB + 6.0 * PAS) * ECRASE
-			if absf(sin(deg_to_rad(ang))) > 0.5:   # branche en diagonale : titre à côté du dernier nœud, vers l'extérieur
-				var cote := _dir(ang + 90.0)
-				if cote.x * _dir(ang).x < 0.0:
-					cote = -cote
-				pt = _dir(ang) * (R_HUB + 5.0 * PAS) * ECRASE + cote * 1.7 * COTE
-			var p: Vector2 = vers_ecran(pt)
+			var p: Vector2 = vers_ecran(titres[br])
 			var col: Color = ui.COULEURS[c]
 			col.a = 0.75
 			_texte_centre(police, p, Progression.BRANCHES[br].nom.to_upper(), fs_titre, col)
