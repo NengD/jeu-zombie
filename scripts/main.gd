@@ -73,6 +73,10 @@ func _ready() -> void:
 	add_child(cueillette)
 	cueillette.installer(world)
 	recolte.cueillette = cueillette
+	var vehicules = preload("res://scripts/vehicules.gd").new()   # voitures réparables et conduisibles (hors des morceaux)
+	vehicules.name = "Vehicules"
+	add_child(vehicules)
+	vehicules.installer(world)
 	zombies_root = Node3D.new()
 	zombies_root.name = "Zombies"
 	add_child(zombies_root)

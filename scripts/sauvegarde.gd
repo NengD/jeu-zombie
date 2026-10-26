@@ -86,6 +86,16 @@ static func _vd(a) -> Vector3:
 
 
 # ================================================================ sauvegarde
+## Position du joueur à sauvegarder : au volant, le point de sortie de la voiture (pas dans la carrosserie).
+static func _pos_joueur(p: Node) -> Vector3:
+	var v = p.get("vehicule")
+	if v != null and is_instance_valid(v):
+		var s: Vector3 = v.point_sortie()
+		if s != Vector3.INF:
+			return s
+	return p.global_position
+
+
 static func sauver(main: Node, fichier := FICHIER) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
@@ -98,7 +108,7 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 		var e: Dictionary = p.equipped[s]
 		eq[s] = entree_vers(e) if not e.is_empty() else null
 	d["joueur"] = {
-		"pos": _v(p.global_position), "rot": p.rotation.y, "tete": p.head.rotation.x,
+		"pos": _v(_pos_joueur(p)), "rot": p.rotation.y, "tete": p.head.rotation.x,
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
 		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "barre_verrou": p.hotbar_verrou, "slot": p.slot,
 		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on, "maladie": p.maladie, "fav": p.recettes_fav,
@@ -113,6 +123,9 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	d["conteneurs"] = cont
 	if Game.recolte and is_instance_valid(Game.recolte):
 		d["recolte"] = Game.recolte.etat()
+	var vh = main.get_node_or_null("Vehicules")
+	if vh:
+		d["vehicules"] = vh.etat()   # voitures réparées (vehicules.gd)
 	if main.has_method("etat_camps"):
 		d["camps"] = main.etat_camps()
 		d["primes"] = main.primes_payees
@@ -177,6 +190,9 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 		cont = {}
 		d.erase("portes")
 		d.erase("recolte")
+	var vh = main.get_node_or_null("Vehicules")   # avant la récolte : l'épave réparée n'est pas noircie
+	if vh and d.get("vehicules") is Array:
+		vh.appliquer(d.vehicules, int(d.get("monde", 1)) == main.world.VERSION_MONDE)
 	if d.has("recolte") and Game.recolte:
 		Game.recolte.appliquer(d.recolte)
 	for c in main.world.conteneurs:

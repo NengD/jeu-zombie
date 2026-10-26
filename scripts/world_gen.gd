@@ -555,12 +555,15 @@ func _car(c: Vector3, along_x: bool, col: Color, id := "") -> void:
 		var v := _prop(id, c, ang, true, 1.0, 220.0)
 		if v and id != "voiture_police" and id != "voiture_taxi":
 			Decor.peindre(v, col)
+		if v:
+			v.set_meta("garee", id)   # voiture garée : peut-être réparable (vehicules.gd), sauf brûlée
 		# épaves : rouillées ou brûlées
 		var r_ep := rng.randf()
 		if v and r_ep < 0.22:
 			Decor.vieillir(v, Color(0.42, 0.24, 0.12), 0.7)
 		elif v and r_ep < 0.3:
 			Decor.vieillir(v, Color(0.07, 0.06, 0.055), 0.88)
+			v.set_meta("brulee", true)
 		return
 	var body := Vector3(4.3, 0.9, 1.9) if along_x else Vector3(1.9, 0.9, 4.3)
 	var cab := Vector3(2.2, 0.7, 1.75) if along_x else Vector3(1.75, 0.7, 2.2)

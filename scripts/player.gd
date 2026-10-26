@@ -92,6 +92,7 @@ var muzzle_t := 0.0
 
 # --- interaction / construction
 var prompt := ""
+var vehicule: Node = null           # voiture conduite (vehicule.gd), null à pied
 var interact_target: Node = null
 var placing := ""
 var constructeur: Node            # mode construction (touche B)
@@ -288,6 +289,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Game.capturer_souris()
 		return
+	if vehicule:   # au volant (vehicule.gd : souris = caméra de poursuite)
+		if event.is_action_pressed("interagir"):
+			vehicule.descendre()
+		elif event.is_action_pressed("lampe"):
+			vehicule.basculer_phares()
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := MOUSE_SENS * Game.mouse_sens * (0.6 * camera.fov / FOV_AIM * Game.sens_visee if aiming else 1.0)
 		rotate_y(-event.relative.x * sens)
@@ -360,6 +367,12 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		velocity.y -= GRAVITY * delta
 		move_and_slide()
+		return
+	if vehicule:   # au volant : la voiture place le joueur ; seuls les besoins et le lieu avancent
+		_update_stats(delta)
+		_update_zone()
+		interact_target = null
+		prompt = vehicule.prompt_conduite()
 		return
 	var can_act := not Game.ui_open
 	_maj_souffle(delta)
@@ -1793,6 +1806,8 @@ func _finish_reload() -> void:
 func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> void:
 	if not alive:
 		return
+	if vehicule:   # au volant : la carrosserie prend l'essentiel des coups
+		amount = vehicule.encaisser(amount)
 	# roulade : les coups au corps à corps passent à côté pendant le milieu de la roulade
 	if roulade_t > 0.15 and roulade_t < ROULADE_DUREE - 0.1 and _from is Node3D:
 		return

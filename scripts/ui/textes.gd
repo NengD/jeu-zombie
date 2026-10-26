@@ -13,7 +13,7 @@ const TOUCHES := [
 	["Barre rapide (arme ou objet)", "1 à 5, molette"],
 	["Recharger", "R"],
 	["Se soigner", "H"],
-	["Fouiller / utiliser", "F"],
+	["Fouiller / utiliser / monter en voiture", "F"],
 	["Inventaire et fabrication", "Tab ou I"],
 	["Carte", "M"],
 	["Lampe torche / lampe de l'arme", "L"],
@@ -167,6 +167,16 @@ const GUIDE := """[b]LES BASES[/b]
 • Bûche → 3 planches à l'établi (1 seule à la main) ; minerai + bûche → ferraille au feu ; 4 pierres + eau → ciment (établi) ;
   feu de camp en pierres et bûches ; barricade de pneus ; projecteur sur batterie ; flèches à pointe de pierre.
 • La pioche (quincaillerie, fermes, granges, ou établi : 4 ferrailles + 1 bûche + 1 ruban) est aussi une arme lourde.
+
+[b]VOITURES[/b]
+• Certaines voitures garées (jamais les carcasses brûlées) se réparent : vise-la et [F] dit ce qui manque.
+  Il faut [b]3 pièces auto, 1 batterie et 1 jerrican d'essence[/b] (épaves, garages, casse auto, mécanicien).
+• [F] monter / descendre. Avancer / reculer, gauche / droite pour conduire, [b]Espace[/b] = frein à main, [b]L[/b] = phares
+  (allumés seuls la nuit), souris = regarder autour. Vitesse, essence et état en bas à droite.
+• Le moteur s'entend de loin : les zombies accourent. Les écraser les blesse selon la vitesse, mais abîme la voiture ;
+  les chocs contre les murs aussi. Au volant, la carrosserie prend l'essentiel des coups.
+• Réservoir de 60 L : accroupi devant la voiture, [F] verse un jerrican (+20 L). Moteur à 0 % : 2 pièces auto pour repartir.
+  Voiture renversée : [F] la remet sur ses roues. Les voitures réparées sont sauvegardées (place, essence, état).
 
 [b]CUISINE ET MALADIE[/b]
 • Au feu de camp ou au brasero : viande cuite, bouillon d'os, ragoût de chasse ; tannage (2 peaux + 1 graisse → 1 cuir).
