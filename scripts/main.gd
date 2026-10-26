@@ -462,7 +462,7 @@ func reclamer_prime(i: int) -> bool:
 	return true
 
 
-## Sauvegarde la partie (menu pause, F5, et automatiquement toutes les 5 minutes).
+## Sauvegarde la partie (menu pause, F5). La sauvegarde automatique est à part : hud.gd, Sauvegarde.FICHIER_AUTO.
 func sauvegarder(auto := false) -> void:
 	if player == null or not player.alive:
 		return
@@ -714,17 +714,9 @@ func spawn_zombie(pos: Vector3, kind: String, persistent: bool, radius: float) -
 	return z
 
 
-var auto_t := 300.0
-
-
 func _process(delta: float) -> void:
 	_maj_ambiance(delta)
 	_compte_horde(delta)
-	auto_t -= delta
-	if auto_t <= 0.0:
-		auto_t = 300.0
-		if not Game.ui_open:
-			sauvegarder(true)
 	spawn_t -= delta
 	if spawn_t > 0.0 or player == null or not player.alive:
 		return
