@@ -338,6 +338,9 @@ func _voit(p: Node3D) -> bool:
 	var portee := 35.0
 	if Game.is_night():
 		portee = 14.0 + (16.0 if p.flashlight_on else 0.0)
+		var v = _voiture_joueur() if p == Game.player else null
+		if v and v.phares_on:
+			portee += 26.0   # phares allumés : vus de loin
 	if p.crouching:
 		portee *= 0.6
 	if p.prog.a("discret"):
@@ -351,8 +354,18 @@ func _voit(p: Node3D) -> bool:
 
 
 func _ligne_libre(vers: Vector3) -> bool:
-	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.6, vers, Game.LAYER_WORLD, [get_rid()])
+	var exclus := [get_rid()]
+	var v = _voiture_joueur()
+	if v:
+		exclus.append(v.get_rid())   # le conducteur se voit (et se vise) à travers les vitres
+	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.6, vers, Game.LAYER_WORLD, exclus)
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+## Voiture conduite par le joueur (vehicule.gd), ou null.
+func _voiture_joueur():
+	var v = Game.player.get("vehicule") if Game.player else null
+	return v if v != null and is_instance_valid(v) else null
 
 
 func _bruit(pos: Vector3, rayon: float) -> void:
@@ -419,7 +432,12 @@ func _tirer(delta: float) -> void:
 	degats *= remap(clampf(dist, 6.0, 22.0), 6.0, 22.0, 1.3, 0.8)
 	if randf() < chance:
 		if cible == Game.player:
+			var v = _voiture_joueur()
+			if v:
+				v.balle_t = true   # balle à travers la vitre : vehicule.encaisser
 			cible.take_damage(degats, null, global_position)
+			if v:
+				v.balle_t = false
 		elif cible.has_method("take_hit"):
 			cible.take_hit(degats * 1.5, vise, global_position)
 	else:

@@ -5,15 +5,20 @@ extends VehicleBody3D
 ## [F] monter / descendre ; avancer / reculer / gauche / droite ; Sauter = frein à main ; Lampe = phares (allumés seuls la nuit).
 ## Moteur : son synthétisé (AudioStreamGenerator, régime selon la vitesse) et `Game.make_noise` (25 à 100 m) qui attire les zombies.
 ## Zombies, bandits et animaux percutés : dégâts selon la vitesse ; chocs et coups abîment la voiture (à 0 : moteur
-## en panne, [F] le réparer avec 2 pièces auto). Essence : 60 L, consommée selon l'accélérateur ; accroupi [F] =
-## verser un jerrican (« essence », 20 L). Gardée hors des morceaux de la carte et gelée (freeze) quand personne
-## ne conduit et que le joueur est loin : les collisions des morceaux détachés (ponts, parkings) ne manquent jamais sous elle.
+## en panne). Zombies contre la voiture arrêtée (zombie.gd, `distance_coque`) et balles des bandits (bandit.gd,
+## `balle_t`) passent par `encaisser`. Réparation partielle à tout moment : kit de réparation +40 %, pièce auto +15 %
+## (accroupi [F], ou [F] moteur en panne). Essence : 60 L, consommée selon l'accélérateur ; accroupi [F] = verser
+## un jerrican (« essence », 20 L) ou, avec un `tuyau`, en siphonner un. Talent `pilote` : consommation et dégâts ×0,7.
+## XP d'Exploration par kilomètre parcouru (`XP_KM`). Gardée hors des morceaux de la carte et gelée (freeze) quand
+## personne ne conduit et que le joueur est loin : les collisions des morceaux détachés ne manquent jamais sous elle.
 
 const Decor = preload("res://scripts/decor.gd")
 const ESSENCE_MAX := 60.0
 const JERRICAN := 20.0
 const PV_MAX := 100.0
-const PIECES_MOTEUR := 2
+const KIT := 40.0           # réparation d'un kit_reparation
+const PIECE := 15.0         # réparation d'une piece_auto
+const XP_KM := 5            # XP d'Exploration par kilomètre au volant
 const FORCE := 6000.0
 const FORCE_ARRIERE := 3200.0
 const VMAX := 32.0          # m/s (≈ 115 km/h)
@@ -49,6 +54,8 @@ var choc_t := {}             # instance_id -> délai avant un nouveau choc sur l
 var v_avant := 0.0           # vitesse de l'image précédente (chocs contre le décor)
 var renverse_t := 0.0
 var age := 0.0
+var km := 0.0                # mètres parcourus depuis la dernière XP
+var balle_t := false         # posé par bandit.gd juste avant le take_damage d'une balle (encaisser)
 
 
 func _ready() -> void:
@@ -149,17 +156,54 @@ func get_prompt() -> String:
 	if global_basis.y.y < 0.4:
 		return "[F] Remettre la voiture sur ses roues"
 	var p = Game.player
+	var acc := _action_accroupi(p) if p else ""
 	if pv <= 0.0:
-		var n: int = p.count("piece_auto") if p else 0
-		if n >= PIECES_MOTEUR:
-			return "[F] Réparer le moteur (%d pièces auto)" % PIECES_MOTEUR
-		return "Moteur en panne — il manque %d pièce(s) auto" % (PIECES_MOTEUR - n)
+		var rep := _action_reparer(p) if p else ""
+		if rep != "":
+			return "Moteur en panne — " + _texte_action(rep)
+		return "Moteur en panne — il faut un kit de réparation ou des pièces auto"
 	var s := "[F] Conduire  (essence %d / %d L, état %d %%)" % [int(ceil(essence)), int(ESSENCE_MAX), int(ceil(pv))]
-	if p and p.count("essence") > 0 and essence < ESSENCE_MAX - 1.0:
-		s += "\naccroupi : [F] verser un jerrican"
+	if acc != "":
+		s += "\naccroupi : " + _texte_action(acc)
 	elif essence <= 0.0:
 		s += "\nRéservoir vide : il faut un jerrican d'essence"
 	return s
+
+
+## Réparation possible avec ce que porte le joueur : "kit", "piece" ou "".
+func _action_reparer(p: Node) -> String:
+	if pv >= PV_MAX - 1.0:
+		return ""
+	if p.count("kit_reparation") > 0:
+		return "kit"
+	if p.count("piece_auto") > 0:
+		return "piece"
+	return ""
+
+
+## Action d'un [F] accroupi : réparer (abîmée à moins de 85 %), verser un jerrican, siphonner avec un tuyau.
+func _action_accroupi(p: Node) -> String:
+	var rep := _action_reparer(p)
+	if rep != "" and pv < PV_MAX * 0.85:
+		return rep
+	if p.count("essence") > 0 and essence < ESSENCE_MAX - 1.0:
+		return "verser"
+	if p.count("tuyau") > 0 and essence >= JERRICAN:
+		return "siphon"
+	return rep
+
+
+func _texte_action(a: String) -> String:
+	match a:
+		"kit":
+			return "[F] réparer avec un kit (+%d %%)" % int(KIT)
+		"piece":
+			return "[F] réparer avec une pièce auto (+%d %%)" % int(PIECE)
+		"verser":
+			return "[F] verser un jerrican"
+		"siphon":
+			return "[F] siphonner un jerrican (tuyau)"
+	return ""
 
 
 func interact(j: Node) -> void:
@@ -168,23 +212,35 @@ func interact(j: Node) -> void:
 	if global_basis.y.y < 0.4:
 		_redresser()
 		return
+	var a := ""
 	if pv <= 0.0:
-		if j.count("piece_auto") < PIECES_MOTEUR:
-			Game.msg("Il faut %d pièces auto pour réparer le moteur." % PIECES_MOTEUR)
+		a = _action_reparer(j)
+		if a == "":
+			Game.msg("Moteur en panne : il faut un kit de réparation ou des pièces auto.")
 			return
-		j.remove_item("piece_auto", PIECES_MOTEUR)
-		pv = PV_MAX * 0.6
-		j.geste("fouille")
-		Game.play_3d("impact_metal", global_position + Vector3.UP, 0.0, 0.1, 40.0)
-		Game.msg("Moteur réparé (état 60 %).")
-		return
-	if j.crouching and j.count("essence") > 0 and essence < ESSENCE_MAX - 1.0:
-		j.remove_item("essence", 1)
-		essence = minf(ESSENCE_MAX, essence + JERRICAN)
-		j.geste("genou")
-		Game.msg("Plein : %d / %d L d'essence." % [int(essence), int(ESSENCE_MAX)])
-		return
-	monter(j)
+	elif j.crouching:
+		a = _action_accroupi(j)
+	match a:
+		"kit", "piece":
+			j.remove_item("kit_reparation" if a == "kit" else "piece_auto", 1)
+			pv = minf(PV_MAX, pv + (KIT if a == "kit" else PIECE))
+			j.geste("fouille")
+			j.prog.gagner("fabrication", 4)
+			Game.play_3d("impact_metal", global_position + Vector3.UP, 0.0, 0.1, 40.0)
+			Game.make_noise(global_position, 14.0)
+			Game.msg("Voiture réparée : état %d %%." % int(pv))
+		"verser":
+			j.remove_item("essence", 1)
+			essence = minf(ESSENCE_MAX, essence + JERRICAN)
+			j.geste("genou")
+			Game.msg("Plein : %d / %d L d'essence." % [int(essence), int(ESSENCE_MAX)])
+		"siphon":
+			essence -= JERRICAN
+			j.add_item("essence", 1)
+			j.geste("genou")
+			Game.msg("Essence siphonnée : il reste %d L dans le réservoir." % int(essence))
+		_:
+			monter(j)
 
 
 ## Texte affiché sous le réticule pendant la conduite (player.prompt).
@@ -277,19 +333,36 @@ func _phares(on: bool) -> void:
 		l.visible = on
 
 
-## Coup reçu par le conducteur (player.take_damage) : la carrosserie en prend la plus grande part ; renvoie le reste.
+## Coup reçu par le conducteur (player.take_damage) : renvoie la part qui atteint le joueur.
+## Coups de zombies : la carrosserie prend l'essentiel ; balle d'un bandit (`balle_t`) : elle traverse la vitre.
 func encaisser(montant: float) -> float:
+	if balle_t:
+		balle_t = false
+		abimer(montant * 0.3)
+		return montant * 0.6
 	abimer(montant * 0.5)
+	Game.play_3d("impact_metal", global_position + Vector3.UP, -2.0, 0.15, 40.0)
 	return montant * 0.25
+
+
+func _pilote() -> bool:
+	var p = conducteur if conducteur else Game.player
+	return p != null and p.get("prog") != null and p.prog.a("pilote")
 
 
 func abimer(n: float) -> void:
 	if n <= 0.0 or pv <= 0.0:
 		return
-	pv = maxf(0.0, pv - n)
+	pv = maxf(0.0, pv - n * (0.7 if _pilote() else 1.0))
 	if pv <= 0.0:
-		Game.msg("Le moteur cale : la voiture est hors d'usage (2 pièces auto pour la réparer).")
+		Game.msg("Le moteur cale : la voiture est hors d'usage (kit de réparation ou pièces auto).")
 		Game.play_3d("explosion", global_position, -16.0, 0.1, 60.0)
+
+
+## Distance (à plat) d'un point à la carrosserie : 0 contre elle ou dessous (zombie.gd).
+func distance_coque(pos: Vector3) -> float:
+	var l := global_transform.affine_inverse() * pos
+	return Vector2(maxf(absf(l.x) - taille.x / 2.0, 0.0), maxf(absf(l.z) - taille.z / 2.0, 0.0)).length()
 
 
 # ================================================================ conduite
@@ -359,7 +432,7 @@ func _physics_process(delta: float) -> void:
 	steering = move_toward(steering, dir * braq, delta * 2.2)
 	gaz = move_toward(gaz, absf(acc), delta * 3.0)
 	if marche:
-		essence = maxf(0.0, essence - (0.004 + 0.03 * gaz) * delta)
+		essence = maxf(0.0, essence - (0.004 + 0.03 * gaz) * delta * (0.7 if _pilote() else 1.0))
 		if essence <= 0.0:
 			Game.msg("Panne d'essence !")
 	# rester droite : couple vers la verticale (pas sur le lacet), remise sur les roues si elle reste couchée
@@ -382,6 +455,12 @@ func _physics_process(delta: float) -> void:
 			conducteur.health = maxf(1.0, conducteur.health - (perte - 14.0) * 2.0)
 	v_avant = vitesse
 	_percuter(vitesse)
+	# XP d'Exploration au kilomètre (sur ses roues, pas en patinant sur place)
+	if haut.y > 0.6:
+		km += vitesse * delta
+		if km >= 1000.0:
+			km -= 1000.0
+			conducteur.prog.gagner("exploration", XP_KM)
 	# bruit du moteur (attire les zombies)
 	bruit_t -= delta
 	if bruit_t <= 0.0 and marche:

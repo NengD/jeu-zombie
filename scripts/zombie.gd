@@ -494,7 +494,7 @@ func _physics_process(delta: float) -> void:
 		elif prep_t >= _duree_prep():
 			_frapper()
 	elif state == State.CHASE and p and p.alive:
-		var flat := Vector2(p.global_position.x - global_position.x, p.global_position.z - global_position.z).length()
+		var flat := _distance_cible(p)
 		if flat < 1.5 * (1.6 if est_boss else 1.0) and absf(p.global_position.y - global_position.y) < 1.5 * echelle and attack_t <= 0.0 and charge_t <= 0.0 and slam_t < 0.0:
 			_preparer(p)
 	# attaque d'un bandit
@@ -1352,6 +1352,15 @@ func _finir_prep() -> void:
 		corps_v.bras_leves = 0.0
 
 
+## Distance à plat jusqu'à la cible ; joueur dans une voiture arrêtée (vehicule.gd) : jusqu'à la carrosserie,
+## qu'il frappe (le coup passe par `vehicule.encaisser`). Voiture qui roule : hors d'atteinte.
+func _distance_cible(c: Node3D) -> float:
+	var v = c.get("vehicule") if c == Game.player else null
+	if v != null and is_instance_valid(v):
+		return v.distance_coque(global_position) + 0.4 if v.linear_velocity.length() < 3.0 else INF
+	return Vector2(c.global_position.x - global_position.x, c.global_position.z - global_position.z).length()
+
+
 func _frapper() -> void:
 	var c := prep_cible
 	_finir_prep()
@@ -1361,7 +1370,7 @@ func _frapper() -> void:
 	if c == null or not is_instance_valid(c):
 		return
 	var portee := 1.9 * (1.6 if est_boss else 1.0)
-	var flat := Vector2(c.global_position.x - global_position.x, c.global_position.z - global_position.z).length()
+	var flat := _distance_cible(c)
 	if flat > portee or absf(c.global_position.y - global_position.y) > 1.5 * echelle:
 		return   # la cible a reculé à temps
 	if c == Game.player:

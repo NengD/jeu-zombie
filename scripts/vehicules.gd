@@ -4,7 +4,10 @@ extends Node3D
 ## (méta « brulee »), ni les motos, ni les voitures déjà vidées par la récolte. Tirage fixe par n° d'épave et graine.
 ## [F] devant elle : ce qui manque (3 pièces auto, 1 batterie, 1 jerrican), ou la réparation quand tout y est.
 ## La voiture réparée devient un VehicleBody3D enfant de ce nœud : hors des morceaux de la carte (toujours dans
-## l'arbre), l'épave d'origine est cachée et sa collision coupée. Sauvegarde : `etat()` / `appliquer()` (clé « vehicules »).
+## l'arbre), l'épave d'origine est cachée et sa collision coupée. Sauvegarde : `etat()` / `appliquer()` (clé « vehicules » :
+## un élément par véhicule + un élément {"siphon": {n°: jerricans restants}}).
+## Siphonnage : toutes les voitures garées non brûlées ont un fond de réservoir (`fond` : 0, 1 ou 2 jerricans, 60 %
+## en ont) ; accroupi [F] avec un `tuyau` = un jerrican (« essence »). Voiture réparée : son fond s'ajoute au plein.
 
 const Decor = preload("res://scripts/decor.gd")
 const Vehicule = preload("res://scripts/vehicule.gd")
@@ -12,7 +15,9 @@ const BESOINS := {"piece_auto": 3, "batterie": 1, "essence": 1}
 const PART := 0.17
 
 var world: Node = null
-var reparables := {}         # n° d'épave -> Panne (StaticBody3D d'interaction)
+var pannes := {}             # n° d'épave -> Panne (StaticBody3D d'interaction) : voitures garées non brûlées
+var reparables := {}         # n° d'épave -> true : celles qui se réparent
+var siphon := {}             # n° d'épave -> jerricans restants (si déjà siphonnée)
 
 
 class Panne extends StaticBody3D:
@@ -23,7 +28,7 @@ class Panne extends StaticBody3D:
 		return gestion.prompt(i)
 
 	func interact(joueur: Node) -> void:
-		gestion.reparer(i, joueur)
+		gestion.interagir(i, joueur)
 
 
 func installer(w: Node) -> void:
@@ -39,8 +44,8 @@ func installer(w: Node) -> void:
 			continue
 		if absf(n.position.y - Game.hauteur(n.position.x, n.position.z)) > 0.8:
 			continue   # sur un pont ou un plancher : laissée en décor
-		if _tirage(i) >= PART:
-			continue
+		if _tirage(i) < PART:
+			reparables[i] = true
 		var t := Decor.taille(id)
 		var b := Panne.new()
 		b.gestion = self
@@ -55,13 +60,21 @@ func installer(w: Node) -> void:
 		b.position = n.position + Vector3(0, t.y / 2.0, 0)
 		b.rotation.y = n.rotation.y
 		add_child(b)
-		reparables[i] = b
+		pannes[i] = b
 
 
-func _tirage(i: int) -> float:
+func _tirage(i: int, sel := 17) -> float:
 	var r := RandomNumberGenerator.new()
-	r.seed = hash(i * 7919 + Game.graine_monde * 31 + 17)
+	r.seed = hash(i * 7919 + Game.graine_monde * 31 + sel)
 	return r.randf()
+
+
+## Jerricans encore dans le réservoir de l'épave n° i.
+func fond(i: int) -> int:
+	if siphon.has(i):
+		return int(siphon[i])
+	var r := _tirage(i, 53)
+	return 0 if r < 0.4 else (1 if r < 0.88 else 2)
 
 
 func _videe(i: int) -> bool:
@@ -78,12 +91,39 @@ func manque(joueur: Node) -> Array:
 
 
 func prompt(i: int) -> String:
-	if _videe(i) or Game.player == null:
+	var p = Game.player
+	if _videe(i) or p == null:
 		return ""
-	var m := manque(Game.player)
-	if m.is_empty():
-		return "[F] Réparer la voiture (3 pièces auto, 1 batterie, 1 jerrican)"
-	return "Voiture réparable — il manque : " + ", ".join(m)
+	var s := ""
+	if reparables.has(i):
+		var m := manque(p)
+		s = "[F] Réparer la voiture (3 pièces auto, 1 batterie, 1 jerrican)" if m.is_empty() else "Voiture réparable — il manque : " + ", ".join(m)
+	if p.count("tuyau") > 0:
+		var f := fond(i)
+		var l := "accroupi : [F] siphonner l'essence (%s)" % ("reste de quoi remplir %d jerrican%s" % [f, "s" if f > 1 else ""]) if f > 0 else "Réservoir vide"
+		s = l if s == "" else s + "\n" + l
+	return s
+
+
+func interagir(i: int, joueur: Node) -> void:
+	if _videe(i):
+		return
+	if joueur.crouching and joueur.count("tuyau") > 0:
+		siphonner(i, joueur)
+	elif reparables.has(i):
+		reparer(i, joueur)
+
+
+func siphonner(i: int, joueur: Node) -> void:
+	var f := fond(i)
+	if f <= 0:
+		Game.msg("Le réservoir est vide.")
+		return
+	siphon[i] = f - 1
+	joueur.add_item("essence", 1)
+	joueur.geste("genou")
+	Game.make_noise((world.epaves[i].n as Node3D).position, 6.0)
+	Game.msg("Essence siphonnée (1 jerrican)." + (" Le réservoir est vide." if f - 1 <= 0 else ""))
 
 
 func reparer(i: int, joueur: Node) -> void:
@@ -101,9 +141,11 @@ func reparer(i: int, joueur: Node) -> void:
 	Game.play_3d("impact_metal", n.position + Vector3.UP, 2.0, 0.1, 40.0)
 	Game.make_noise(n.position, 20.0)
 	joueur.prog.gagner("fabrication", 25)
+	var plein := minf(Vehicule.ESSENCE_MAX, Vehicule.JERRICAN * (1 + fond(i)))   # le fond du réservoir s'ajoute
+	siphon[i] = 0
 	creer(i, String(n.get_meta("garee")), Transform3D(Basis(Vector3.UP, n.rotation.y), n.position + Vector3.UP * 0.05),
-			Vehicule.JERRICAN, Vehicule.PV_MAX)
-	Game.msg("Voiture réparée ! [F] pour monter (essence %d L)." % int(Vehicule.JERRICAN))
+			plein, Vehicule.PV_MAX)
+	Game.msg("Voiture réparée ! [F] pour monter (essence %d L)." % int(plein))
 
 
 ## Crée le véhicule (modèle copié de l'épave, peinture comprise) et retire l'épave du décor.
@@ -120,9 +162,10 @@ func creer(i: int, id: String, xf: Transform3D, essence: float, pv: float) -> No
 		(e.cs as CollisionShape3D).disabled = true
 		if Game.recolte:
 			Game.recolte.faits.e[i] = true    # plus démontable à la hache
-	if reparables.has(i):
-		reparables[i].queue_free()
-		reparables.erase(i)
+	if pannes.has(i):
+		pannes[i].queue_free()
+		pannes.erase(i)
+	reparables.erase(i)
 	add_child(v)
 	v.global_transform = xf
 	return v
@@ -137,6 +180,11 @@ func etat() -> Array:
 	var res: Array = []
 	for v in vehicules():
 		res.append(v.vers_dict())
+	if not siphon.is_empty():
+		var s := {}
+		for k in siphon:
+			s[str(k)] = siphon[k]
+		res.append({"siphon": s})
 	return res
 
 
@@ -144,6 +192,11 @@ func etat() -> Array:
 func appliquer(liste: Array, meme_monde: bool) -> void:
 	for d in liste:
 		if not (d is Dictionary):
+			continue
+		if d.has("siphon"):
+			if meme_monde and d.siphon is Dictionary:
+				for k in d.siphon:
+					siphon[int(k)] = int(d.siphon[k])
 			continue
 		var i := int(d.get("e", -1)) if meme_monde else -1
 		if i >= world.epaves.size():
