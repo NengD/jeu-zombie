@@ -119,7 +119,7 @@ const GUIDE := """[b]LES BASES[/b]
 [b]NIVEAUX ET ARBRE DE COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), récolter, manger, boire, se soigner et encaisser des coups (Survie), toucher avec une flèche, tuer et dépecer des animaux, relever un collet, cuisiner au feu (Chasse).
 • L'écran Personnage est un [b]arbre[/b] qui part du survivant (au centre) : une branche par compétence (Combat se sépare en corps à corps et armes à feu, puis Fabrication, Exploration, Survie, Chasse et arc). Un nœud ne se débloque que si le précédent l'est, et plus on s'éloigne du centre, plus le niveau de compétence demandé est élevé.
-• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 94 talents (dont Pêcheur, Cueilleur, Bricoleur, Premiers secours ; Endurci protège aussi du froid) (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
+• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 98 talents (dont Pêcheur, Cueilleur, Bricoleur, Premiers secours, Pilote, Jardinier, Électricien, Fantôme ; Endurci protège aussi du froid) (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
 • Chaque nœud montre une icône, le niveau requis (petite pastille) et une coche verte une fois acquis. Nœuds à rangs (« 0/3 ») : un point par rang, 2 niveaux de plus demandés à chaque rang. Ponts (losanges, traits en pointillés) entre deux branches voisines : il faut les deux nœuds reliés.
 • Couleurs : nœud plein = acquis, anneau doré qui pulse = disponible (clic pour débloquer), gris = verrouillé. Survol : description, coût, prérequis, niveau requis et aperçu chiffré de chaque talent (« avant → après » : statistiques, arme en main, chances, prix, détection…). Clic-glisser pour déplacer, molette pour zoomer, Espace pour recentrer.
 • Bouton « Réinitialiser » : rend tous les points dépensés contre de l'argent (100 € + 40 € par niveau) ; les rangées de poches restent acquises.
@@ -172,6 +172,8 @@ const GUIDE := """[b]LES BASES[/b]
   la pluie arrose toute seule. Le bac avance aussi pendant que tu dors.
 • Plant mûr : [F] récolte 3 à 6 légumes (souvent des graines en plus). Tomates et carottes se mangent crues ; au feu :
   pomme de terre cuite, maïs grillé, soupe de légumes (tomate + carotte + pomme de terre + eau).
+• Talent [b]Jardinier[/b] (Survie) : les plantes poussent 40 % plus vite et chaque récolte donne un légume de plus.
+  Semer et récolter rapportent de l'XP de Survie.
 
 [b]ÉLECTRICITÉ[/b]
 • Sources (établi) : le [b]groupe électrogène[/b] (1500 W) brûle un jerrican d'essence en 12 minutes ; [F] le démarre (en versant
@@ -179,8 +181,10 @@ const GUIDE := """[b]LES BASES[/b]
   solaire[/b] (400 W) est silencieux mais ne produit que le jour, moins sous la pluie.
 • Appareils alimentés à moins de 15 m d'une source : [b]lampe[/b] (60 W, s'allume la nuit, [F] : auto / allumée / éteinte),
   [b]clôture électrique[/b] (250 W : électrocute et ralentit les zombies qui la touchent), [b]frigo[/b] (150 W : rangement où
-  la nourriture ne se gâte pas). Regarde un appareil pour voir la production et la consommation de son réseau ; s'il n'y a
+  la nourriture se gâte trois fois moins vite). Regarde un appareil pour voir la production et la consommation de son réseau ; s'il n'y a
   pas assez de courant, les appareils les plus proches de la source passent d'abord.
+• Talent [b]Électricien[/b] (Fabrication) : le groupe électrogène brûle 40 % d'essence en moins (un jerrican dure 20 minutes)
+  et le réseau porte à 20 m au lieu de 15. Poser un appareil rapporte de l'XP de Fabrication.
 
 [b]RÉCOLTE : HACHE ET PIOCHE[/b]
 • Frappe le décor avec l'outil en main (clic gauche, plusieurs coups) : la [b]hache[/b] abat les arbres (2 à 5 bûches,
@@ -200,14 +204,25 @@ const GUIDE := """[b]LES BASES[/b]
   (allumés seuls la nuit), souris = regarder autour. Vitesse, essence et état en bas à droite.
 • Le moteur s'entend de loin : les zombies accourent. Les écraser les blesse selon la vitesse, mais abîme la voiture ;
   les chocs contre les murs aussi. Au volant, la carrosserie prend l'essentiel des coups.
-• Réservoir de 60 L : accroupi devant la voiture, [F] verse un jerrican (+20 L). Moteur à 0 % : 2 pièces auto pour repartir.
-  Voiture renversée : [F] la remet sur ses roues. Les voitures réparées sont sauvegardées (place, essence, état).
+• Réservoir de 60 L. Accroupi devant la voiture, [F] fait l'action indiquée : réparer si elle est abîmée
+  ([b]kit de réparation[/b] +40 %, [b]pièce auto[/b] +15 % chacune), verser un jerrican (+20 L), ou avec un [b]tuyau[/b]
+  siphonner un jerrican du réservoir. Moteur à 0 % : [F] le répare de la même façon.
+• [b]Siphonner[/b] : beaucoup de voitures garées (pas les carcasses brûlées) ont encore un fond d'essence. Avec un tuyau
+  (garages, fermes, stations, maisons, mécanicien), accroupi [F] remplit un jerrican. Les stations-service ont aussi des jerricans.
+• Arrêtée, la voiture n'est pas un abri sûr : les zombies frappent la carrosserie et les bandits tirent à travers les vitres.
+  Phares allumés la nuit, on te voit de loin.
+• Rouler rapporte de l'XP d'[b]Exploration[/b] (5 par kilomètre). Talent [b]Pilote[/b] : 30 % d'essence et de dégâts en moins.
+  Voiture renversée : [F] la remet sur ses roues. Voitures réparées et réservoirs siphonnés sont sauvegardés.
 
 [b]CUISINE ET MALADIE[/b]
 • Au feu de camp ou au brasero : viande cuite, bouillon d'os, ragoût de chasse ; tannage (2 peaux + 1 graisse → 1 cuir).
 • Au plan de couture : veste et capuche de cuir, sac de chasse, sac à dos.
 • Manger de la viande crue peut rendre malade (intoxication) : faim et soif baissent vite, endurance réduite, nausées.
   Ça passe avec le temps, ou tout de suite avec des médicaments anti-nausée (pharmacies, hôpitaux).
+• [b]Nourriture qui se gâte[/b] : viande, poisson, fruits, légumes et plats cuisinés se gâtent avec les jours, même pendant
+  ton sommeil. L'infobulle dit s'ils sont frais, s'ils se gâtent ou s'ils sont avariés (pastille orange / brune sur la case).
+  Avarié, un aliment nourrit deux fois moins et double le risque d'intoxication. Dans un frigo alimenté, ça se gâte trois fois
+  moins vite. Conserves, rations, barres, viande séchée et eau se gardent. Deux piles réunies mélangent leur fraîcheur.
 
 [b]BLESSURES ET SOINS[/b]
 • Un coup peut te faire [b]saigner[/b] : tu perds de la santé peu à peu (elle ne remonte plus) jusqu'à ce qu'un bandage ou une trousse arrête le saignement.
@@ -222,7 +237,8 @@ const GUIDE := """[b]LES BASES[/b]
 • [O] ouvre le [b]Journal du survivant[/b] (Tab, Q / E : changer d'onglet) : [b]Statistiques[/b] (zombies tués par type et par arme,
   animaux, bandits, distance à pied et en véhicule, objets fabriqués, lieux découverts, plus longue série sans dégâts…),
   [b]Objectifs[/b] (étapes guidées pour bien débuter, cochées toutes seules, avec une petite récompense en XP ou en euros)
-  et [b]Succès[/b] (28 à débloquer, annoncés à l'écran).
+  et [b]Succès[/b] (36 à débloquer, annoncés à l'écran). Objectifs des systèmes récents : remplir une commande de marchand,
+  première récolte du potager, réparer et conduire une voiture, alimenter un appareil électrique, atteindre un largage.
 
 [b]EAU ET FROID[/b]
 • Face à un lac ou à la rivière, [F] pour boire (l'eau n'est pas potable : risque de maladie) ou, avec une bouteille vide,
@@ -294,6 +310,9 @@ const GUIDE := """[b]LES BASES[/b]
   [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]
   (20 à 40 zombies qui traversent la carte et vont vers les coups de feu et les explosions : évite le bruit),
   [b]bandits en maraude[/b] (une bande armée qui traverse la région). Ils disparaissent une fois fouillés ou après un moment.
+  Atteindre un largage ou un convoi rapporte de l'XP d'exploration (60 / 80), survivre au passage d'une horde migrante aussi (100).
+  Les caisses contiennent aussi des objets de la vie d'après : graines, essence, tuyau, pièces auto, batterie, et parfois
+  une lampe, une clôture électrique, un panneau solaire ou un groupe électrogène.
 
 [b]PROJECTEURS[/b] (3 ferrailles + 1 ruban + 1 tissu, établi — ou chez le quincaillier)
 • À poser dehors autour de ta base pour voir venir les zombies la nuit. [F] : automatique (s'allume la nuit) / allumé / éteint.
