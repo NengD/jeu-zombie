@@ -93,6 +93,17 @@ class Cadre extends Control:
 			draw_polyline(losange, Color.BLACK, 1.5)
 			draw_string_outline(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
 			draw_string(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.75, 0.4))
+		# événements aléatoires en cours (evenements.gd) : triangle de couleur
+		for ev in preload("res://scripts/evenements.gd").reperes:
+			var ep := vers_ecran(Vector2(ev.x, ev.z))
+			if not vue.grow(40.0).has_point(ep):
+				continue
+			var tri := PackedVector2Array([ep + Vector2(0, -11), ep + Vector2(10, 8), ep + Vector2(-10, 8)])
+			draw_colored_polygon(tri, ev.couleur)
+			tri.append(tri[0])
+			draw_polyline(tri, Color.BLACK, 1.5)
+			draw_string_outline(font, ep + Vector2(12, 6), ev.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
+			draw_string(font, ep + Vector2(12, 6), ev.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, ev.couleur.lightened(0.3))
 		# ma base : petite maison bleue
 		var base := Game.position_base()
 		if base != Vector3.INF:

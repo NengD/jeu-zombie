@@ -102,6 +102,11 @@ func _ready() -> void:
 	add_child(CompetencesUI.new())
 	add_child(MapUI.new())
 	add_child(BoutiqueUI.new())
+	var evenements = preload("res://scripts/evenements.gd").new()   # largages, convois, hordes migrantes, bandits
+	evenements.name = "Evenements"
+	add_child(evenements)
+	if not charge.is_empty():
+		evenements.appliquer(charge.get("evenements", {}))
 	if Game.admin:
 		add_child(preload("res://scripts/ui/admin_ui.gd").new())
 	_ambience()
@@ -513,7 +518,7 @@ func placer_zombie(pos: Vector3, kind: String, rayon: float, pv: float, maison: 
 func _gerer_virtuels() -> void:
 	var pp: Vector3 = player.global_position
 	for z in get_tree().get_nodes_in_group("zombies"):
-		if z.persistent and z.state != z.State.CHASE and z.global_position.distance_to(pp) > DIST_SOMMEIL:
+		if z.persistent and z.state != z.State.CHASE and z.global_position.distance_to(pp) > DIST_SOMMEIL and not z.is_in_group("evenement"):
 			zombies_virtuels.append({"pos": z.global_position + Vector3(0, 0.05, 0), "kind": z.kind, "rayon": z.home_radius, "pv": z.health, "maison": z.home})
 			z.remove_from_group("zombies")
 			z.remove_from_group("boss")

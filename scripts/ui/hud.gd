@@ -39,6 +39,8 @@ class Boussole extends Control:
 		var reperes: Array = []
 		for mq in Game.marqueurs:
 			reperes.append([Vector2(mq.x, mq.z), mq.nom, Color(1.0, 0.6, 0.15)])
+		for ev in preload("res://scripts/evenements.gd").reperes:   # événements aléatoires en cours
+			reperes.append([Vector2(ev.x, ev.z), ev.nom, ev.couleur])
 		var mc := Game.marchand_proche(pos)
 		if not mc.is_empty():
 			reperes.append([Vector2(mc.pos.x, mc.pos.z), mc.get("metiers", "Marchands"), Color(0.45, 1.0, 0.55)])

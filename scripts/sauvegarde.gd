@@ -156,6 +156,8 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	# zombies vivants
 	var zs := []
 	for z in main.get_tree().get_nodes_in_group("zombies"):
+		if z.is_in_group("evenement"):
+			continue   # horde migrante : sauvegardée par evenements.gd
 		zs.append({"pos": _v(z.global_position), "type": z.kind, "garde": z.persistent, "rayon": z.home_radius,
 				"pv": z.health, "maison": _v(z.home)})
 	for v in main.zombies_virtuels:
@@ -169,6 +171,9 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	d["marqueurs"] = Game.marqueurs
 	d["lieux_fouilles"] = Game.lieux_fouilles.keys()
 	d["commandes"] = Commandes.etat()   # commandes des marchands (commandes.gd)
+	var ev = main.get_node_or_null("Evenements")
+	if ev:
+		d["evenements"] = ev.etat()   # événements aléatoires (evenements.gd)
 	d["journal"] = preload("res://scripts/journal.gd").etat()   # journal du survivant (journal.gd)
 	var f := FileAccess.open(fichier, FileAccess.WRITE)
 	if f == null:

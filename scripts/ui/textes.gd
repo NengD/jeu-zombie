@@ -289,6 +289,11 @@ const GUIDE := """[b]LES BASES[/b]
 
 [b]ARGENT ET MARCHANDS[/b]
 • Les meubles et caisses proches qui ont encore quelque chose à prendre brillent d'un liseré doré.
+• [b]Événements[/b] (environ un tous les 1 à 2 jours, annoncés à la radio, triangle de couleur sur la carte et la boussole) :
+  [b]largage[/b] (un hélicoptère lâche une caisse en parachute : très bon butin, mais sa fumée rouge attire les zombies),
+  [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]
+  (20 à 40 zombies qui traversent la carte et vont vers les coups de feu et les explosions : évite le bruit),
+  [b]bandits en maraude[/b] (une bande armée qui traverse la région). Ils disparaissent une fois fouillés ou après un moment.
 • Soins : antidouleurs (0,5 s, +10), bandage (0,9 s, +15), trousse (3,5 s, santé au maximum, interrompue si tu es touché). On marche lentement pendant un soin. [H] choisit le soin adapté à ta blessure.
 • Tu trouves des euros sur les zombies et dans les meubles fouillés. Ton argent s'affiche en haut à droite.
 • Une quinzaine de [b]campements de marchands[/b] (points verts sur la carte, avec leur métier) répartis sur toute la carte :

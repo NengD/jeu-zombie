@@ -153,6 +153,22 @@ func _construire() -> void:
 	_bouton(hz, "Le Colosse (boss)", func(): _zombies("boss", 1))
 	_bouton(hz, "Tuer les zombies proches", _tuer)
 
+	# ------------------------------------------------ événements aléatoires (evenements.gd)
+	_titre("Événements")
+	var he := HBoxContainer.new()
+	contenu.add_child(he)
+	for ty in [["largage", "Largage"], ["convoi", "Convoi militaire"], ["horde", "Horde migrante"], ["bandits", "Bandits en maraude"]]:
+		var type_ev: String = ty[0]
+		_bouton(he, ty[1], func():
+			var ev = Game.player.get_parent().get_node_or_null("Evenements")
+			if ev:
+				ev.declencher(type_ev, true))
+	_bouton(he, "Prochain tirage dans 10 s", func():
+		var ev = Game.player.get_parent().get_node_or_null("Evenements")
+		if ev:
+			ev.prochain = 10.0
+			Game.msg("Prochain événement aléatoire dans 10 s."))
+
 	# ------------------------------------------------ joueur
 	_titre("Joueur")
 	var hj := HBoxContainer.new()
