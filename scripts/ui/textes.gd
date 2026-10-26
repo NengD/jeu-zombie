@@ -112,7 +112,7 @@ const GUIDE := """[b]LES BASES[/b]
 [b]NIVEAUX ET ARBRE DE COMPÉTENCES[/b] (touche K)
 • Chaque action rapporte de l'XP : tuer des zombies (Combat), fabriquer et construire (Fabrication), fouiller et découvrir des bâtiments (Exploration), récolter, manger, boire, se soigner et encaisser des coups (Survie), toucher avec une flèche, tuer et dépecer des animaux, relever un collet, cuisiner au feu (Chasse).
 • L'écran Personnage est un [b]arbre[/b] qui part du survivant (au centre) : une branche par compétence (Combat se sépare en corps à corps et armes à feu, puis Fabrication, Exploration, Survie, Chasse et arc). Un nœud ne se débloque que si le précédent l'est, et plus on s'éloigne du centre, plus le niveau de compétence demandé est élevé.
-• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 90 talents (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
+• Chaque compétence monte jusqu'au niveau 15 ; chaque niveau donne 1 point de talent pour sa branche (1 point par nœud). L'arbre compte 94 talents (dont Pêcheur, Cueilleur, Bricoleur, Premiers secours ; Endurci protège aussi du froid) (12 à 14 par branche, jusqu'au niveau 14 pour les plus éloignés) : impossible de tout prendre dans une branche, il faut choisir sa voie. Niveau global : +1 point d'attribut à placer sur les petits nœuds autour du centre (Endurance, Santé, Soif, Faim ; répétables).
 • Chaque nœud montre une icône, le niveau requis (petite pastille) et une coche verte une fois acquis. Nœuds à rangs (« 0/3 ») : un point par rang, 2 niveaux de plus demandés à chaque rang. Ponts (losanges, traits en pointillés) entre deux branches voisines : il faut les deux nœuds reliés.
 • Couleurs : nœud plein = acquis, anneau doré qui pulse = disponible (clic pour débloquer), gris = verrouillé. Survol : description, coût, prérequis, niveau requis et aperçu chiffré de chaque talent (« avant → après » : statistiques, arme en main, chances, prix, détection…). Clic-glisser pour déplacer, molette pour zoomer, Espace pour recentrer.
 • Bouton « Réinitialiser » : rend tous les points dépensés contre de l'argent (100 € + 40 € par niveau) ; les rangées de poches restent acquises.
@@ -152,7 +152,8 @@ const GUIDE := """[b]LES BASES[/b]
   Vaches, chevaux et moutons errent près des fermes : de la viande, du cuir (et de la laine pour le tissu) faciles à prendre.
 • Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
 • Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
-• Récupérateur d'eau de pluie (établi) : se remplit sous la pluie, [F] pour prendre les bouteilles. Séchoir à viande (planches, clous) :
+• Récupérateur d'eau de pluie (établi) : le fût garde jusqu'à 6 bouteilles d'eau de pluie ; apporte des bouteilles vides
+  et [F] les remplit d'eau potable (il ne fabrique pas de bouteilles). Séchoir à viande (planches, clous) :
   [F] pour y suspendre la viande crue, elle devient de la viande séchée (légère, sans danger). Piège à mâchoires (établi) :
   immobilise et blesse le premier zombie qui marche dessus ; [F] pour le réarmer.
 
@@ -196,6 +197,9 @@ const GUIDE := """[b]LES BASES[/b]
   montrent son état ; une arme cassée ne sert plus.
 • Clic droit > [b]Réparer[/b] avec un kit de réparation (établi : 1 ruban + 2 ferrailles) ; il faut aussi une clé à molette
   pour une arme à feu. Chaque kit efface la moitié de l'usure (+3 % par niveau de fabrication).
+• Le [b]marteau[/b] s'use d'un point par pièce posée, renforcée ou réparée (un par élément avec Maj+G) ; cassé, il ne permet
+  plus de construire : répare-le avec un kit.
+• Les grenades et le feu du Molotov blessent aussi les animaux.
 
 [b]MOLOTOV, MUNITIONS ET CLÉ À MOLETTE[/b]
 • [b]Cocktail Molotov[/b] (essence + alcool + tissu, à la main) : se lance comme la grenade. La bouteille se brise au premier choc
@@ -232,6 +236,12 @@ const GUIDE := """[b]LES BASES[/b]
   entièrement d'un niveau. Le coût total s'affiche en visant une pièce.
 • [b]Lit de camp[/b] (établi : 4 planches, 4 clous, 4 tissus), à poser dans la base : [F] la nuit pour dormir jusqu'à 7 h.
   Refusé si un zombie ou un bandit est à moins de 30 m ; faim et soif baissent pendant le sommeil (deux fois moins vite).
+  Impossible aussi en saignant (arrête d'abord le saignement) ou avec une forte fièvre. Pendant le sommeil, le temps passe
+  pour tout : une morsure finit de s'infecter ou de cicatriser, la fièvre monte, l'intoxication passe, le froid s'installe
+  (dors à l'abri ou près d'un feu : avoir froid ou de la fièvre gâche le repos). Lignes de pêche, collets, séchoirs et
+  récupérateurs d'eau continuent de travailler jusqu'à être pleins.
+• [b]Sauvegarde automatique[/b] : au réveil, en entrant dans un camp de marchands et toutes les 10 minutes, dans un emplacement
+  à part (F5 / F9 restent ta sauvegarde manuelle). Après une mort : « Charger la sauvegarde automatique ».
 • [X] démonte une pièce et rend la moitié du bois. Les zombies tapent dans les murs qui leur barrent la route.
 • L'établi et la caisse de stockage se posent aussi sur les planchers de ta base.
 • [b]Pièges[/b] (à placer dehors, depuis l'inventaire) : piques en bois (3 planches + 2 clous) qui blessent les zombies
@@ -263,6 +273,10 @@ const GUIDE := """[b]LES BASES[/b]
 • Les munitions se vendent et s'achètent par 20, les clous par 10 et les planches par 5.
 • [b]Vendre tout le bric-à-brac[/b] (avec confirmation) : armes et vêtements en double, munitions qu'aucune de tes armes
   ne tire, matériaux qui ne servent à rien. Les cases verrouillées de la barre rapide sont épargnées.
+• [b]Commandes du jour[/b] (section de la boutique ; leur nombre s'affiche à côté de [F] Commercer) : chaque marchand passe
+  chaque matin 1 à 3 commandes liées à son métier (peaux, viande et poisson pour le boucher, soins pour le médecin, munitions
+  ou un camp de bandits à nettoyer pour l'armurier, matériaux, fruits et plats, pièces de voiture…). Apporte les objets puis
+  « Rendre » : argent et expérience dans la compétence du métier.
 
 [b]PARAMÈTRES[/b] (menu principal, ou Échap > Paramètres en pleine partie)
 • Sensibilité de la souris et sensibilité en visée, champ de vision, taille du texte et de l'interface,
