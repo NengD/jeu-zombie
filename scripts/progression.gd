@@ -117,6 +117,20 @@ const TALENTS := {
 	"tir_mortel": {"comp": "chasse", "br": "chasse", "apres": "fleches_serie", "d": 5, "l": 0, "niv": 8, "nom": "Tir mortel", "desc": "Une flèche bandée à fond fait 50 % de dégâts en plus."},
 	"empenneur": {"comp": "chasse", "br": "chasse", "apres": "traqueur", "d": 5, "l": -1, "niv": 10, "nom": "Empenneur", "desc": "Fabriquer des flèches en donne 2 de plus."},
 	"silence": {"comp": "chasse", "br": "chasse", "apres": "tir_mortel", "d": 6, "l": 0, "niv": 12, "nom": "Chasseur fantôme", "desc": "Tirer à l'arc ne fait presque plus de bruit."},
+	# --- nœuds à plusieurs rangs (`rangs`) : 1 point par rang, +2 niveaux requis à chaque rang
+	"force": {"comp": "combat", "br": "melee", "apres": "parade_experte", "d": 6, "l": -1, "niv": 10, "rangs": 3, "nom": "Force", "desc": "+5 % de dégâts au corps à corps par rang."},
+	"calibre": {"comp": "combat", "br": "tir", "apres": "maitrise_rafale", "d": 6, "l": 1, "niv": 11, "rangs": 3, "nom": "Main de fer", "desc": "+5 % de dégâts avec les armes à feu par rang."},
+	"rendement": {"comp": "fabrication", "br": "fabrication", "apres": "chimiste", "d": 5, "l": 1, "niv": 10, "rangs": 3, "nom": "Productivité", "desc": "Fabrication 8 % plus rapide par rang."},
+	"pied_leger": {"comp": "exploration", "br": "exploration", "apres": "vue_percante", "d": 5, "l": 0, "niv": 10, "rangs": 3, "nom": "Pied léger", "desc": "Sprint 3 % plus rapide par rang."},
+	"constitution": {"comp": "survie", "br": "survie", "apres": "chameau", "d": 5, "l": -1, "niv": 10, "rangs": 3, "nom": "Constitution", "desc": "+10 de santé max par rang."},
+	"oeil_faucon": {"comp": "chasse", "br": "chasse", "apres": "chef", "d": 5, "l": 1, "niv": 9, "rangs": 3, "nom": "Œil de faucon", "desc": "+6 % de dégâts des flèches par rang."},
+	# --- ponts entre deux branches voisines (`pont`) : demandent les deux nœuds `apres` et `apres2`
+	"combattant": {"comp": "combat", "br": "melee", "pont": true, "apres": "frappeur", "apres2": "visee_stable", "niv": 9, "nom": "Combattant complet", "desc": "+10 % de dégâts au corps à corps et avec les armes à feu."},
+	"poudre_maison": {"comp": "fabrication", "br": "fabrication", "pont": true, "apres": "cartoucherie", "apres2": "recharge_rapide", "niv": 6, "nom": "Poudre maison", "desc": "Les munitions se fabriquent deux fois plus vite."},
+	"herboriste": {"comp": "survie", "br": "survie", "pont": true, "apres": "frugal", "apres2": "soigneur", "niv": 6, "nom": "Herboriste", "desc": "Les soins rendent encore 20 % de santé en plus."},
+	"vivre_terre": {"comp": "chasse", "br": "chasse", "pont": true, "apres": "pisteur", "apres2": "bucheron", "niv": 5, "nom": "Vivre de la terre", "desc": "Viande, bouillon et ragoût nourrissent 30 % de plus."},
+	"rodeur": {"comp": "exploration", "br": "exploration", "pont": true, "apres": "coureur", "apres2": "depeceur", "niv": 6, "nom": "Rôdeur", "desc": "Accroupi, tu te déplaces 30 % plus vite."},
+	"embuscade": {"comp": "combat", "br": "melee", "pont": true, "apres": "lame_aiguisee", "apres2": "discret", "niv": 6, "nom": "Embuscade", "desc": "Au corps à corps, double dégâts sur un zombie qui ne te poursuit pas."},
 }
 
 var niveau := 1
@@ -125,6 +139,7 @@ var points := 0
 var attributs := {"endurance": 0, "sante": 0, "soif": 0, "faim": 0}
 var comp := {}          # nom -> {"niv": int, "xp": int, "points": int}
 var talents: Array = []
+var rangs := {}         # talent à plusieurs rangs -> rang atteint (2 ou plus ; absent = 1)
 var lieux_vus := {}     # bâtiments/points d'intérêt déjà découverts
 
 
@@ -143,6 +158,21 @@ static func xp_comp(n: int) -> int:
 
 func a(talent: String) -> bool:
 	return talent in talents
+
+
+## Rang d'un talent (0 = pas acquis ; 1 pour un talent simple acquis).
+func rang(t: String) -> int:
+	return int(rangs.get(t, 1)) if a(t) else 0
+
+
+## Nombre de rangs d'un talent (1 pour un talent simple).
+static func rangs_max(t: String) -> int:
+	return int(TALENTS[t].get("rangs", 1)) if TALENTS.has(t) else 1
+
+
+## Niveau de compétence demandé pour le prochain rang (+2 par rang déjà pris).
+func niv_requis(t: String) -> int:
+	return int(TALENTS[t].niv) + 2 * rang(t)
 
 
 ## Gagne de l'XP dans une compétence (et autant d'XP globale).
@@ -179,14 +209,15 @@ func peut_debloquer(t: String) -> bool:
 func raison_bloque(t: String) -> String:
 	if not TALENTS.has(t):
 		return "Talent inconnu"
-	if a(t):
-		return "Déjà acquis"
+	if rang(t) >= rangs_max(t):
+		return "Déjà acquis" if rangs_max(t) == 1 else "Rang maximum atteint"
 	var info: Dictionary = TALENTS[t]
 	var d: Dictionary = comp[info.comp]
-	if info.apres != "" and not a(info.apres):
-		return "Débloque d'abord « %s »" % TALENTS[info.apres].nom
-	if d.niv < info.niv:
-		return "Il faut le niveau %d en %s (tu es niveau %d)" % [info.niv, NOMS[info.comp], d.niv]
+	for par in [info.apres, info.get("apres2", "")]:
+		if par != "" and not a(par):
+			return "Débloque d'abord « %s »" % TALENTS[par].nom
+	if d.niv < niv_requis(t):
+		return "Il faut le niveau %d en %s (tu es niveau %d)" % [niv_requis(t), NOMS[info.comp], d.niv]
 	if d.points <= 0:
 		return "Plus de point de %s" % NOMS[info.comp]
 	return ""
@@ -196,7 +227,10 @@ func debloquer(t: String) -> bool:
 	if not peut_debloquer(t):
 		return false
 	comp[TALENTS[t].comp].points -= 1
-	talents.append(t)
+	if a(t):
+		rangs[t] = rang(t) + 1
+	else:
+		talents.append(t)
 	return true
 
 
@@ -217,12 +251,12 @@ func cout_reinit() -> int:
 	return 100 + 40 * niveau
 
 
-## Points rendus par une réinitialisation (talents, attributs).
+## Points rendus par une réinitialisation (talents et leurs rangs, attributs).
 func points_investis() -> int:
 	var n := 0
 	for t in talents:
 		if not t in GARDES_REINIT:
-			n += 1
+			n += rang(t)
 	for k in attributs:
 		n += int(attributs[k])
 	return n
@@ -235,8 +269,9 @@ func reinitialiser() -> void:
 		if t in GARDES_REINIT:
 			gardes.append(t)
 		elif TALENTS.has(t):
-			comp[TALENTS[t].comp].points += 1
+			comp[TALENTS[t].comp].points += rang(t)
 	talents = gardes
+	rangs = {}
 	for k in attributs:
 		points += int(attributs[k])
 		attributs[k] = 0
@@ -244,7 +279,7 @@ func reinitialiser() -> void:
 
 # ---------------------------------------------------------------- effets
 func sante_max() -> float:
-	return 100.0 + 10.0 * attributs.sante + (20.0 if a("vigueur") else 0.0)
+	return 100.0 + 10.0 * attributs.sante + (20.0 if a("vigueur") else 0.0) + 10.0 * rang("constitution")
 
 
 func endurance_max() -> float:
@@ -270,7 +305,7 @@ func lignes_inventaire() -> int:
 # ---------------------------------------------------------------- sauvegarde
 func vers_dict() -> Dictionary:
 	return {"niveau": niveau, "xp": xp, "points": points, "attributs": attributs, "comp": comp,
-			"talents": talents, "lieux": lieux_vus.keys()}
+			"talents": talents, "rangs": rangs, "lieux": lieux_vus.keys()}
 
 
 func depuis_dict(d: Dictionary) -> void:
@@ -288,6 +323,11 @@ func depuis_dict(d: Dictionary) -> void:
 	for t in d.get("talents", []):
 		if TALENTS.has(str(t)):
 			talents.append(str(t))
+	rangs = {}
+	var rd: Dictionary = d.get("rangs", {})
+	for t in rd:
+		if str(t) in talents:
+			rangs[str(t)] = clampi(int(rd[t]), 1, rangs_max(str(t)))
 	lieux_vus = {}
 	for l in d.get("lieux", []):
 		lieux_vus[str(l)] = true

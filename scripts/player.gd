@@ -476,9 +476,9 @@ func _move(delta: float, can_act: bool) -> void:
 	sprinting = can_act and Input.is_action_pressed("sprint") and input.y < -0.2 and not crouching and not aiming and stamina > 1.0
 	var speed := WALK
 	if sprinting:
-		speed = SPRINT * (1.12 if prog.a("coureur") else 1.0)
+		speed = SPRINT * (1.12 if prog.a("coureur") else 1.0) * (1.0 + 0.03 * prog.rang("pied_leger"))
 	elif crouching:
-		speed = CROUCH_SPEED
+		speed = CROUCH_SPEED * (1.3 if prog.a("rodeur") else 1.0)
 	elif aiming:
 		speed = AIM_SPEED
 	# dans l'eau : on avance lentement, sans sprinter
@@ -1208,6 +1208,7 @@ func arme_stats(id: String) -> Dictionary:
 			w.reload = float(w.reload) * 0.75
 		if prog.a("tireur"):
 			w.damage = float(w.damage) * 1.2
+		w.damage = float(w.damage) * (1.0 + 0.05 * prog.rang("calibre")) * (1.1 if prog.a("combattant") else 1.0)
 		if prog.a("sang_froid"):
 			w.recoil = float(w.recoil) * 0.65
 		if prog.a("tir_hanche"):
@@ -1492,9 +1493,25 @@ func _relacher_grenade(id: String) -> void:
 		_refresh_weapon_model()
 
 
+## Multiplicateur des dégâts au corps à corps donné par les talents (hors critique, enchaînement, adrénaline).
+func mult_melee() -> float:
+	return (1.25 if prog.a("coup_puissant") else 1.0) * (1.2 if prog.a("maitre_armes") else 1.0) \
+		* (1.0 + 0.05 * prog.rang("force")) * (1.1 if prog.a("combattant") else 1.0)
+
+
+## Multiplicateur du coût en endurance d'un coup au corps à corps.
+func cout_melee() -> float:
+	return (0.7 if prog.a("souffle") else 1.0) * (0.85 if prog.a("maitre_armes") else 1.0)
+
+
+## Multiplicateur des dégâts d'une flèche bandée à k (0..1).
+func mult_fleche(k: float) -> float:
+	return (1.2 if prog.a("archer") else 1.0) * (1.5 if k >= 0.98 and prog.a("tir_mortel") else 1.0) * (1.0 + 0.06 * prog.rang("oeil_faucon"))
+
+
 func _melee(w: Dictionary) -> void:
-	var cost: float = w.stamina * (0.7 if prog.a("souffle") else 1.0) * (0.85 if prog.a("maitre_armes") else 1.0)
-	var dmg: float = w.damage * (1.25 if prog.a("coup_puissant") else 1.0) * (1.2 if prog.a("maitre_armes") else 1.0)
+	var cost: float = w.stamina * cout_melee()
+	var dmg: float = w.damage * mult_melee()
 	coup_crit = prog.a("critique") and randf() < 0.2
 	if coup_crit:
 		dmg *= 2.0
@@ -2321,7 +2338,7 @@ func _maj_soin(delta: float) -> void:
 		_check_hotbar()
 	elif not remove_item(soin_id):
 		return
-	var gain: float = prog.sante_max() if float(s[1]) < 0.0 else float(s[1]) * (1.3 if prog.a("soigneur") else 1.0)
+	var gain: float = prog.sante_max() if float(s[1]) < 0.0 else float(s[1]) * (1.3 if prog.a("soigneur") else 1.0) * (1.2 if prog.a("herboriste") else 1.0)
 	health = minf(prog.sante_max(), health + gain)
 	prog.gagner("survie", 8)
 	Game.msg("Soigné avec : " + Items.nom(soin_id))
@@ -2510,7 +2527,8 @@ func max_craft(r: Dictionary) -> int:
 
 ## Durée de fabrication d'un exemplaire : -5 % par niveau de fabrication.
 func duree_fabrication(r: Dictionary) -> float:
-	return float(r.get("duree", 3.0)) * maxf(0.5, 1.0 - 0.05 * niveau_fabrication()) * (0.75 if prog.a("artisan_rapide") else 1.0)
+	return float(r.get("duree", 3.0)) * maxf(0.5, 1.0 - 0.05 * niveau_fabrication()) * (0.75 if prog.a("artisan_rapide") else 1.0) * (1.0 - 0.08 * prog.rang("rendement")) \
+		* (0.5 if prog.a("poudre_maison") and Items.info(r.out).get("type", "") == "ammo" else 1.0)
 
 
 # fabrication en cours (en série) : un objet à la fois, ingrédients pris à la fin de chacun
@@ -2892,7 +2910,7 @@ func _tirer_fleche(k: float) -> void:
 	var ecart := deg_to_rad((0.35 + 1.4 * (1.0 - k)) * (1.8 if moving else 1.0) * (1.0 + clampf(arc_plein_t - 2.0, 0.0, 3.0) * 0.5) * (0.75 if prog.a("main_sure") else 1.0))
 	dir = dir.rotated(camera.global_basis.x.normalized(), randf_range(-ecart, ecart)).rotated(Vector3.UP, randf_range(-ecart, ecart))
 	var f = Fleche.new()
-	var degats := float(w.damage) * (0.25 + 0.75 * k * k) * (1.2 if prog.a("archer") else 1.0) * (1.5 if k >= 0.98 and prog.a("tir_mortel") else 1.0)
+	var degats := float(w.damage) * (0.25 + 0.75 * k * k) * mult_fleche(k)
 	f.tirer(self, origine + dir * 0.5, dir * lerpf(20.0, 62.0, k), degats)
 	get_parent().add_child(f)
 	Game.play_ui("vent_leger", -6.0, 0.1, 1.7)
@@ -2914,7 +2932,7 @@ var nausee_t := 30.0
 ## Effets d'un aliment ou d'une boisson (nourriture crue : risque d'intoxication).
 func _manger(id: String) -> void:
 	var it := Items.info(id)
-	var k := 1.25 if prog.a("cuisinier") else 1.0
+	var k := (1.25 if prog.a("cuisinier") else 1.0) * (1.3 if prog.a("vivre_terre") and id in ["viande_cuite", "viande_sechee", "bouillon", "ragout"] else 1.0)
 	hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * k)
 	thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * k)
 	prog.gagner("survie", 5)

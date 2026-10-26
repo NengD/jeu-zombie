@@ -778,6 +778,10 @@ func _blocked(d: Vector3) -> Variant:
 func take_hit(dmg: float, pos: Vector3, from: Vector3) -> void:
 	if state == State.DEAD:
 		return
+	# talent Embuscade : coup au corps à corps du joueur (point touché tout près de lui) sur un zombie qui ne le poursuit pas
+	var jp = Game.player
+	if jp != null and state != State.CHASE and jp.prog.a("embuscade") and from.distance_to(jp.global_position) < 2.5 and pos.distance_to(jp.global_position) < 3.2:
+		dmg *= 2.0
 	var headshot := pos.y > global_position.y + 1.45 * echelle
 	var tete := _pos_os("Head")
 	if tete != Vector3.INF:

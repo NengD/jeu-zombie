@@ -243,9 +243,12 @@ func activer(id: String) -> void:
 		if id in ["poches", "poches2"]:
 			Game.player.maj_poches()
 		Game.play_ui("construire", -3.0, 0.0, 1.4)
-		Game.msg("Talent débloqué : " + Progression.TALENTS[id].nom)
+		if Progression.rangs_max(id) > 1:
+			Game.msg("%s : rang %d / %d" % [Progression.TALENTS[id].nom, pr.rang(id), Progression.rangs_max(id)])
+		else:
+			Game.msg("Talent débloqué : " + Progression.TALENTS[id].nom)
 		_maj()
-	elif not pr.a(id):
+	elif pr.rang(id) < Progression.rangs_max(id):
 		Game.play_ui("clic_vide", -8.0, 0.0, 1.0)
 
 
@@ -291,21 +294,90 @@ func _texte_bulle(id: String) -> String:
 	var c2: String = t.comp
 	var col: Color = COULEURS[c2]
 	var lignes: PackedStringArray = []
-	lignes.append("[b][color=#%s]%s[/color][/b]   %s%s[/color]" % [col.to_html(false), t.nom, gris, Progression.BRANCHES[t.br].nom])
+	var genre: String = "Pont " + Progression.BRANCHES[t.br].nom if t.get("pont", false) else Progression.BRANCHES[t.br].nom
+	lignes.append("[b][color=#%s]%s[/color][/b]   %s%s[/color]" % [col.to_html(false), t.nom, gris, genre])
 	lignes.append(t.desc)
 	var ok := "[color=#7fe07f]✔[/color]"
 	var non := "[color=#e07060]✘[/color]"
+	var rmax := Progression.rangs_max(id)
+	if rmax > 1:
+		lignes.append("Rang : [b]%d / %d[/b]" % [pr.rang(id), rmax])
 	lignes.append("Coût : 1 point de %s (tu en as %d)" % [Progression.NOMS[c2], pr.comp[c2].points])
-	if t.apres != "":
-		lignes.append("Prérequis : %s %s" % [Progression.TALENTS[t.apres].nom, ok if pr.a(t.apres) else non])
-	lignes.append("Niveau requis : %d en %s (actuel %d) %s" % [t.niv, Progression.NOMS[c2], pr.comp[c2].niv, ok if pr.comp[c2].niv >= t.niv else non])
-	if pr.a(id):
+	for par in [t.apres, t.get("apres2", "")]:
+		if par != "":
+			lignes.append("Prérequis : %s %s" % [Progression.TALENTS[par].nom, ok if pr.a(par) else non])
+	var nr: int = pr.niv_requis(id)
+	if pr.rang(id) < rmax:
+		lignes.append("Niveau requis : %d en %s (actuel %d) %s" % [nr, Progression.NOMS[c2], pr.comp[c2].niv, ok if pr.comp[c2].niv >= nr else non])
+	var ap := _apercu(id)
+	if ap != "":
+		lignes.append(ap)
+	if pr.rang(id) >= rmax:
 		lignes.append("[color=#7fe07f]✔ Acquis[/color]")
 	elif pr.peut_debloquer(id):
-		lignes.append("[color=#ffd84d]Disponible — clic pour débloquer[/color]")
+		lignes.append("[color=#ffd84d]Disponible — clic pour %s[/color]" % ("monter d'un rang" if pr.a(id) else "débloquer"))
 	else:
 		lignes.append("[color=#e07060]%s[/color]" % pr.raison_bloque(id))
 	return "\n".join(lignes)
+
+
+## Aperçu chiffré du talent : valeurs actuelles → valeurs avec le talent (ou son rang suivant).
+## Calculé en appliquant le talent un instant puis en l'enlevant ; "" si rien de mesurable ne change.
+func _apercu(id: String) -> String:
+	var pr = Game.player.prog
+	if pr.rang(id) >= Progression.rangs_max(id):
+		return ""
+	var avant := _stats()
+	var deja: bool = pr.a(id)
+	var ancien_rangs: Dictionary = pr.rangs.duplicate()
+	if deja:
+		pr.rangs[id] = pr.rang(id) + 1
+	else:
+		pr.talents.append(id)
+	var apres := _stats()
+	if deja:
+		pr.rangs = ancien_rangs
+	else:
+		pr.talents.erase(id)
+	var lignes: PackedStringArray = []
+	for k in avant:
+		if apres.has(k) and apres[k] != avant[k]:
+			lignes.append("  %s : %s → [color=#7fe07f]%s[/color]" % [k, avant[k], apres[k]])
+	if lignes.is_empty():
+		return ""
+	return "[color=#ffd84d]Avec ce talent :[/color]\n" + "\n".join(lignes)
+
+
+## Valeurs affichables qui dépendent des talents (arme en main comprise).
+func _stats() -> Dictionary:
+	var p = Game.player
+	var pr = p.prog
+	var s := {}
+	s["Santé max"] = "%d" % pr.sante_max()
+	s["Endurance max"] = "%d" % pr.endurance_max()
+	s["Récupération d'endurance"] = "×%.2f" % pr.recup_endurance()
+	s["Vitesse de la faim"] = "%d %%" % roundi(pr.faim_mult() * 100.0)
+	s["Vitesse de la soif"] = "%d %%" % roundi(pr.soif_mult() * 100.0)
+	s["Dégâts au corps à corps"] = "×%.2f" % p.mult_melee()
+	s["Endurance par coup"] = "×%.2f" % p.cout_melee()
+	s["Dégâts d'une flèche bandée à fond"] = "×%.2f" % p.mult_fleche(1.0)
+	s["Durée d'une fabrication de 10 s"] = "%.1f s" % p.duree_fabrication({"duree": 10.0, "out": "planche"})
+	var arme: String = p.current_weapon()
+	var w: Dictionary = Items.info(arme)
+	if w.get("type", "") == "gun":
+		var ws: Dictionary = p.arme_stats(arme)
+		var n: String = Items.nom(arme)
+		s[n + " — dégâts"] = "%.1f" % float(ws.damage)
+		s[n + " — dispersion"] = "%.2f" % float(ws.spread)
+		s[n + " — dispersion sans viser"] = "×%.2f" % float(ws.get("dispersion_hanche", 1.0))
+		s[n + " — dispersion en visant"] = "×%.2f" % float(ws.get("dispersion_visee", 0.45))
+		s[n + " — recul"] = "%.2f" % float(ws.recoil)
+		s[n + " — rechargement"] = "%.2f s" % float(ws.reload)
+		s[n + " — cadence"] = "%.1f tirs/s" % (1.0 / maxf(0.01, float(ws.rate)))
+		s[n + " — portée"] = "%d m" % roundi(float(ws.range))
+	elif w.get("type", "") == "melee":
+		s[Items.nom(arme) + " — dégâts"] = "%.1f" % (float(w.damage) * p.mult_melee())
+	return s
 
 
 func _gains(c: String, niv: int) -> String:
@@ -343,6 +415,130 @@ func _process(_delta: float) -> void:
 		arbre.queue_redraw()   # anneau des nœuds disponibles qui pulse
 
 
+# ====================================================================== icônes des talents
+## Icône de chaque talent : une icône d'objet du jeu (res://icones/<id>) ou, avec « @ », un symbole dessiné.
+const ICONES := {
+	"coup_puissant": "marteau", "lame_aiguisee": "machette", "souffle": "@eclair", "frappeur": "batte",
+	"enchainement": "@poing", "charge_rapide": "@sablier", "acrobate": "@pas", "robuste": "casque_militaire",
+	"critique": "@etoile", "balayage": "hache", "parade_experte": "@bouclier", "brute": "batte_cloutee",
+	"maitre_armes": "couteau_km2000", "furie": "@crane", "force": "@poing",
+	"main_sure": "@cible", "visee_stable": "lunette", "recharge_rapide": "chargeur_etendu", "tir_hanche": "pistolet",
+	"tireur": "fusil_assaut", "grenadier": "rgd5", "balistique": "lunette_hawke", "econome_balles": "mun_9mm",
+	"gachette": "glock19", "sang_froid": "poignee", "maitrise_rafale": "m4a1", "tir_tete": "point_rouge", "calibre": "mun_762",
+	"econome": "ferraille", "soigneur": "bandage", "charpentier": "planche", "cartoucherie": "poudre",
+	"cuisinier": "conserve", "artisan_rapide": "@sablier", "mecanicien": "cle_molette", "chimiste": "medicament",
+	"atelier": "etabli", "recuperateur": "piece_auto", "maitre_artisan": "@etoile", "ingenieur": "piege_machoires",
+	"ingeniosite": "clous", "armurier": "mun_556", "rendement": "marteau",
+	"fouilleur": "caisse_stockage", "curieux": "lunettes", "discret": "@pas", "poches": "sac_toile", "coureur": "@eclair",
+	"chanceux": "@etoile", "ombre": "@lune", "poches2": "sac_militaire", "marathonien": "eau", "marchandage": "@piece",
+	"vue_percante": "@oeil", "infatigable": "sac_randonnee", "pied_leger": "@pas",
+	"regeneration": "@coeur", "bucheron": "buche", "endurci": "@eclair", "frugal": "ration", "sommeil": "@lune",
+	"adrenaline": "@coeur", "estomac": "viande_crue", "medecin": "antidouleur", "vigueur": "@coeur", "chameau": "eau",
+	"seconde_peau": "veste_cuir", "increvable": "@crane", "survivant_ne": "@etoile", "constitution": "@bouclier",
+	"archer": "arc", "depeceur": "couteau_km2000", "tension_rapide": "arc", "pisteur": "@oeil", "tanneur": "cuir",
+	"recup_fleches": "fleche", "piegeur": "collet", "chef": "viande_cuite", "fleches_serie": "plume", "traqueur": "peau",
+	"tir_mortel": "@cible", "empenneur": "fleche", "silence": "@lune", "oeil_faucon": "@oeil",
+	"combattant": "@etoile", "poudre_maison": "poudre", "herboriste": "trousse", "vivre_terre": "ragout",
+	"rodeur": "sac_chasse", "embuscade": "couteau_km2000",
+}
+var _textures := {}
+
+
+## Dessine l'icône du talent `id` (carré de côté `taille`, centré sur p) sur `ci` pendant son _draw.
+func dessiner_icone(ci: CanvasItem, id: String, p: Vector2, taille: float, teinte: Color) -> void:
+	var cle: String = ICONES.get(id, "@etoile")
+	if cle.begins_with("@"):
+		_glyphe(ci, cle.substr(1), p, taille * 0.42, teinte)
+		return
+	if not _textures.has(cle):
+		_textures[cle] = Items.icon(cle)
+	var tex: Texture2D = _textures[cle]
+	if tex == null:
+		_glyphe(ci, "etoile", p, taille * 0.42, teinte)
+		return
+	var ts := tex.get_size()
+	var k := taille / maxf(ts.x, ts.y)
+	draw_rect_tex(ci, tex, Rect2(p - ts * k * 0.5, ts * k), teinte)
+
+
+func draw_rect_tex(ci: CanvasItem, tex: Texture2D, rect: Rect2, teinte: Color) -> void:
+	ci.draw_texture_rect(tex, rect, false, teinte)
+
+
+## Petits symboles dessinés (s = demi-taille).
+func _glyphe(ci: CanvasItem, nom: String, p: Vector2, s: float, teinte: Color) -> void:
+	var c := Color(0.95, 0.92, 0.85) * teinte
+	var fond := Color(0.12, 0.12, 0.11)
+	var w := maxf(1.5, s * 0.16)
+	match nom:
+		"coeur":
+			ci.draw_circle(p + Vector2(-s * 0.42, -s * 0.2), s * 0.48, c)
+			ci.draw_circle(p + Vector2(s * 0.42, -s * 0.2), s * 0.48, c)
+			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.88, 0), p + Vector2(s * 0.88, 0), p + Vector2(0, s * 0.95)]), c)
+		"bouclier":
+			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.8, -s * 0.8), p + Vector2(s * 0.8, -s * 0.8), p + Vector2(s * 0.75, s * 0.1), p + Vector2(0, s), p + Vector2(-s * 0.75, s * 0.1)]), c)
+			ci.draw_line(p + Vector2(0, -s * 0.6), p + Vector2(0, s * 0.7), fond, w, true)
+		"oeil":
+			var pts := PackedVector2Array()
+			for i in 17:
+				var a := PI * i / 16.0
+				pts.append(p + Vector2(-cos(a) * s, -sin(a) * s * 0.55))
+			for i in 17:
+				var a := PI * i / 16.0
+				pts.append(p + Vector2(cos(a) * s, sin(a) * s * 0.55))
+			ci.draw_colored_polygon(pts, c)
+			ci.draw_circle(p, s * 0.36, fond)
+			ci.draw_circle(p, s * 0.15, c)
+		"eclair":
+			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(s * 0.25, -s), p + Vector2(-s * 0.55, s * 0.1), p + Vector2(-s * 0.02, s * 0.1), p + Vector2(-s * 0.25, s), p + Vector2(s * 0.55, -s * 0.15), p + Vector2(s * 0.02, -s * 0.15)]), c)
+		"piece":
+			ci.draw_circle(p, s * 0.85, c)
+			ci.draw_arc(p, s * 0.62, 0, TAU, 24, fond, w, true)
+			_texte(ci, p, "€", int(s * 1.0), fond)
+		"lune":
+			ci.draw_circle(p, s * 0.85, c)
+			ci.draw_circle(p + Vector2(s * 0.42, -s * 0.28), s * 0.72, fond)
+		"crane":
+			ci.draw_circle(p + Vector2(0, -s * 0.15), s * 0.75, c)
+			ci.draw_rect(Rect2(p + Vector2(-s * 0.42, s * 0.3), Vector2(s * 0.84, s * 0.55)), c)
+			ci.draw_circle(p + Vector2(-s * 0.3, -s * 0.12), s * 0.2, fond)
+			ci.draw_circle(p + Vector2(s * 0.3, -s * 0.12), s * 0.2, fond)
+			ci.draw_line(p + Vector2(0, s * 0.45), p + Vector2(0, s * 0.85), fond, w * 0.7)
+		"pas":
+			ci.draw_set_transform(p + Vector2(-s * 0.38, s * 0.2), -0.2, Vector2(0.6, 1.0))
+			ci.draw_circle(Vector2.ZERO, s * 0.5, c)
+			ci.draw_set_transform(p + Vector2(s * 0.38, -s * 0.35), 0.2, Vector2(0.6, 1.0))
+			ci.draw_circle(Vector2.ZERO, s * 0.5, c)
+			ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		"sablier":
+			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.65, -s * 0.9), p + Vector2(s * 0.65, -s * 0.9), p]), c)
+			ci.draw_colored_polygon(PackedVector2Array([p, p + Vector2(s * 0.65, s * 0.9), p + Vector2(-s * 0.65, s * 0.9)]), c)
+		"cible":
+			ci.draw_arc(p, s * 0.85, 0, TAU, 28, c, w, true)
+			ci.draw_arc(p, s * 0.5, 0, TAU, 20, c, w, true)
+			ci.draw_circle(p, s * 0.18, c)
+		"etoile":
+			var pts := PackedVector2Array()
+			for i in 10:
+				var a := -PI / 2.0 + PI * i / 5.0
+				pts.append(p + Vector2.from_angle(a) * (s * 0.95 if i % 2 == 0 else s * 0.42))
+			ci.draw_colored_polygon(pts, c)
+		"poing":
+			ci.draw_rect(Rect2(p + Vector2(-s * 0.7, -s * 0.45), Vector2(s * 1.4, s * 1.0)), c)
+			ci.draw_rect(Rect2(p + Vector2(-s * 0.55, s * 0.5), Vector2(s * 0.9, s * 0.45)), c)
+			for i in 3:
+				var x := -s * 0.35 + i * s * 0.35
+				ci.draw_line(p + Vector2(x, -s * 0.45), p + Vector2(x, s * 0.1), fond, w * 0.6)
+		_:
+			ci.draw_circle(p, s * 0.6, c)
+
+
+func _texte(ci: CanvasItem, p: Vector2, s: String, fs: int, col: Color) -> void:
+	var police := ThemeDB.fallback_font
+	var l := police.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	ci.draw_string(police, Vector2(p.x - l * 0.5, p.y + (police.get_ascent(fs) - police.get_descent(fs)) * 0.5), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+
+
 # ====================================================================== dessin de l'arbre
 class Arbre extends Control:
 	## Angle (degrés, 0 = droite, sens horaire à l'écran) de chaque branche et du départ de chaque compétence.
@@ -368,6 +564,7 @@ class Arbre extends Control:
 	var survol := ""
 	var pos := {}                        # id -> position dans l'arbre (zoom 1, centre = 0)
 	var parent_de := {}                  # id -> id du nœud parent (traits)
+	var parent2_de := {}                 # pont -> son second parent
 	var rang_max := {}                   # branche -> rang le plus éloigné
 	var titres := {}                     # branche -> position du titre
 
@@ -382,10 +579,29 @@ class Arbre extends Control:
 			pos["attr:" + a] = _dir(ATTR_ANGLES[a]) * 108.0 * ECRASE
 		for id in Progression.TALENTS:
 			var t: Dictionary = Progression.TALENTS[id]
+			if t.get("pont", false):
+				continue
 			var ang: float = ANGLES[t.br]
 			pos[id] = _dir(ang) * (R_HUB + float(t.d) * PAS) * ECRASE + _dir(ang + 90.0) * float(t.l) * COTE
 			parent_de[id] = t.apres if t.apres != "" else "hub:" + str(t.comp)
 			rang_max[t.br] = maxi(int(rang_max.get(t.br, 0)), int(t.d))
+		# ponts entre deux branches : entre leurs deux parents, un peu vers l'extérieur
+		for id in Progression.TALENTS:
+			var t: Dictionary = Progression.TALENTS[id]
+			if t.get("pont", false):
+				var m: Vector2 = (pos[t.apres] + pos[t.apres2]) * 0.5
+				pos[id] = m + m.normalized() * 60.0
+				for essai in 12:   # écarté vers l'extérieur tant qu'il touche un autre nœud
+					var libre := true
+					for autre in pos:
+						if autre != id and pos[autre].distance_to(pos[id]) < 95.0:
+							libre = false
+							break
+					if libre:
+						break
+					pos[id] += m.normalized() * 22.0
+				parent_de[id] = t.apres
+				parent2_de[id] = t.apres2
 		# titres des branches : au bout du bras (horizontal) ou à côté du dernier nœud, vers l'extérieur (diagonale)
 		for br in ANGLES:
 			var ang: float = ANGLES[br]
@@ -395,7 +611,7 @@ class Arbre extends Control:
 				var cote := _dir(ang + 90.0)
 				if cote.x * _dir(ang).x < 0.0:
 					cote = -cote
-				pt = _dir(ang) * (R_HUB + n * PAS) * ECRASE + cote * 1.7 * COTE
+				pt = _dir(ang) * (R_HUB + n * PAS) * ECRASE + cote * 2.6 * COTE
 			titres[br] = pt
 		# demi-taille de l'arbre (noms et titres compris) pour le zoom de départ et les bornes du déplacement
 		for p in pos.values() + titres.values():
@@ -490,7 +706,7 @@ class Arbre extends Control:
 	## "acquis", "dispo" ou "verrou" pour un talent.
 	func _etat(pr, id: String) -> String:
 		if pr.a(id):
-			return "acquis"
+			return "acquis"   # au moins un rang (le rang suivant éventuel est signalé à part)
 		return "dispo" if pr.peut_debloquer(id) else "verrou"
 
 	func _draw() -> void:
@@ -509,8 +725,14 @@ class Arbre extends Control:
 			col.a = 0.75
 			_texte_centre(police, p, Progression.BRANCHES[br].nom.to_upper(), fs_titre, col)
 		# --- traits
+		var liens: Array = []
 		for id in parent_de:
-			var par: String = parent_de[id]
+			liens.append([parent_de[id], id])
+		for id in parent2_de:
+			liens.append([parent2_de[id], id])
+		for lien in liens:
+			var par: String = lien[0]
+			var id: String = lien[1]
 			var a: Vector2 = vers_ecran(pos[par])
 			var b: Vector2 = vers_ecran(pos[id])
 			var c2 := _comp_de(id)
@@ -527,7 +749,10 @@ class Arbre extends Control:
 						col = COUL_DISPO.lerp(Color(0.5, 0.45, 0.2), 0.5 - 0.5 * pulse)
 						w = ep
 			var u := (b - a).normalized()
-			draw_line(a + u * _rayon(par) * zoom, b - u * _rayon(id) * zoom, col, w, true)
+			if parent2_de.has(id):   # pont entre deux branches : trait en pointillés
+				draw_dashed_line(a + u * _rayon(par) * zoom, b - u * _rayon(id) * zoom, col, w, 8.0 * zoom, true, true)
+			else:
+				draw_line(a + u * _rayon(par) * zoom, b - u * _rayon(id) * zoom, col, w, true)
 		# --- nœuds
 		var fs := int(clampf(15.5 * sqrt(zoom), 11.0, 24.0))
 		var noms := zoom >= 0.5
@@ -572,19 +797,40 @@ class Arbre extends Control:
 				var t: Dictionary = Progression.TALENTS[id]
 				var col: Color = ui.COULEURS[t.comp]
 				var etat := _etat(pr, id)
+				var encore: bool = etat == "acquis" and pr.peut_debloquer(id)   # rang suivant disponible
+				var teinte := Color.WHITE
 				match etat:
 					"acquis":
-						draw_circle(p, r, col.darkened(0.15))
-						draw_arc(p, r, 0, TAU, 40, col.lightened(0.35), ep, true)
-						_texte_centre(police, p + Vector2(0, -fs * 0.1), "✔", int(fs * 1.2), Color(0.05, 0.08, 0.05))
+						draw_circle(p, r, col.darkened(0.45))
+						draw_arc(p, r, 0, TAU, 40, col.lightened(0.3), ep, true)
 					"dispo":
 						draw_circle(p, r, Color(0.2, 0.18, 0.08))
-						draw_arc(p, r + 3.0 * zoom * pulse, 0, TAU, 40, COUL_DISPO, ep * 1.2, true)
-						_texte_centre(police, p + Vector2(0, -fs * 0.1), str(t.niv), fs, COUL_DISPO)
+						teinte = Color(1, 1, 1, 0.85)
 					_:
 						draw_circle(p, r, Color(0.1, 0.1, 0.1))
-						draw_arc(p, r, 0, TAU, 40, col.darkened(0.55) if pr.comp[t.comp].niv >= t.niv else COUL_VERROU, ep * 0.8, true)
-						_texte_centre(police, p + Vector2(0, -fs * 0.1), str(t.niv), fs, Color(0.5, 0.5, 0.48))
+						draw_arc(p, r, 0, TAU, 40, col.darkened(0.55) if pr.comp[t.comp].niv >= pr.niv_requis(id) else COUL_VERROU, ep * 0.8, true)
+						teinte = Color(0.5, 0.5, 0.5, 0.55)
+				if etat == "dispo" or encore:
+					draw_arc(p, r + 3.0 * zoom * pulse, 0, TAU, 40, COUL_DISPO, ep * 1.2, true)
+				if t.get("pont", false):   # pont : losange autour du nœud
+					var q := r * 1.32
+					draw_polyline(PackedVector2Array([p + Vector2(0, -q), p + Vector2(q, 0), p + Vector2(0, q), p + Vector2(-q, 0), p + Vector2(0, -q)]), col.lightened(0.2) if etat != "verrou" else COUL_VERROU, maxf(1.0, ep * 0.6), true)
+				ui.dessiner_icone(self, id, p, r * 1.25, teinte)
+				var pb := fs * 0.62   # rayon des pastilles
+				if etat == "acquis":
+					var pc := p + Vector2(r * 0.78, -r * 0.78)
+					draw_circle(pc, pb, Color(0.3, 0.75, 0.3))
+					_texte_centre(police, pc, "✔", int(fs * 0.75), Color.WHITE)
+				if etat != "acquis" or encore:   # niveau requis (pour le prochain rang)
+					var pn := p + Vector2(r * 0.78, r * 0.78)
+					draw_circle(pn, pb, Color(0.12, 0.12, 0.11))
+					draw_arc(pn, pb, 0, TAU, 16, COUL_DISPO if etat == "dispo" or encore else Color(0.45, 0.45, 0.43), maxf(1.0, ep * 0.4), true)
+					_texte_centre(police, pn, str(pr.niv_requis(id)), int(fs * 0.72), COUL_DISPO if etat == "dispo" or encore else Color(0.7, 0.7, 0.68))
+				if Progression.rangs_max(id) > 1:
+					var pr2 := p + Vector2(-r * 0.85, r * 0.78)
+					var txt := "%d/%d" % [pr.rang(id), Progression.rangs_max(id)]
+					draw_rect(Rect2(pr2 - Vector2(fs * 0.85, pb * 0.85), Vector2(fs * 1.7, pb * 1.7)), Color(0.12, 0.12, 0.11))
+					_texte_centre(police, pr2, txt, int(fs * 0.68), Color(0.95, 0.9, 0.7))
 				if hover:
 					draw_arc(p, r + 6.0 * zoom, 0, TAU, 40, Color(1, 1, 1, 0.7), maxf(1.0, ep * 0.6), true)
 				if noms:
