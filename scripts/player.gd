@@ -332,19 +332,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interagir"):
 		if interact_target and is_instance_valid(interact_target):
 			interact_target.interact(self)
+		elif face_eau:
+			_puiser_eau()
 	elif event.is_action_pressed("recharger"):
 		_start_reload()
 	elif event.is_action_pressed("soigner"):
-		# grosse blessure : trousse si possible ; sinon bandage, puis antidouleurs
-		var manque: float = prog.sante_max() - health
-		var ordre := ["trousse", "bandage", "antidouleur"] if manque >= 45.0 else ["bandage", "antidouleur", "trousse"]
-		var choisi := ""
-		for s in ordre:
-			if count(s) > 0:
-				choisi = s
-				break
+		var choisi := _soin_conseille()
 		if choisi == "":
-			Game.msg("Aucun soin (bandage, trousse, antidouleurs).")
+			Game.msg("Aucun soin utile (bandage, trousse, attelle, antibiotiques, antidouleurs).")
 		else:
 			use_item(choisi)
 	elif event.is_action_pressed("accroupir"):
@@ -374,6 +369,7 @@ func _physics_process(delta: float) -> void:
 	_update_camera(delta)
 	_update_combat(delta, can_act)
 	_update_interact()
+	_maj_face_eau()
 	_maj_fabrication(delta)
 	_ramassage_auto(delta)
 	_maj_equipement_visible()
@@ -398,6 +394,8 @@ func _update_stats(delta: float) -> void:
 		surbrillance_t = 0.25
 		_maj_surbrillance()
 	_maj_maladie(delta)
+	_maj_blessures(delta)
+	_maj_temperature(delta)
 	if Game.admin and Game.admin_besoins:
 		hunger = 100.0
 		thirst = 100.0
@@ -414,7 +412,7 @@ func _update_stats(delta: float) -> void:
 		stamina = minf(prog.endurance_max(), stamina + delta * (24.0 if velocity.length() < 0.5 else 14.0) * prog.recup_endurance())
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
-	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max():
+	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max() and saignement <= 0.0 and infection < 30.0 and froid <= 50.0:
 		health = minf(prog.sante_max(), health + 0.25 * delta * (2.0 if prog.a("regeneration") else 1.0) * (1.5 if prog.a("survivant_ne") else 1.0))
 
 
@@ -498,6 +496,9 @@ func _move(delta: float, can_act: bool) -> void:
 	if soin_t > 0.0:
 		speed = minf(speed, WALK * 0.5)   # on se soigne en marchant lentement
 		sprinting = false
+	if fracture:
+		speed = minf(speed, WALK * 0.6)   # jambe cassée : on boite, sans courir
+		sprinting = false
 		if float(sang_armes.get(current_weapon(), 0.0)) > 0.0:
 			sang_armes[current_weapon()] = maxf(0.0, float(sang_armes[current_weapon()]) - delta * 0.25)
 			_appliquer_sang()
@@ -523,7 +524,7 @@ func _move(delta: float, can_act: bool) -> void:
 			if crouching:
 				_set_crouch(false)
 			else:
-				velocity.y = JUMP
+				velocity.y = JUMP * (0.6 if fracture else 1.0)
 				_depenser_endurance(4.0)
 	else:
 		velocity.y -= GRAVITY * delta
@@ -731,6 +732,8 @@ func _update_camera(delta: float) -> void:
 		flex_t = 0.0
 		if air_vy < -9.0 and perso_ual:
 			_p_anim("reception", 1.3, 0.45)   # grosse chute : réception accroupie, mains au sol
+		if air_vy < CHUTE_DEGATS and not nage and not (Game.admin and Game.admin_vol):
+			_chute(-air_vy)
 		rec_rvel += Vector3(clampf(air_vy * 0.25, -3.0, 0.0), 0, 0)
 	air_vy = velocity.y if not is_on_floor() else 0.0
 	# ressort du recul (petits pas de temps : stable même à faible nombre d'images par seconde)
@@ -1344,6 +1347,11 @@ func _update_combat(delta: float, can_act: bool) -> void:
 	if not wants:
 		return
 	fire_queued = 0.0
+	if est_cassee(id):
+		cooldown = 0.6
+		Game.play_ui("clic_vide", -4.0)
+		Game.msg("%s est cassé : répare-le (kit de réparation, clic droit dans l'inventaire)." % Items.nom(id))
+		return
 	if w.type == "gun":
 		_fire_gun(id, w)
 	elif w.type == "lancer":
@@ -1408,6 +1416,7 @@ func _fire_gun(id: String, w: Dictionary) -> void:
 	if not (Game.admin and Game.admin_munitions):
 		if not (prog.a("econome_balles") and randf() < 0.15):
 			mags[id] = int(mags[id]) - 1
+	user(id)
 	cooldown = w.rate
 	var origin := lean_pivot.global_position
 	var aim := _aim_point(w.range)
@@ -1621,6 +1630,7 @@ func _porter_coup(w: Dictionary, dmg: float) -> void:
 	if touche_coup:
 		Game.make_noise(global_position, 7.0)
 		prog.gagner("combat", 2)
+		user(id)
 		var lame: bool = id in LAMES
 		# son d'impact : tranchant et aigu pour les lames, sourd et grave pour les armes contondantes
 		if lame:
@@ -1651,6 +1661,7 @@ func _porter_coup(w: Dictionary, dmg: float) -> void:
 		# hache, pioche : coup porté à un arbre, un rocher ou une épave (récolte)
 		if Game.recolte and Game.recolte.frapper(hit.position, dir, id, self):
 			secousse = maxf(secousse, 0.45)
+			user(id)
 		else:
 			Game.play_3d("impact_mur", hit.position, -6.0, 0.2, 20.0)
 
@@ -1803,8 +1814,10 @@ func take_damage(amount: float, _from: Node = null, origine := Vector3.INF) -> v
 	if Game.admin and Game.admin_invincible:
 		hurt_flash = 0.3
 		return
-	_hurt(amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0) * (0.9 if prog.a("seconde_peau") else 1.0))
-	if soin_t > 0.0 and soin_id == "trousse":
+	var subi := amount * (1.0 - armor_total()) * (0.85 if prog.a("robuste") else 1.0) * (0.9 if prog.a("seconde_peau") else 1.0)
+	_hurt(subi)
+	_blessures_coup(subi, _from)
+	if soin_t > 0.0 and soin_id in ["trousse", "attelle"]:
 		soin_t = 0.0
 		soin_entree = null
 		Game.msg("Soin interrompu : tu as été touché !")
@@ -2271,6 +2284,9 @@ func use_item(id: String) -> void:
 	if count(id) <= 0:
 		return
 	var it := Items.info(id)
+	if it.get("desinfecte", false):
+		_commencer_soin(id)
+		return
 	match it.get("type", ""):
 		"food", "drink":
 			remove_item(id)
@@ -2299,7 +2315,8 @@ func use_item(id: String) -> void:
 
 
 ## Soins : [durée (s), santé rendue (-1 = au maximum)]. Rapide mais peu efficace, ou lent mais complet.
-const SOINS := {"antidouleur": [0.5, 10.0], "bandage": [0.9, 15.0], "trousse": [3.5, -1.0], "medicament": [1.0, 5.0]}
+const SOINS := {"antidouleur": [0.5, 10.0], "bandage": [0.9, 15.0], "trousse": [3.5, -1.0], "medicament": [1.0, 5.0],
+		"attelle": [4.0, 0.0], "antibiotiques": [1.0, 0.0], "alcool": [1.5, 0.0]}
 var soin_t := 0.0                    # soin en cours (temps restant)
 var soin_total := 1.0
 var soin_id := ""
@@ -2311,8 +2328,8 @@ var soin_grille = null
 func _commencer_soin(id: String, entree = null, grille = null) -> bool:
 	if soin_t > 0.0:
 		return false
-	if health >= prog.sante_max() - 0.5 and not (id == "medicament" and maladie > 0.0):
-		Game.msg("Ta santé est déjà au maximum.")
+	if health >= prog.sante_max() - 0.5 and not _soin_utile(id):
+		Game.msg("Ta santé est déjà au maximum." if Items.info(id).get("type", "") == "heal" else "Pas de plaie à désinfecter.")
 		return false
 	var s: Array = SOINS.get(id, [0.8, float(Items.info(id).get("heal", 10.0))])
 	soin_total = float(s[0]) * (0.75 if prog.a("soigneur") else 1.0)
@@ -2341,7 +2358,8 @@ func _maj_soin(delta: float) -> void:
 	var gain: float = prog.sante_max() if float(s[1]) < 0.0 else float(s[1]) * (1.3 if prog.a("soigneur") else 1.0) * (1.2 if prog.a("herboriste") else 1.0)
 	health = minf(prog.sante_max(), health + gain)
 	prog.gagner("survie", 8)
-	Game.msg("Soigné avec : " + Items.nom(soin_id))
+	if not _soigner_etat(soin_id):
+		Game.msg("Soigné avec : " + Items.nom(soin_id))
 	if soin_id == "medicament" and maladie > 0.0:
 		maladie = 0.0
 		Game.msg("Les médicaments font effet : tu n'es plus malade.")
@@ -2353,7 +2371,7 @@ func _maj_soin(delta: float) -> void:
 func consume_entry(e: Dictionary, g: Grille) -> bool:
 	var it := Items.info(e.id)
 	var t: String = it.get("type", "")
-	if t == "heal":
+	if t == "heal" or it.get("desinfecte", false):
 		return _commencer_soin(e.id, e, g)
 	if t == "food" or t == "drink":
 		_manger(e.id)
@@ -2875,6 +2893,12 @@ func _maj_arc(delta: float, can_act: bool) -> void:
 		arc_tension = 0.0           # inventaire ouvert pendant la tension : on relâche sans tirer
 		return
 	var tient := Input.is_action_pressed("tirer") and cooldown <= 0.0
+	if tient and arc_tension <= 0.0 and est_cassee("arc"):
+		if fire_queued > 0.0:
+			Game.msg("L'arc est cassé : répare-le (kit de réparation).")
+			Game.play_ui("clic_vide", -8.0, 0.05, 0.6)
+		fire_queued = 0.0
+		return
 	if tient and arc_tension <= 0.0 and count("fleche") <= 0 and not (Game.admin and Game.admin_munitions):
 		if fire_queued > 0.0:
 			Game.msg("Plus de flèches.")
@@ -2901,6 +2925,7 @@ func _maj_arc(delta: float, can_act: bool) -> void:
 func _tirer_fleche(k: float) -> void:
 	if not (Game.admin and Game.admin_munitions):
 		remove_item("fleche", 1)
+	user("arc")
 	var w := Items.info("arc")
 	var origine := lean_pivot.global_position
 	var vise := _aim_point(float(w.range))
@@ -2937,14 +2962,24 @@ func _manger(id: String) -> void:
 	thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * k)
 	prog.gagner("survie", 5)
 	Game.msg("Consommé : " + Items.nom(id))
-	if it.get("cru", false):
-		var risque := maxf(0.2, 0.5 - 0.03 * int(prog.comp["survie"].niv)) * (0.5 if prog.a("estomac") else 1.0)
-		if randf() < risque:
-			var deja := maladie > 0.0
-			maladie = minf(MALADIE_DUREE * 1.6, maladie + (120.0 if deja else MALADIE_DUREE))
-			nausee_t = randf_range(15.0, 30.0)
-			Game.msg("Tu as mangé de la viande crue : tu te sens malade (intoxication)." if not deja else "Ton intoxication s'aggrave.")
-			Game.play_ui("douleur", -6.0, 0.1, 0.8)
+	if id in BOUTEILLES and Items.DB.has("bouteille_vide"):
+		add_item("bouteille_vide")   # la bouteille vide reste : on peut la remplir à un lac ou à la rivière
+	if it.get("cru", false) or it.get("sale", false):
+		_risque_intoxication("Tu as bu de l'eau sale" if it.get("sale", false) else "Tu as mangé de la viande crue")
+
+
+const BOUTEILLES := ["eau", "eau_sale", "soda"]
+
+
+## Intoxication possible (viande crue, eau sale) : 50 % - 3 %/niveau de survie, moitié avec Estomac de fer.
+func _risque_intoxication(cause: String, k := 1.0) -> void:
+	var risque := maxf(0.2, 0.5 - 0.03 * int(prog.comp["survie"].niv)) * (0.5 if prog.a("estomac") else 1.0) * k
+	if randf() < risque:
+		var deja := maladie > 0.0
+		maladie = minf(MALADIE_DUREE * 1.6, maladie + (120.0 if deja else MALADIE_DUREE))
+		nausee_t = randf_range(15.0, 30.0)
+		Game.msg(cause + " : tu te sens malade (intoxication)." if not deja else "Ton intoxication s'aggrave.")
+		Game.play_ui("douleur", -6.0, 0.1, 0.8)
 
 
 func _maj_maladie(delta: float) -> void:
@@ -3037,7 +3072,7 @@ func _maj_corps(delta: float) -> void:
 	var en_joue := ads > 0.3 or arc_vise > 0.3
 	cv.regard = Vector3.INF if (en_joue or sur_echelle) else camera.global_position - camera.global_basis.z * 25.0
 	cv.souffle = clampf((0.45 - stamina / prog.endurance_max()) / 0.45, 0.0, 1.0)
-	cv.blessure = clampf((0.35 - health / prog.sante_max()) / 0.35, 0.0, 1.0)
+	cv.blessure = maxf(clampf((0.35 - health / prog.sante_max()) / 0.35, 0.0, 1.0), 0.75 if fracture else 0.0)
 	# gestes des bras : bandage pendant les soins, main sur le flanc quand on est gravement blessé
 	# (sans arme à feu ni coup en cours), sortie de l'arme choisie
 	var soin_bandage: bool = soin_t > 0.0 and soin_id in ["bandage", "trousse"]
@@ -3158,3 +3193,354 @@ func _roulade() -> void:
 	_p_anim("roulade", duree_anim / ROULADE_DUREE, ROULADE_DUREE)
 	Game.play_ui("atterrissage", -10.0, 0.1)
 	Game.make_noise(global_position, 6.0)
+
+
+# ================================================================ blessures, eau, usure, température
+## Blessures : saignement (secondes restantes, PV perdus peu à peu), morsure (risque d'infection tiré à la fin
+## du délai pour désinfecter), infection (fièvre 0..100, antibiotiques), fracture (boiterie, attelle).
+const SAIGNE_PV := 0.2               # PV perdus par seconde en saignant
+const SAIGNE_MAX := 360.0
+const MORSURE_DELAI := 60.0          # temps pour désinfecter la plaie à l'alcool
+const CHUTE_DEGATS := -11.5          # vitesse à l'atterrissage au-delà de laquelle on se blesse (≈ 4,7 m)
+var saignement := 0.0
+var morsure_t := 0.0
+var morsure_risque := 0.0
+var plaie_desinfectee := false
+var infection := 0.0
+var fracture := false
+var _palier_fievre := 0
+
+
+func risque_saignement() -> float:
+	return 0.5 if prog.a("seconde_peau") else 1.0
+
+
+## Chance d'infection d'une morsure : 12 % - 0,4 %/niveau de survie.
+func risque_morsure() -> float:
+	return maxf(0.04, 0.12 - 0.004 * int(prog.comp["survie"].niv))
+
+
+func _blessures_coup(subi: float, from: Node) -> void:
+	if not alive or subi < 3.0 or from == null or (Game.admin and Game.admin_invincible):
+		return
+	var protege := 1.0 - armor_total()
+	if from.is_in_group("zombies"):
+		if str(from.get("kind")) in ["gros", "boss"] and subi >= 15.0 and randf() < 0.3:
+			_casser("Le choc t'a brisé la jambe")
+		if randf() < 0.3 * protege:
+			_mordu()
+			return
+	if randf() < (0.25 if from.is_in_group("zombies") else 0.35) * protege * risque_saignement():
+		_saigner(60.0 + subi * 2.0)
+
+
+func _saigner(duree: float) -> void:
+	if saignement <= 0.0:
+		Game.msg("Tu saignes ! Un bandage ou une trousse arrête le saignement [H].")
+	saignement = minf(SAIGNE_MAX, saignement + duree)
+
+
+func _mordu() -> void:
+	_saigner(90.0)
+	morsure_risque = minf(0.5, (morsure_risque if morsure_t > 0.0 else 0.0) + risque_morsure())
+	morsure_t = MORSURE_DELAI
+	plaie_desinfectee = false
+	Game.msg("Tu as été mordu ! Désinfecte la plaie à l'alcool dans la minute [H].")
+
+
+func _casser(cause: String) -> void:
+	if fracture:
+		return
+	fracture = true
+	secousse = maxf(secousse, 1.0)
+	Game.play_ui("douleur", 0.0, 0.1, 0.85)
+	Game.msg(cause + " : fracture ! Tu boites ; pose une attelle [H].")
+
+
+func _chute(v: float) -> void:
+	if Game.admin and Game.admin_invincible:
+		return
+	_hurt((v + CHUTE_DEGATS) * 7.0 + 6.0)
+	hurt_flash = 1.0
+	Game.play_ui("douleur", -2.0, 0.15)
+	if v > 13.5 or randf() < (v + CHUTE_DEGATS) * 0.25:
+		_casser("Mauvaise réception")
+
+
+func _maj_blessures(delta: float) -> void:
+	var sans_degats := Game.admin and Game.admin_invincible
+	if saignement > 0.0:
+		saignement = maxf(0.0, saignement - delta)
+		if not sans_degats:
+			_hurt(SAIGNE_PV * delta)
+		if saignement <= 0.0:
+			Game.msg("Le saignement s'est arrêté de lui-même.")
+	if morsure_t > 0.0:
+		morsure_t -= delta
+		if morsure_t <= 0.0:
+			morsure_t = 0.0
+			if randf() < morsure_risque * (0.3 if plaie_desinfectee else 1.0):
+				infection = 1.0
+				_palier_fievre = 0
+				Game.msg("La morsure s'infecte : tu as de la fièvre. Il te faut des antibiotiques.")
+			else:
+				Game.msg("La morsure cicatrise sans s'infecter.")
+			morsure_risque = 0.0
+	if infection > 0.0:
+		# la fièvre monte en ~18 min (deux fois moins vite avec Guérison)
+		infection = minf(100.0, infection + delta * 0.09 * (0.5 if prog.a("medecin") else 1.0))
+		var k := infection / 100.0
+		thirst = maxf(0.0, thirst - delta * 0.05 * k)
+		stamina = minf(stamina, prog.endurance_max() * (1.0 - 0.5 * k))
+		if infection > 60.0 and not sans_degats:
+			_hurt(delta * (0.05 + 0.2 * (infection - 60.0) / 40.0))
+		var palier := int(infection / 30.0)
+		if palier > _palier_fievre:
+			_palier_fievre = palier
+			Game.msg(["", "La fièvre monte…", "Forte fièvre : tu t'affaiblis, prends des antibiotiques !", "L'infection te ronge : antibiotiques, vite !"][mini(palier, 3)])
+
+
+## Le soin sert-il à quelque chose de plus que la santé (blessure, maladie) ?
+func _soin_utile(id: String) -> bool:
+	var it := Items.info(id)
+	match str(it.get("soigne", "")):
+		"saignement":
+			if saignement > 0.0:
+				return true
+		"fracture":
+			if fracture:
+				return true
+		"infection":
+			if infection > 0.0 or morsure_t > 0.0:
+				return true
+	if it.get("desinfecte", false) and morsure_t > 0.0 and not plaie_desinfectee:
+		return true
+	return id == "medicament" and maladie > 0.0
+
+
+## Fin d'un soin : blessures soignées par l'objet. Vrai si un message a été donné.
+func _soigner_etat(id: String) -> bool:
+	var it := Items.info(id)
+	var dit := false
+	match str(it.get("soigne", "")):
+		"saignement":
+			if saignement > 0.0:
+				saignement = 0.0
+				Game.msg("Saignement arrêté (%s)." % Items.nom(id))
+				dit = true
+		"fracture":
+			if fracture:
+				fracture = false
+				Game.msg("Attelle posée : ta jambe tient, tu marches de nouveau normalement.")
+				dit = true
+		"infection":
+			if infection > 0.0 or morsure_t > 0.0:
+				infection = 0.0
+				morsure_t = 0.0
+				morsure_risque = 0.0
+				_palier_fievre = 0
+				Game.msg("Les antibiotiques font effet : plus d'infection.")
+				dit = true
+	if it.get("desinfecte", false) and morsure_t > 0.0 and not plaie_desinfectee:
+		plaie_desinfectee = true
+		Game.msg("Plaie désinfectée : bien moins de risque d'infection.")
+		dit = true
+	return dit
+
+
+## Soin choisi par [H] : d'abord la blessure la plus grave, puis la santé.
+func _soin_conseille() -> String:
+	var ordre: Array = []
+	if fracture:
+		ordre.append("attelle")
+	var manque: float = prog.sante_max() - health
+	if saignement > 0.0:
+		ordre += ["trousse", "bandage"] if manque >= 45.0 else ["bandage", "trousse"]
+	if infection > 0.0:
+		ordre.append("antibiotiques")
+	elif morsure_t > 0.0 and not plaie_desinfectee:
+		ordre.append("alcool")
+	if maladie > 0.0:
+		ordre.append("medicament")
+	if manque > 0.5:
+		ordre += ["trousse", "bandage", "antidouleur"] if manque >= 45.0 else ["bandage", "antidouleur", "trousse"]
+	for s in ordre:
+		if Items.DB.has(s) and count(s) > 0:
+			return s
+	return ""
+
+
+# --- eau des lacs et de la rivière : [F] pour boire, ou remplir une bouteille vide
+var face_eau := false
+
+
+func _maj_face_eau() -> void:
+	face_eau = false
+	if prompt != "" or placing != "" or Game.ui_open or not _devant_eau():
+		return
+	face_eau = true
+	prompt = "[F] Remplir une bouteille (eau sale)" if count("bouteille_vide") > 0 and Items.DB.has("eau_sale") else "[F] Boire l'eau (pas potable)"
+
+
+func _devant_eau() -> bool:
+	for d in [0.0, 1.4]:
+		var p: Vector3 = global_position - global_basis.z * d
+		p.y = Game.hauteur(p.x, p.z)
+		if Game.dans_eau(p):
+			return true
+	return false
+
+
+func _puiser_eau() -> void:
+	if count("bouteille_vide") > 0 and Items.DB.has("eau_sale"):
+		remove_item("bouteille_vide")
+		if add_item("eau_sale") > 0:
+			drop_entry(nouvelle_entree("eau_sale"))
+		Game.msg("Bouteille remplie d'eau sale (à faire bouillir au feu).")
+	else:
+		if thirst >= 99.0:
+			Game.msg("Tu n'as pas soif.")
+			return
+		thirst = minf(100.0, thirst + 20.0)
+		Game.msg("Tu bois l'eau à même le lac.")
+		_risque_intoxication("L'eau n'était pas potable", 0.7)
+	geste("genou")
+	Game.play_ui("fouille", -8.0, 0.1, 0.7)
+
+
+# --- usure : champ "durab" des armes et outils (absent = inusable), usure "us" rangée dans l'entrée d'inventaire
+func durab_max(id: String) -> int:
+	return int(Items.info(id).get("durab", 0))
+
+
+## Entrée de l'arme (ou de l'outil) qu'on utilise : la première intacte de ce type, sinon la première.
+func entree_usure(id: String) -> Dictionary:
+	var m := durab_max(id)
+	if m <= 0:
+		return {}
+	var premiere := {}
+	for g in grilles():
+		for e in g.entrees:
+			if e.id == id:
+				if float(e.get("us", 0.0)) < m:
+					return e
+				if premiere.is_empty():
+					premiere = e
+	return premiere
+
+
+## État d'une entrée : 1 = neuve, 0 = cassée.
+func etat_usure(e: Dictionary) -> float:
+	var m := durab_max(e.get("id", ""))
+	return 1.0 if m <= 0 else clampf(1.0 - float(e.get("us", 0.0)) / m, 0.0, 1.0)
+
+
+func est_cassee(id: String) -> bool:
+	var e := entree_usure(id)
+	return not e.is_empty() and etat_usure(e) <= 0.0
+
+
+func user(id: String, n := 1.0) -> void:
+	if Game.admin:
+		return
+	var e := entree_usure(id)
+	if e.is_empty() or etat_usure(e) <= 0.0:
+		return
+	var m := durab_max(id)
+	var avant := float(e.get("us", 0.0))
+	e["us"] = minf(float(m), avant + n)
+	if e.us >= m:
+		Game.msg("%s : cassé ! Répare-le avec un kit de réparation (clic droit dans l'inventaire)." % Items.nom(id))
+		Game.play_ui("impact_metal", -4.0, 0.1, 0.7)
+	elif e.us >= m * 0.8 and avant < m * 0.8:
+		Game.msg("%s : très usé." % Items.nom(id))
+
+
+## Part de l'usure effacée par un kit de réparation (50 % + 3 %/niveau de fabrication).
+func part_reparation() -> float:
+	return minf(0.95, 0.5 + 0.03 * niveau_fabrication())
+
+
+func reparer(e: Dictionary) -> bool:
+	var m := durab_max(e.id)
+	if m <= 0 or float(e.get("us", 0.0)) <= 0.0:
+		Game.msg("Cet objet est en parfait état.")
+		return false
+	if count("kit_reparation") <= 0:
+		Game.msg("Il faut un kit de réparation (établi : ruban + ferraille).")
+		return false
+	if Items.info(e.id).get("type", "") == "gun" and count("cle_molette") <= 0:
+		Game.msg("Il faut aussi une clé à molette pour réparer une arme à feu.")
+		return false
+	remove_item("kit_reparation")
+	e["us"] = maxf(0.0, float(e.us) - m * part_reparation())
+	prog.gagner("fabrication", 6)
+	Game.play_ui("fouille", -6.0, 0.1, 1.2)
+	Game.msg("Réparé : %s (%d %%)." % [Items.nom(e.id), roundi(etat_usure(e) * 100.0)])
+	return true
+
+
+# --- température : froid de 0 (au chaud) à 100 (gelé)
+var froid := 0.0
+var pres_feu := false
+var _froid_t := 0.0
+
+
+func chaleur_portee() -> float:
+	var c := 0.0
+	for s in equipped:
+		var e: Dictionary = equipped[s]
+		if not e.is_empty():
+			c += float(Items.info(e.id).get("chaleur", 0.0))
+	return c
+
+
+## Protection contre le froid (vêtements, Seconde peau, survie) : multiplie le refroidissement.
+func protection_froid() -> float:
+	return (1.0 - minf(0.75, chaleur_portee() * 0.5)) * (0.7 if prog.a("seconde_peau") else 1.0) * (1.0 - 0.02 * int(prog.comp["survie"].niv))
+
+
+## Variation du froid par seconde (+ = on se refroidit).
+func bilan_temperature() -> float:
+	var dehors := in_zone.is_empty()
+	var c := 0.16 if Game.is_night() else 0.0
+	if dehors:
+		c += 0.2 * Game.pluie
+	else:
+		c *= 0.3
+	if Game.dans_eau(global_position):
+		c += 0.35 if nage else 0.15
+	c *= protection_froid()
+	var r := 0.0
+	if dehors and not Game.is_night():
+		r += 0.15 * (1.0 - Game.pluie)
+	if not dehors:
+		r += 0.12
+	if pres_feu:
+		r += 1.0
+	if sprinting:
+		r += 0.1
+	return c - r
+
+
+func _maj_temperature(delta: float) -> void:
+	_froid_t -= delta
+	if _froid_t <= 0.0:
+		_froid_t = 0.5
+		pres_feu = false
+		for f in get_tree().get_nodes_in_group("feu_camp"):
+			if f is Node3D and f.global_position.distance_squared_to(global_position) < 36.0:
+				pres_feu = true
+				break
+	var avant := froid
+	froid = clampf(froid + bilan_temperature() * delta, 0.0, 100.0)
+	if froid > 50.0:
+		stamina = minf(stamina, prog.endurance_max() * (0.7 if froid < 80.0 else 0.5))
+	if froid > 80.0 and not (Game.admin and Game.admin_invincible):
+		_hurt(delta * (0.02 + 0.08 * (froid - 80.0) / 20.0))
+	if froid > 50.0 and avant <= 50.0:
+		Game.msg("Tu as froid : trouve un abri, un feu ou des vêtements chauds.")
+	elif froid > 80.0 and avant <= 80.0:
+		Game.msg("Tu es transi de froid : ta santé baisse !")
+	elif froid < 30.0 and avant >= 30.0:
+		Game.msg("Tu te réchauffes.")

@@ -364,6 +364,14 @@ func draw_entry(ci: CanvasItem, r: Rect2, e: Dictionary, small := false) -> void
 		ci.draw_string_outline(font2, r.position + Vector2(r.size.x - 6 - 8 * t.length(), r.size.y - 4), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 3, Color.BLACK)
 		ci.draw_string(font2, r.position + Vector2(r.size.x - 6 - 8 * t.length(), r.size.y - 4), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 	var w := Items.info(e.id)
+	# barre d'usure (armes et outils) : verte → rouge, croix rouge si cassé
+	if not small and int(w.get("durab", 0)) > 0 and Game.player:
+		var k: float = Game.player.etat_usure(e)
+		var bar := Rect2(r.position + Vector2(3, r.size.y - 6), Vector2(r.size.x - 6, 3))
+		ci.draw_rect(bar, Color(0, 0, 0, 0.6))
+		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * k, bar.size.y)), Color(0.9, 0.2, 0.15).lerp(Color(0.35, 0.85, 0.3), k))
+		if k <= 0.0:
+			ci.draw_line(r.position + Vector2(4, 4), r.end - Vector2(4, 8), Color(0.9, 0.15, 0.1, 0.8), 2.0)
 	if not small and w.get("type", "") == "gun" and Game.player:
 		var am := "%d/%d" % [int(Game.player.mags.get(e.id, 0)), int(Game.player.arme_stats(e.id).mag)]
 		ci.draw_string_outline(font2, r.position + Vector2(4, 14), am, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
@@ -542,11 +550,21 @@ func on_hover(_src, e: Dictionary) -> void:
 	if held or e.is_empty():
 		tooltip.visible = false
 		return
-	tooltip_label.text = Items.nom(e.id) + ("  ×%d" % e.n if int(e.get("n", 1)) > 1 else "") + "\n" + _desc(e.id)
+	tooltip_label.text = Items.nom(e.id) + ("  ×%d" % e.n if int(e.get("n", 1)) > 1 else "") + "\n" + _desc(e.id) + _texte_usure(e)
 	tooltip.visible = true
 	tooltip.size = Vector2.ZERO
 	tooltip.reset_size()
 	tooltip.call_deferred("reset_size")
+
+
+func _texte_usure(e: Dictionary) -> String:
+	var m := int(Items.info(e.id).get("durab", 0))
+	if m <= 0 or Game.player == null:
+		return ""
+	var k: float = Game.player.etat_usure(e)
+	if k <= 0.0:
+		return "\nÉtat : CASSÉ — clic droit > Réparer (kit de réparation%s)" % (" + clé à molette" if Items.info(e.id).get("type", "") == "gun" else "")
+	return "\nÉtat : %d %% (%d / %d)" % [roundi(k * 100.0), roundi(k * m), m]
 
 
 func _desc(id: String) -> String:
@@ -813,6 +831,8 @@ func _revert_held() -> void:
 func _use(e: Dictionary, g: Grille) -> void:
 	var p = Game.player
 	var t: String = Items.info(e.id).get("type", "")
+	if Items.info(e.id).get("desinfecte", false) and _is_player_grid(g) and p.morsure_t > 0.0:
+		t = "heal"   # alcool : désinfecter la morsure (double-clic), sinon il se range comme un matériau
 	match t:
 		"food", "drink", "heal":
 			p.consume_entry(e, g)
@@ -930,6 +950,10 @@ func _open_menu(e: Dictionary, g: Grille) -> void:
 				menu.add_item("Placer", 0)
 	if storage and is_instance_valid(storage) and storage.grille:
 		menu.add_item("Déposer dans le conteneur" if mine else "Prendre", 1)
+	if mine and int(Items.info(e.id).get("durab", 0)) > 0 and float(e.get("us", 0.0)) > 0.0:
+		menu.add_item("Réparer (kit de réparation%s)" % (" + clé à molette" if t == "gun" else ""), 7)
+	if mine and Items.info(e.id).get("desinfecte", false):
+		menu.add_item("Désinfecter une plaie", 0)
 	if mine and not Items.recette_demontage(e.id).is_empty():
 		menu.add_item("Démonter (%s)" % Items.texte_demontage(Items.recette_demontage(e.id)), 6)
 	if int(e.n) > 1:
@@ -995,6 +1019,8 @@ func _on_menu(id: int) -> void:
 			return
 		6:
 			p.demonter(e.id, e, g)
+		7:
+			p.reparer(e)
 	refresh()
 
 

@@ -440,6 +440,8 @@ func _process(delta: float) -> void:
 			txt = Items.nom(id)
 			if not Items.is_weapon(id) or Items.info(id).get("type", "") == "lancer":
 				txt += " ×%d" % p.count(id)
+			elif p.est_cassee(id):
+				txt += " (cassé)"
 		hot_labels[i].text = ("[%d] %s" if p.hotbar_verrou[i] else "%d  %s") % [i + 1, txt]
 		var tex: Texture2D = Items.icon(id) if id != "" else null
 		hot_icons[i].texture = tex
@@ -458,6 +460,7 @@ func _process(delta: float) -> void:
 	var mm := int((Game.time_hours - hh) * 60.0)
 	if p.maladie > 0.0:
 		zone_name += "\nMALADE (intoxication) : %d min" % ceili(p.maladie / 60.0)
+	zone_name += _etat_blessures(p)
 	lbl_info.text = "Jour %d — %02d:%02d%s\nArgent : %d €\n%s" % [
 		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", p.argent, zone_name]
 	# réticule dynamique : écart = vraie dispersion du tir projetée à l'écran (+ recul en cours)
@@ -490,6 +493,28 @@ func _process(delta: float) -> void:
 
 ## Le tir part de la tête du personnage, pas de la caméra (décalée sur l'épaule) : si un obstacle
 ## coupe la ligne de tir avant le point visé, renvoie sa position à l'écran (sinon (-1, -1)).
+## Blessures et température sous l'heure (une ligne par état, rien quand tout va bien).
+func _etat_blessures(p) -> String:
+	var t := ""
+	if p.saignement > 0.0:
+		t += "\nSAIGNEMENT — [H] bandage"
+	if p.morsure_t > 0.0:
+		t += "\nMorsure : %s (%d s)" % ["désinfectée" if p.plaie_desinfectee else "à désinfecter [H] alcool", ceili(p.morsure_t)]
+	if p.infection > 0.0:
+		t += "\nINFECTION : fièvre %d %% — antibiotiques" % roundi(p.infection)
+	if p.fracture:
+		t += "\nFRACTURE — [H] attelle"
+	if p.froid > 80.0:
+		t += "\n❄ Transi de froid"
+	elif p.froid > 50.0:
+		t += "\n❄ Froid"
+	elif p.froid > 25.0 and p.bilan_temperature() > 0.0:
+		t += "\n❄ Frais"
+	elif p.pres_feu and p.froid > 0.5:
+		t += "\nAu chaud près du feu"
+	return t
+
+
 func _point_bloque(p: Node, portee: float) -> Vector2:
 	if p.camera == null:
 		return Vector2(-1, -1)

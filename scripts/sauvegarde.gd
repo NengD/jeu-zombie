@@ -39,15 +39,21 @@ static func supprimer() -> void:
 # ================================================================ conversion grilles
 static func entree_vers(e: Dictionary) -> Dictionary:
 	var c = e.get("contenu")
-	return {"id": e.id, "n": int(e.n), "x": int(e.x), "y": int(e.y), "r": bool(e.get("r", false)),
+	var d := {"id": e.id, "n": int(e.n), "x": int(e.x), "y": int(e.y), "r": bool(e.get("r", false)),
 			"contenu": grille_vers(c) if c is Grille else null}
+	if float(e.get("us", 0.0)) > 0.0:
+		d["us"] = float(e.us)   # usure d'une arme ou d'un outil
+	return d
 
 
 static func entree_depuis(d) -> Dictionary:
 	if not (d is Dictionary) or not d.has("id"):
 		return {}
-	return {"id": str(d.id), "n": int(d.get("n", 1)), "x": int(d.get("x", 0)), "y": int(d.get("y", 0)),
+	var e := {"id": str(d.id), "n": int(d.get("n", 1)), "x": int(d.get("x", 0)), "y": int(d.get("y", 0)),
 			"r": bool(d.get("r", false)), "contenu": grille_depuis(d.get("contenu"))}
+	if float(d.get("us", 0.0)) > 0.0:
+		e["us"] = float(d.us)
+	return e
 
 
 static func grille_vers(g: Grille) -> Dictionary:
@@ -93,6 +99,8 @@ static func sauver(main: Node) -> bool:
 		"sante": p.health, "faim": p.hunger, "soif": p.thirst, "endurance": p.stamina,
 		"poches": grille_vers(p.poches), "equipe": eq, "barre": p.hotbar, "barre_verrou": p.hotbar_verrou, "slot": p.slot,
 		"chargeurs": p.mags, "accessoires": p.accessoires, "argent": p.argent, "progression": p.prog.vers_dict(), "lampe": p.flashlight_on, "maladie": p.maladie, "fav": p.recettes_fav,
+		"saignement": p.saignement, "morsure": p.morsure_t, "morsure_risque": p.morsure_risque, "desinfectee": p.plaie_desinfectee,
+		"infection": p.infection, "fracture": p.fracture, "froid": p.froid,
 	}
 	# meubles du monde (identifiés par leur numéro de génération)
 	var cont := {}
@@ -243,6 +251,14 @@ static func appliquer_joueur(main: Node, d: Dictionary) -> void:
 	p.flashlight_on = bool(j.get("lampe", false))
 	p.argent = int(j.get("argent", 40))
 	p.maladie = float(j.get("maladie", 0.0))
+	p.saignement = float(j.get("saignement", 0.0))
+	p.morsure_t = float(j.get("morsure", 0.0))
+	p.morsure_risque = float(j.get("morsure_risque", 0.0))
+	p.plaie_desinfectee = bool(j.get("desinfectee", false))
+	p.infection = float(j.get("infection", 0.0))
+	p._palier_fievre = int(p.infection / 30.0)
+	p.fracture = bool(j.get("fracture", false))
+	p.froid = float(j.get("froid", 0.0))
 	p.recettes_fav.clear()
 	for k in j.get("fav", []):
 		p.recettes_fav.append(str(k))
