@@ -10,6 +10,7 @@ const EquipVisuel = preload("res://scripts/equipement_visuel.gd")
 const FpsArms = preload("res://scripts/fps_arms.gd")
 const Effets = preload("res://scripts/effets.gd")
 const Grenade = preload("res://scripts/grenade.gd")
+const Peremption = preload("res://scripts/peremption.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
@@ -412,6 +413,10 @@ func _update_stats(delta: float) -> void:
 	_maj_maladie(delta)
 	_maj_blessures(delta)
 	_maj_temperature(delta)
+	_frais_t -= delta
+	if _frais_t <= 0.0:
+		_frais_t = 5.0
+		Peremption.avancer_tout(self)
 	if Game.admin and Game.admin_besoins:
 		hunger = 100.0
 		thirst = 100.0
@@ -2151,6 +2156,7 @@ func regrouper_piles() -> void:
 			if b.id != a.id or int(b.n) <= 0:
 				continue
 			var k := mini(pile - int(a.n), int(b.n))
+			Peremption.fusionner(a, b, k)
 			a.n += k
 			b.n -= k
 	for t in tout:
@@ -2266,6 +2272,7 @@ func dormir(lit: Node3D = null) -> void:
 	if Game.time_hours >= 12.0:
 		Game.day += 1      # couché avant minuit
 	Game.time_hours = 7.0
+	Peremption.avancer_tout(self)   # la nourriture se gâte aussi pendant la nuit
 	if fab_n > 0:
 		arreter_fabrication()
 	hurt_flash = 0.0
@@ -2367,8 +2374,9 @@ func use_item(id: String) -> void:
 		return
 	match it.get("type", ""):
 		"food", "drink":
+			var p := _p_de(id)
 			remove_item(id)
-			_manger(id)
+			_manger(id, p)
 		"heal":
 			_commencer_soin(id)
 		"armor":
@@ -2452,7 +2460,7 @@ func consume_entry(e: Dictionary, g: Grille) -> bool:
 	if t == "heal" or it.get("desinfecte", false):
 		return _commencer_soin(e.id, e, g)
 	if t == "food" or t == "drink":
-		_manger(e.id)
+		_manger(e.id, float(e.get("p", 0.0)))
 	else:
 		return false
 	e.n -= 1
@@ -3042,20 +3050,38 @@ var nausee_t := 30.0
 
 
 ## Effets d'un aliment ou d'une boisson (nourriture crue : risque d'intoxication).
-func _manger(id: String) -> void:
+## p = péremption de la portion (1 = avariée : moitié moins nourrissante, risque d'intoxication ×2).
+func _manger(id: String, p := 0.0) -> void:
 	var it := Items.info(id)
 	var k := (1.25 if prog.a("cuisinier") else 1.0) * (1.3 if prog.a("vivre_terre") and id in ["viande_cuite", "viande_sechee", "bouillon", "ragout"] else 1.0)
+	var avarie := p >= 1.0
+	if avarie:
+		k *= 0.5
 	hunger = minf(100.0, hunger + float(it.get("food", 0.0)) * k)
 	thirst = minf(100.0, thirst + float(it.get("water", 0.0)) * k)
 	prog.gagner("survie", 5)
-	Game.msg("Consommé : " + Items.nom(id))
+	Game.msg("Consommé : " + Items.nom(id) + (" (avarié)" if avarie else ""))
 	if id in BOUTEILLES and Items.DB.has("bouteille_vide"):
 		add_item("bouteille_vide")   # la bouteille vide reste : on peut la remplir à un lac ou à la rivière
-	if it.get("cru", false) or it.get("sale", false):
+	if avarie:
+		_risque_intoxication("Tu as mangé de la nourriture avariée", 2.0)
+	elif it.get("cru", false) or it.get("sale", false):
 		_risque_intoxication("Tu as bu de l'eau sale" if it.get("sale", false) else "Tu as mangé de la viande crue")
 
 
 const BOUTEILLES := ["eau", "eau_sale", "soda"]
+var _frais_t := 5.0   # péremption avancée toutes les 5 s (peremption.gd)
+
+
+## Péremption de la première pile de cet objet dans l'inventaire (0 si aucune).
+func _p_de(id: String) -> float:
+	var gs := grilles()
+	gs.reverse()   # même ordre que remove_item
+	for g in gs:
+		for e in g.entrees:
+			if e.id == id:
+				return float(e.get("p", 0.0))
+	return 0.0
 
 
 ## Intoxication possible (viande crue, eau sale) : 50 % - 3 %/niveau de survie, moitié avec Estomac de fer.
@@ -3678,7 +3704,7 @@ func se_couvrir_de_tripes(corps: Node) -> void:
 		return
 	corps.set_meta("tripes", true)
 	geste("genou")
-	tripes_t = TRIPES_DUREE
+	tripes_t = TRIPES_DUREE * (1.5 if prog.a("fantome") else 1.0)
 	causes["tripes"] = "tripes de zombie"
 	Effets.gerbe_sang(get_parent(), (corps as Node3D).global_position + Vector3.UP * 0.3, Vector3.UP, 1.0)
 	Game.play_ui("impact", -6.0, 0.1, 0.6)

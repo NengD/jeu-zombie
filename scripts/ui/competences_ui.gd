@@ -459,6 +459,13 @@ func _stats_talents(pr, s: Dictionary) -> void:
 	s["Cueillette"] = oui_non.call("cueilleur", "+50 %", "+0 %")
 	s["Pêche : temps par poisson"] = oui_non.call("pecheur", "÷1,6", "×1")
 	s["Pêche : poissons gardés par ligne"] = oui_non.call("pecheur", "+2", "+0")
+	s["Essence des voitures"] = oui_non.call("pilote", "×0,7", "×1")
+	s["Dégâts encaissés par la voiture"] = oui_non.call("pilote", "×0,7", "×1")
+	s["Essence du groupe électrogène"] = oui_non.call("electricien", "×0,6", "×1")
+	s["Portée du réseau électrique"] = oui_non.call("electricien", "20 m", "15 m")
+	s["Pousse des plantes"] = oui_non.call("jardinier", "×1,4", "×1")
+	s["Légumes par récolte"] = oui_non.call("jardinier", "+1", "+0")
+	s["Durée du déguisement de tripes"] = oui_non.call("fantome", "7 min 30", "5 min")
 	s["Sommeil : santé par heure"] = oui_non.call("sommeil", "10 et toute l'endurance", "5")
 	s["Blessure mortelle"] = oui_non.call("increvable", "survie à 15 de santé une fois par jour", "mort")
 	s["Niveau de récolte des arbres et rochers"] = str(int(pr.comp.survie.niv) + (2 if pr.a("bucheron") else 0))
@@ -528,7 +535,7 @@ const ICONES := {
 	"fouilleur": "caisse_stockage", "curieux": "lunettes", "discret": "@pas", "poches": "sac_toile", "coureur": "@eclair",
 	"chanceux": "@etoile", "ombre": "@lune", "poches2": "sac_militaire", "marathonien": "eau", "marchandage": "@piece",
 	"vue_percante": "@oeil", "infatigable": "sac_randonnee", "pied_leger": "@pas",
-	"regeneration": "@coeur", "bucheron": "buche", "endurci": "@eclair", "bricoleur": "kit_reparation", "premiers_secours": "attelle", "cueilleur": "pomme", "pecheur": "canne_peche", "frugal": "ration", "sommeil": "@lune",
+	"regeneration": "@coeur", "bucheron": "buche", "endurci": "@eclair", "bricoleur": "kit_reparation", "premiers_secours": "attelle", "cueilleur": "pomme", "pecheur": "canne_peche", "pilote": "essence", "electricien": "batterie", "jardinier": "tomate", "fantome": "@crane", "frugal": "ration", "sommeil": "@lune",
 	"adrenaline": "@coeur", "estomac": "viande_crue", "medecin": "antidouleur", "vigueur": "@coeur", "chameau": "eau",
 	"seconde_peau": "veste_cuir", "increvable": "@crane", "survivant_ne": "@etoile", "constitution": "@bouclier",
 	"archer": "arc", "depeceur": "couteau_km2000", "tension_rapide": "arc", "pisteur": "@oeil", "tanneur": "cuir",

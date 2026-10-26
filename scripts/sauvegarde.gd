@@ -46,6 +46,8 @@ static func entree_vers(e: Dictionary) -> Dictionary:
 			"contenu": grille_vers(c) if c is Grille else null}
 	if float(e.get("us", 0.0)) > 0.0:
 		d["us"] = float(e.us)   # usure d'une arme ou d'un outil
+	if float(e.get("p", 0.0)) > 0.0:
+		d["p"] = float(e.p)   # péremption de la nourriture
 	return d
 
 
@@ -56,6 +58,8 @@ static func entree_depuis(d) -> Dictionary:
 			"r": bool(d.get("r", false)), "contenu": grille_depuis(d.get("contenu"))}
 	if float(d.get("us", 0.0)) > 0.0:
 		e["us"] = float(d.us)
+	if float(d.get("p", 0.0)) > 0.0:
+		e["p"] = float(d.p)
 	return e
 
 

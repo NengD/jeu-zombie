@@ -122,6 +122,11 @@ const TALENTS := {
 	"premiers_secours": {"comp": "survie", "br": "survie", "apres": "seconde_peau", "d": 6, "l": 1, "niv": 9, "nom": "Premiers secours", "desc": "Les saignements s'arrêtent deux fois plus vite d'eux-mêmes et les soins sont 30 % plus rapides."},
 	"cueilleur": {"comp": "survie", "br": "survie", "apres": "constitution", "d": 6, "l": -1, "niv": 8, "nom": "Cueilleur", "desc": "La cueillette (fruits, raisin, maïs) rapporte 50 % de plus."},
 	"pecheur": {"comp": "chasse", "br": "chasse", "apres": "empenneur", "d": 6, "l": -1, "niv": 8, "nom": "Pêcheur", "desc": "Les lignes de pêche prennent un poisson 1,6 fois plus vite et en gardent 2 de plus."},
+	# --- lot 3 : véhicules, potager, électricité, déguisement
+	"pilote": {"comp": "exploration", "br": "exploration", "apres": "ombre", "d": 4, "l": 1, "niv": 6, "nom": "Pilote", "desc": "Les voitures consomment 30 % d'essence en moins et encaissent 30 % de dégâts en moins."},
+	"electricien": {"comp": "fabrication", "br": "fabrication", "apres": "armurier", "d": 7, "l": -1, "niv": 8, "nom": "Électricien", "desc": "Le groupe électrogène brûle 40 % d'essence en moins ; le réseau électrique porte 5 m plus loin."},
+	"jardinier": {"comp": "survie", "br": "survie", "apres": "cueilleur", "d": 7, "l": -1, "niv": 6, "nom": "Jardinier", "desc": "Les plantes poussent 40 % plus vite et chaque récolte donne 1 légume de plus."},
+	"fantome": {"comp": "survie", "br": "survie", "apres": "premiers_secours", "d": 7, "l": 1, "niv": 7, "nom": "Fantôme", "desc": "Le déguisement de tripes dure 50 % plus longtemps."},
 	# --- nœuds à plusieurs rangs (`rangs`) : 1 point par rang, +2 niveaux requis à chaque rang
 	"force": {"comp": "combat", "br": "melee", "apres": "parade_experte", "d": 6, "l": -1, "niv": 10, "rangs": 3, "nom": "Force", "desc": "+5 % de dégâts au corps à corps par rang."},
 	"calibre": {"comp": "combat", "br": "tir", "apres": "maitrise_rafale", "d": 6, "l": 1, "niv": 11, "rangs": 3, "nom": "Main de fer", "desc": "+5 % de dégâts avec les armes à feu par rang."},

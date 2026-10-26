@@ -9,6 +9,7 @@ extends CanvasLayer
 ##   clic droit : menu (utiliser, équiper, démonter, diviser, jeter…)
 ##   déposer hors de la fenêtre : jeter au sol
 
+const Peremption = preload("res://scripts/peremption.gd")
 const CELL := 52.0
 
 # ------------------------------------------------------------------ vues
@@ -372,6 +373,10 @@ func draw_entry(ci: CanvasItem, r: Rect2, e: Dictionary, small := false) -> void
 		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * k, bar.size.y)), Color(0.9, 0.2, 0.15).lerp(Color(0.35, 0.85, 0.3), k))
 		if k <= 0.0:
 			ci.draw_line(r.position + Vector2(4, 4), r.end - Vector2(4, 8), Color(0.9, 0.15, 0.1, 0.8), 2.0)
+	# pastille de péremption : orange = se gâte, brun = avarié
+	if not small and float(w.get("frais", 0)) > 0.0 and Peremption.etat(e) > 0:
+		ci.draw_circle(r.position + Vector2(9, 9), 5.0, Color(0.95, 0.6, 0.15) if Peremption.etat(e) == 1 else Color(0.45, 0.3, 0.1))
+		ci.draw_arc(r.position + Vector2(9, 9), 5.0, 0.0, TAU, 12, Color.BLACK, 1.0)
 	if not small and w.get("type", "") == "gun" and Game.player:
 		var am := "%d/%d" % [int(Game.player.mags.get(e.id, 0)), int(Game.player.arme_stats(e.id).mag)]
 		ci.draw_string_outline(font2, r.position + Vector2(4, 14), am, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
@@ -550,7 +555,7 @@ func on_hover(_src, e: Dictionary) -> void:
 	if held or e.is_empty():
 		tooltip.visible = false
 		return
-	tooltip_label.text = Items.nom(e.id) + ("  ×%d" % e.n if int(e.get("n", 1)) > 1 else "") + "\n" + _desc(e.id) + _texte_usure(e)
+	tooltip_label.text = Items.nom(e.id) + ("  ×%d" % e.n if int(e.get("n", 1)) > 1 else "") + "\n" + _desc(e.id) + _texte_usure(e) + _texte_frais(e)
 	tooltip.visible = true
 	tooltip.size = Vector2.ZERO
 	tooltip.reset_size()
@@ -565,6 +570,11 @@ func _texte_usure(e: Dictionary) -> String:
 	if k <= 0.0:
 		return "\nÉtat : CASSÉ — clic droit > Réparer (kit de réparation%s)" % (" + clé à molette" if Items.info(e.id).get("type", "") == "gun" else "")
 	return "\nÉtat : %d %% (%d / %d)" % [roundi(k * 100.0), roundi(k * m), m]
+
+
+func _texte_frais(e: Dictionary) -> String:
+	var t := Peremption.texte(e)
+	return "" if t == "" else "\n" + t
 
 
 func _desc(id: String) -> String:
@@ -758,6 +768,7 @@ func _drop_held() -> void:
 			if not target.is_empty() and target.id == e.id and Items.stack(e.id) > 1:
 				var room := Items.stack(e.id) - int(target.n)
 				var k := mini(room, int(e.n))
+				Peremption.fusionner(target, e, k)
 				target.n += k
 				e.n -= k
 				if e.n <= 0:
@@ -993,7 +1004,7 @@ func _on_menu(id: int) -> void:
 				Game.msg("Pas de place pour diviser la pile.")
 			else:
 				e.n -= k
-				g.entrees.append({"id": e.id, "n": k, "x": pos[0], "y": pos[1], "r": pos[2], "contenu": null})
+				g.entrees.append({"id": e.id, "n": k, "x": pos[0], "y": pos[1], "r": pos[2], "contenu": null, "p": e.get("p", 0.0)})
 		3:
 			g.retirer_entree(e)
 			p.drop_entry(e)

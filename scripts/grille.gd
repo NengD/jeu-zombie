@@ -74,12 +74,14 @@ func retirer_entree(e: Dictionary) -> void:
 
 
 ## Ajoute n objets (empile d'abord). Renvoie le nombre qui n'a pas pu entrer.
-func ajouter(id: String, n: int, contenu = null) -> int:
+func ajouter(id: String, n: int, contenu = null, p := 0.0) -> int:
 	var pile: int = Items.stack(id)
 	if pile > 1:
 		for e in entrees:
 			if e.id == id and e.n < pile:
 				var k := mini(pile - int(e.n), n)
+				if p > 0.0 or float(e.get("p", 0.0)) > 0.0:
+					e["p"] = (float(e.get("p", 0.0)) * e.n + p * k) / (e.n + k)   # péremption : moyenne pondérée
 				e.n += k
 				n -= k
 				if n <= 0:
@@ -89,7 +91,10 @@ func ajouter(id: String, n: int, contenu = null) -> int:
 		if pos.is_empty():
 			return n
 		var k := mini(pile, n)
-		entrees.append({"id": id, "n": k, "x": pos[0], "y": pos[1], "r": pos[2], "contenu": contenu})
+		var ne := {"id": id, "n": k, "x": pos[0], "y": pos[1], "r": pos[2], "contenu": contenu}
+		if p > 0.0:
+			ne["p"] = p
+		entrees.append(ne)
 		n -= k
 	return 0
 
@@ -97,7 +102,7 @@ func ajouter(id: String, n: int, contenu = null) -> int:
 ## Ajoute une entrée existante (avec son contenu) n'importe où. Renvoie true si réussi.
 func ajouter_entree(e: Dictionary) -> bool:
 	if Items.stack(e.id) > 1:
-		var reste := ajouter(e.id, e.n)
+		var reste := ajouter(e.id, e.n, null, float(e.get("p", 0.0)))
 		e.n = reste
 		return reste == 0
 	var pos := trouver_place(e.id)
