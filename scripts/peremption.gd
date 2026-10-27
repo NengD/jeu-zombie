@@ -6,6 +6,7 @@ extends RefCounted
 const SE_GATE := 0.6
 const FRIGO := 1.0 / 3.0
 const Placeable = preload("res://scripts/placeable.gd")
+const Saisons = preload("res://scripts/saisons.gd")
 
 
 ## Heures de jeu écoulées depuis le début de la partie.
@@ -24,7 +25,7 @@ static func avancer(g: Grille, k := 1.0) -> void:
 	var h := heures()
 	var t0: float = g.get_meta("tf", h)
 	g.set_meta("tf", h)
-	var jours := (h - t0) / 24.0 * k
+	var jours := (h - t0) / 24.0 * k * Saisons.peremption()   # été ×1,5, hiver ×0,6
 	if jours <= 0.0 or jours > 400.0:
 		return
 	for e in g.entrees:

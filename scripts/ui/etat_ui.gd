@@ -8,6 +8,7 @@ const COUL_ALERTE := Color(1.0, 0.72, 0.3)
 const COUL_GRAVE := Color(1.0, 0.38, 0.32)
 const COUL_FROID := Color(0.55, 0.78, 1.0)
 const COUL_DOUX := Color(0.66, 0.68, 0.64)
+const Saisons = preload("res://scripts/saisons.gd")
 
 var fond: ColorRect
 var silhouette: Silhouette
@@ -236,6 +237,8 @@ func maj() -> void:
 		causes_froid.append("pluie")
 	if Game.dans_eau(p.global_position):
 		causes_froid.append("dans l'eau")
+	if Saisons.froid() > 0.0:
+		causes_froid.append(Saisons.nom().to_lower())
 	var eff_froid := "aucun"
 	if p.froid > 80.0:
 		eff_froid = _c(COUL_GRAVE, "endurance au plus 50 %, la santé baisse")
@@ -251,6 +254,7 @@ func maj() -> void:
 		"feu de camp, abri, vêtements chauds" if p.froid > 25.0 else "")
 	# --- effets actifs
 	var actifs: Array = []
+	actifs.append(_c(COUL_FROID if Saisons.saison() == "hiver" else Color(0.92, 0.9, 0.8), "%s, jour %d / %d : " % [Saisons.nom(), Saisons.jour_de_saison(), Saisons.JOURS_SAISON]) + Saisons.effets())
 	var vet: Array = []
 	for sl in p.equipped:
 		var e: Dictionary = p.equipped[sl]

@@ -11,6 +11,7 @@ const FpsArms = preload("res://scripts/fps_arms.gd")
 const Effets = preload("res://scripts/effets.gd")
 const Grenade = preload("res://scripts/grenade.gd")
 const Peremption = preload("res://scripts/peremption.gd")
+const Saisons = preload("res://scripts/saisons.gd")
 
 const WALK := 4.2
 const SPRINT := 7.2
@@ -3635,6 +3636,9 @@ func bilan_temperature() -> float:
 		c *= 0.3
 	if Game.dans_eau(global_position):
 		c += 0.35 if nage else 0.15
+	var fs := Saisons.froid()   # hiver : fort, automne : léger, été : réchauffe
+	if fs > 0.0:
+		c += fs * (1.0 if dehors else 0.6)
 	c *= protection_froid()
 	var r := 0.0
 	if dehors and not Game.is_night():
@@ -3645,6 +3649,8 @@ func bilan_temperature() -> float:
 		r += 1.0
 	if sprinting:
 		r += 0.1
+	if fs < 0.0:
+		r -= fs
 	return c - r
 
 
