@@ -145,7 +145,8 @@ func _stats() -> String:
 	t += "    Jours survécus : %d\n" % v.call("jours")
 	t += "    Plus longue série sans dégâts : %s\n" % _duree(Journal.valeur("serie_max"))
 	t += "    Série en cours : %s\n" % _duree(Journal.serie)
-	t += "    Morsures soignées : %d\n\n" % v.call("morsures_soignees")
+	t += "    Morsures soignées : %d\n" % v.call("morsures_soignees")
+	t += "    Attaques de la base : %d (repoussées %d, pièces perdues %d)\n\n" % [v.call("attaques_base"), v.call("attaques_repoussees"), v.call("pieces_perdues")]
 	t += "[b]%s[/b]  %d\n" % [_c(COUL_TITRE, "ZOMBIES TUÉS"), v.call("zombies")]
 	var types: Array = []
 	for e in _detail("zombies_type:"):

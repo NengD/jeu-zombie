@@ -532,6 +532,12 @@ func _think() -> void:
 		if _chercher_proie(20.0):
 			state = State.CHASE
 			return
+		if assaut:
+			# horde : la base est attaquée même sans joueur à voir (mort, admin invisible)
+			voit_joueur = false
+			state = State.CHASE
+			target = assaut_pos
+			return
 		if state == State.CHASE:
 			state = State.WANDER
 		_wander_update()

@@ -79,6 +79,7 @@ const SUCCES := [
 	{"id": "manne", "nom": "Manne céleste", "desc": "Atteindre 3 largages de ravitaillement.", "cle": "largages", "n": 3},
 	{"id": "convoi", "nom": "Pillard de convoi", "desc": "Atteindre un convoi militaire accidenté.", "cle": "convois", "n": 1},
 	{"id": "horde", "nom": "Dans l'œil de la horde", "desc": "Survivre au passage d'une horde migrante.", "cle": "hordes_survecues", "n": 1},
+	{"id": "forteresse", "nom": "Forteresse", "desc": "Repousser 3 attaques contre ta base.", "cle": "attaques_repoussees", "n": 3},
 ]
 
 const Commandes = preload("res://scripts/commandes.gd")

@@ -94,7 +94,7 @@ class Cadre extends Control:
 			draw_string_outline(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
 			draw_string(font, mp + Vector2(11, 6), mq.nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.75, 0.4))
 		# événements aléatoires en cours (evenements.gd) : triangle de couleur
-		for ev in preload("res://scripts/evenements.gd").reperes:
+		for ev in preload("res://scripts/evenements.gd").reperes + preload("res://scripts/attaque_base.gd").reperes:
 			var ep := vers_ecran(Vector2(ev.x, ev.z))
 			if not vue.grow(40.0).has_point(ep):
 				continue

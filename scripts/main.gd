@@ -107,6 +107,9 @@ func _ready() -> void:
 	add_child(evenements)
 	if not charge.is_empty():
 		evenements.appliquer(charge.get("evenements", {}))
+	var attaque = preload("res://scripts/attaque_base.gd").new()   # attaques de la base (cible la plus faible, brèches, fin)
+	attaque.name = "AttaqueBase"
+	add_child(attaque)
 	if Game.admin:
 		add_child(preload("res://scripts/ui/admin_ui.gd").new())
 	_ambience()
@@ -591,7 +594,7 @@ func _nuit_tombe() -> void:
 		return
 	if Game.day < 2:
 		return
-	if base == null or randf() > minf(minf(0.3 + 0.05 * Game.day, 0.6 + 0.05 * Game.semaine()), 0.85):
+	if base == null or randf() > minf(minf(0.3 + 0.05 * Game.day, 0.6 + 0.05 * Game.semaine()), 0.85) * (0.8 + 0.15 * Game.difficulte):
 		return
 	annoncer_horde(base)
 
@@ -793,6 +796,7 @@ func declencher_horde(base: Node3D) -> void:
 	var ang := horde_angle if not is_nan(horde_angle) else randf() * TAU
 	horde_angle = NAN
 	var poses := 0
+	var liste := []
 	for k in nb * 4:
 		if poses >= nb:
 			break
@@ -805,14 +809,18 @@ func declencher_horde(base: Node3D) -> void:
 			continue
 		if not Game.find_zone(p + Vector3.UP).is_empty():
 			continue
+		if k < nb * 3 and not get_node("AttaqueBase").chemin_libre(p, centre):
+			continue   # d'abord des points d'où la base est en vue
 		var z = spawn_zombie(p, _type_horde(), false, 15.0)
 		z.add_to_group("horde")
 		z.assaut = true
 		z.assaut_pos = centre
 		z.state = z.State.CHASE
 		z.target = centre
+		liste.append(z)
 		poses += 1
 	if poses > 0:
+		get_node("AttaqueBase").debut(base, centre, ang, liste)
 		Game.msg("Une horde de %d zombies marche sur ta base !" % poses)
 		Game.play_ui("zv_cri3", -2.0, 0.1, 0.8)
 
