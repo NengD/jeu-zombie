@@ -104,7 +104,7 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	var p = Game.player
 	if p == null or not p.alive:
 		return false
-	var d := {"version": 3, "monde": main.world.VERSION_MONDE, "graine": Game.graine_monde, "jour": Game.day, "heure": Game.time_hours,
+	var d := {"version": 3, "monde": main.world.VERSION_MONDE, "graine": Game.graine_monde, "jour": Game.day, "difficulte": Game.difficulte, "heure": Game.time_hours,
 			"date": Time.get_datetime_string_from_system(false, true)}
 	# joueur
 	var eq := {}
@@ -224,6 +224,7 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 		for pt in main.world.portes:
 			pt.basculer(ouv.has(pt.idx), true)
 	Game.day = int(d.get("jour", 1))
+	Game.difficulte = int(d.get("difficulte", 1))   # Facile 0 … Cauchemar 3 (ancienne sauvegarde : Normal)
 	Game.time_hours = float(d.get("heure", 8.0))
 	Game.marqueurs.clear()
 	for mq in d.get("marqueurs", []):
