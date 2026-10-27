@@ -29,7 +29,7 @@ const METIERS := {
 	"epicier": {"titre": "Épicier", "toile": Color(0.3, 0.55, 0.25), "stock": [
 		"eau", "soda", "barre", "conserve", "ration", "viande_sechee", "bouillon", "alcool", "medicament",
 		"torche", "feu_camp", "lit", "recuperateur_eau", "sac_toile", "sac_sport", "casquette", "bonnet"],
-		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool", "pomme", "raisin", "epi_mais", "mais_grille", "poisson_cuit"]},
+		"rachat": ["eau", "soda", "barre", "conserve", "ration", "viande_sechee", "viande_cuite", "ragout", "bouillon", "alcool", "pomme", "raisin", "epi_mais", "mais_grille", "poisson_cuit", "tomate", "carotte", "pomme_de_terre", "pomme_de_terre_cuite", "soupe_legumes"]},
 	"mecanicien": {"titre": "Mécanicien", "toile": Color(0.75, 0.55, 0.12), "stock": [
 		"cle_molette", "marteau", "pioche", "batte_cloutee", "piece_auto", "essence", "tuyau", "batterie", "pneu", "ferraille",
 		"ruban", "clous", "projecteur", "barbeles", "casque_chantier", "lunettes", "masque_gaz", "veste_renforcee"],

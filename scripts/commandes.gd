@@ -7,14 +7,15 @@ extends RefCounted
 ## + prix (€), xp, comp (compétence), fait. Prix = 75 % de la valeur + 8 € : moins que le prix d'achat chez le marchand
 ## (pas d'argent facile en achetant puis rendant), plus que la revente (40–70 %) ; l'XP est la vraie récompense.
 
-# métier : [objet, quantité min, max] ; compétence qui gagne l'XP
+# métier : [objet, quantité min, max] ; compétence qui gagne l'XP. Les objets que le marchand vend lui-même
+# (vendeur.METIERS[métier].stock) sont écartés au tirage : pas d'XP achetée sans sortir du camp.
 const DEMANDES := {
 	"boucher": {"comp": "chasse", "liste": [["peau", 2, 5], ["viande_crue", 3, 8], ["poisson_cru", 2, 5], ["plume", 6, 12], ["graisse", 2, 4], ["cuir", 2, 3]]},
-	"medecin": {"comp": "survie", "liste": [["bandage", 3, 6], ["attelle", 1, 2], ["alcool", 2, 3], ["antidouleur", 2, 4], ["trousse", 1, 1], ["antibiotiques", 1, 2]]},
-	"armurier": {"comp": "combat", "liste": [["mun_9mm", 30, 60], ["mun_12", 12, 24], ["mun_556", 30, 60], ["mun_545", 30, 60], ["mun_762", 16, 32], ["mun_46", 30, 60], ["fleche", 10, 20], ["poudre", 3, 6]]},
-	"quincaillier": {"comp": "fabrication", "liste": [["planche", 8, 16], ["buche", 4, 8], ["pierre", 8, 16], ["ferraille", 5, 10], ["clous", 20, 40], ["minerai", 3, 6]]},
-	"epicier": {"comp": "survie", "liste": [["pomme", 4, 8], ["raisin", 3, 6], ["epi_mais", 3, 6], ["eau", 3, 5], ["poisson_cuit", 2, 4], ["viande_sechee", 2, 4], ["conserve", 3, 5]]},
-	"mecanicien": {"comp": "fabrication", "liste": [["piece_auto", 2, 4], ["batterie", 1, 1], ["pneu", 2, 3], ["essence", 1, 2], ["ferraille", 6, 10]]},
+	"medecin": {"comp": "survie", "liste": [["bandage", 3, 6], ["attelle", 1, 2], ["alcool", 2, 3], ["tissu", 6, 12], ["bouteille_vide", 4, 8], ["bouillon", 2, 3], ["soupe_legumes", 1, 3], ["poisson_cuit", 2, 3]]},
+	"armurier": {"comp": "combat", "liste": [["mun_9mm", 30, 60], ["mun_12", 12, 24], ["mun_556", 30, 60], ["mun_545", 30, 60], ["mun_762", 16, 32], ["mun_46", 30, 60], ["mun_50ae", 10, 20], ["mun_338", 5, 10], ["fleche", 10, 20], ["poudre", 3, 6]]},
+	"quincaillier": {"comp": "fabrication", "liste": [["planche", 8, 16], ["buche", 4, 8], ["pierre", 8, 16], ["ferraille", 5, 10], ["clous", 20, 40], ["minerai", 3, 6], ["peau", 2, 4]]},
+	"epicier": {"comp": "survie", "liste": [["pomme", 4, 8], ["raisin", 3, 6], ["epi_mais", 3, 6], ["eau", 3, 5], ["poisson_cuit", 2, 4], ["viande_sechee", 2, 4], ["conserve", 3, 5], ["tomate", 3, 6], ["carotte", 3, 6], ["pomme_de_terre", 4, 8], ["soupe_legumes", 1, 3]]},
+	"mecanicien": {"comp": "fabrication", "liste": [["piece_auto", 2, 4], ["batterie", 1, 1], ["pneu", 2, 3], ["essence", 1, 2], ["ferraille", 6, 10], ["minerai", 3, 6], ["kit_reparation", 1, 2], ["radio", 1, 1], ["lampe", 1, 2]]},
 }
 const CAMP_PORTEE := 1600.0          # camp de bandits proposé par l'armurier s'il est à moins de cette distance
 const CAMP_PRIX := 180
@@ -63,7 +64,8 @@ static func _tirer(v: Node, k: String) -> Array:
 		var camp := _camp_proche(v, rng)
 		if not camp.is_empty():
 			res.append(camp)
-	var choix: Array = d.liste.duplicate()
+	var stock: Array = v.stock()
+	var choix: Array = d.liste.filter(func(e): return not (e[0] in stock))
 	var nb := rng.randi_range(1, 3) - res.size()
 	for i in maxi(nb, 0):
 		if choix.is_empty():
