@@ -419,17 +419,28 @@ func _creer_camps() -> void:
 		Game.pois.append({"name": "Camp de bandits", "pos": places[i], "color": Color(0.9, 0.15, 0.1)})
 
 
-## Sauvegarde : nombre de bandits encore en vie dans chaque camp.
+## Sauvegarde : par camp {v: bandits en vie, e: effectif (prime), j: jour où il a été trouvé vide, -1 sinon}
+## (les anciennes sauvegardes ne gardaient que le nombre de bandits en vie).
 func etat_camps() -> Array:
 	var res := []
-	for c in camps:
-		res.append(c.vivants() if is_instance_valid(c) else 0)
+	for i in camps.size():
+		var c = camps[i]
+		res.append({"v": c.vivants() if is_instance_valid(c) else 0, "e": c.effectif if is_instance_valid(c) else 0, "j": int(camps_vides.get(i, -1))})
 	return res
 
 
 func appliquer_camps(etat: Array) -> void:
+	camps_vides.clear()
 	for i in mini(etat.size(), camps.size()):
-		camps[i].garder(int(etat[i]))
+		var e = etat[i]
+		var v := int(e.get("v", 0)) if e is Dictionary else int(e)
+		camps[i].garder(v)
+		if e is Dictionary:
+			if v > camps[i].vivants():   # camp réoccupé avec plus de bandits qu'à sa construction
+				camps[i].repeupler(v - camps[i].vivants())
+			camps[i].effectif = maxi(1, int(e.get("e", camps[i].effectif)))
+			if int(e.get("j", -1)) >= 0:
+				camps_vides[i] = int(e.j)
 
 
 # ---------------------------------------------------------------- primes
@@ -568,12 +579,132 @@ func _base_principale() -> Node3D:
 
 
 func _nuit_tombe() -> void:
+	var base := _base_principale()
+	if Game.nuit_de_sang():
+		# nuit de sang : la grosse horde vient à coup sûr, sur la base… ou sur le joueur s'il n'en a pas
+		Game.msg("!! LA NUIT DE SANG COMMENCE : tiens jusqu'au lever du jour !")
+		Game.play_ui("zv_cri1", 0.0, 0.05, 0.7)
+		if base:
+			annoncer_horde(base)
+		else:
+			_horde_sur_joueur(taille_horde())
+		return
 	if Game.day < 2:
 		return
-	var base := _base_principale()
-	if base == null or randf() > minf(0.3 + 0.05 * Game.day, 0.6):
+	if base == null or randf() > minf(minf(0.3 + 0.05 * Game.day, 0.6 + 0.05 * Game.semaine()), 0.85):
 		return
 	annoncer_horde(base)
+
+
+## Taille d'une horde : 4 + 2 par jour, plafond 16 la 1re semaine puis +6 par semaine (40 au plus),
+## selon la difficulté ; nuit de sang ×1,6 (50 au plus).
+func taille_horde() -> int:
+	var nb := float(clampi(4 + 2 * Game.day, 6, mini(16 + 6 * Game.semaine(), 40))) * Game.mult_nombre()
+	if Game.nuit_de_sang():
+		nb *= 1.6
+	return clampi(int(nb), 4, 50)
+
+
+## Coureurs et gros de plus en plus nombreux dans les hordes (et encore plus la nuit de sang).
+func _type_horde() -> String:
+	var bonus := 0.03 * mini(Game.semaine(), 6) + (0.1 if Game.nuit_de_sang() else 0.0)
+	var r := randf()
+	return "coureur" if r < 0.25 + bonus else ("gros" if r < 0.4 + bonus * 1.5 else "civil")
+
+
+## Nuit de sang sans base : la horde sort de l'ombre autour du joueur et le traque jusqu'au matin.
+func _horde_sur_joueur(nb: int) -> void:
+	var c: Vector3 = player.global_position
+	var poses := 0
+	for k in nb * 4:
+		if poses >= nb:
+			break
+		var a := randf() * TAU
+		var p := c + Vector3(cos(a), 0, sin(a)) * randf_range(40.0, 55.0)
+		p.y = Game.hauteur(p.x, p.z) + 0.15
+		if (Game.relief and Game.relief.dans_eau(p.x, p.z)) or absf(p.x) > Game.map_half - 10.0 or absf(p.z) > Game.map_half - 10.0:
+			continue
+		if not Game.find_zone(p + Vector3.UP).is_empty() or pres_camp_marchand(p, 35.0):
+			continue
+		var z = spawn_zombie(p, _type_horde(), false, 15.0)
+		z.add_to_group("horde")
+		z.add_to_group("traque")
+		z.state = z.State.INVESTIGATE
+		z.target = c
+		poses += 1
+	if poses > 0:
+		Game.msg("Une horde de %d zombies te traque !" % poses)
+		Game.play_ui("zv_cri3", -2.0, 0.1, 0.75)
+
+
+# ---------------------------------------------------------------- difficulté qui monte, nuit de sang, camps réoccupés
+const MAX_ERRANTS_JOUR := 55
+const MAX_ERRANTS_NUIT := 85
+var jour_vu := -1
+var rappel_sang := false
+var tic_camps := 0
+
+
+## Appelé chaque seconde : changement de jour (annonces), horde qui traque le joueur, camps réoccupés.
+func _maj_difficulte() -> void:
+	if jour_vu != Game.day:
+		var premier := jour_vu < 0
+		jour_vu = Game.day
+		rappel_sang = false
+		if not premier:
+			if Game.nuit_de_sang():
+				Game.msg("!! Jour %d : cette nuit sera une NUIT DE SANG. Une énorme horde viendra à la tombée de la nuit." % Game.day)
+				Game.play_ui("zv_cri2", -4.0, 0.05, 0.7)
+			elif Game.nuit_de_sang(Game.day + 1):
+				Game.msg("Les zombies s'agitent… Demain soir : nuit de sang. Prépare ta base.")
+			if Game.day % 7 == 1:
+				Game.msg("Semaine %d : les zombies sont plus nombreux et plus dangereux." % (Game.semaine() + 1))
+	if Game.nuit_de_sang() and not rappel_sang and Game.time_hours >= 17.0 and not Game.is_night():
+		rappel_sang = true
+		Game.msg("!! La nuit de sang approche : rentre à ta base !")
+	# la horde de la nuit de sang suit le joueur (sans base à assiéger)
+	for z in get_tree().get_nodes_in_group("traque"):
+		if is_instance_valid(z) and z.state != z.State.CHASE and z.state != z.State.DEAD:
+			if Game.is_night():
+				z.state = z.State.INVESTIGATE
+				z.target = player.global_position
+			else:
+				z.remove_from_group("traque")
+	tic_camps += 1
+	if tic_camps >= 5:
+		tic_camps = 0
+		_maj_camps()
+
+
+## Camps de bandits : vides depuis 5 à 7 jours (tirage fixe par camp et par nettoyage) et joueur loin -> réoccupés,
+## avec un peu plus de bandits chaque semaine ; la prime redevient payable (et l'armurier le propose à nouveau).
+var camps_vides := {}   # n° du camp -> jour où il a été trouvé vide
+
+
+func delai_reoccupation(i: int) -> int:
+	return 5 + posmod(i * 7 + int(camps_vides.get(i, 0)) * 3, 3)
+
+
+func _maj_camps() -> void:
+	for i in camps.size():
+		var camp = camps[i]
+		if not is_instance_valid(camp):
+			continue
+		if camp.vivants() > 0:
+			camps_vides.erase(i)
+			continue
+		if not camps_vides.has(i):
+			camps_vides[i] = Game.day
+			continue
+		if Game.day - int(camps_vides[i]) < delai_reoccupation(i) or player.global_position.distance_to(camp.global_position) < 200.0:
+			continue
+		var nb := clampi(3 + randi_range(0, 3) + mini(Game.semaine(), 3), 3, 8)
+		camp.repeupler(nb)
+		camps_vides.erase(i)
+		if i < primes_payees.size():
+			primes_payees[i] = false
+		var info: Dictionary = infos_primes(player.global_position)[i]
+		Game.msg("Des bandits ont réoccupé un camp au %s (%d m) : la prime est de nouveau offerte." % [info.dir, info.dist])
 
 
 ## Alerte : la horde arrive dans 60 s (le temps de rentrer et de se préparer), on sait de quel côté elle vient :
@@ -637,7 +768,13 @@ func texte_alerte() -> String:
 	for z in get_tree().get_nodes_in_group("horde"):
 		if is_instance_valid(z) and z.assaut and z.state != 3:
 			n += 1
-	return "!! HORDE EN COURS — %d zombie(s)" % n if n > 0 else ""
+	if n > 0:
+		return "!! HORDE EN COURS — %d zombie(s)" % n + ("\nNUIT DE SANG" if Game.sang_actif() else "")
+	if Game.sang_actif():
+		return "!! NUIT DE SANG — tiens jusqu'au lever du jour"
+	if Game.nuit_de_sang() and Game.time_hours >= 12.0:
+		return "Nuit de sang ce soir"
+	return ""
 
 
 func _centre_base(base: Node3D) -> Vector3:
@@ -649,7 +786,7 @@ func _centre_base(base: Node3D) -> Vector3:
 
 func declencher_horde(base: Node3D) -> void:
 	var centre := _centre_base(base)
-	var nb := clampi(4 + 2 * Game.day, 6, 16)
+	var nb := taille_horde()
 	if player.global_position.distance_to(centre) > 90.0:
 		_horde_simulee(base, centre, nb)
 		return
@@ -668,9 +805,7 @@ func declencher_horde(base: Node3D) -> void:
 			continue
 		if not Game.find_zone(p + Vector3.UP).is_empty():
 			continue
-		var r := randf()
-		var kind := "coureur" if r < 0.25 else ("gros" if r < 0.4 else "civil")
-		var z = spawn_zombie(p, kind, false, 15.0)
+		var z = spawn_zombie(p, _type_horde(), false, 15.0)
 		z.add_to_group("horde")
 		z.assaut = true
 		z.assaut_pos = centre
@@ -740,9 +875,13 @@ func _process(delta: float) -> void:
 			z.queue_free()
 			continue
 		roamers += 1
-	# début de partie plus doux (pas d'arme à feu au départ) : la pression monte au fil des jours
+	_maj_difficulte()
+	# début de partie plus doux (pas d'arme à feu au départ) : la pression monte au fil des jours, puis de semaine
+	# en semaine (Game.pression), selon la difficulté ; nuit de sang : ×1,5 ; plafond pour les FPS
 	var jour := clampi(Game.day, 1, 3)
-	var max_z: int = [0, 22, 28, 35][jour] if not Game.is_night() else [0, 38, 48, 60][jour]
+	var nuit := Game.is_night()
+	var base_z: float = [0, 22, 28, 35][jour] if not nuit else [0, 38, 48, 60][jour]
+	var max_z := mini(int(base_z * Game.pression() * Game.mult_nombre() * (1.5 if Game.sang_actif() else 1.0)), MAX_ERRANTS_NUIT if nuit else MAX_ERRANTS_JOUR)
 	var budget := 12 if first_fill else 3
 	first_fill = false
 	while roamers < max_z and budget > 0:
@@ -773,15 +912,18 @@ func _spawn_roamer() -> bool:
 		pq.collision_mask = Game.LAYER_WORLD
 		if not space.intersect_point(pq, 1).is_empty():
 			continue
-		# variété : coureurs (surtout la nuit), gros, rampants
+		# variété : coureurs (surtout la nuit), gros, rampants ; +2,5 % de coureurs et +1,5 % de gros par semaine
 		var r := randf()
 		var kind := "civil"
 		var premier_jour := Game.day <= 1
-		if r < (0.22 if Game.is_night() else 0.12) * (0.5 if premier_jour else 1.0):
+		var bonus := 0.025 * mini(Game.semaine(), 6) + (0.08 if Game.sang_actif() else 0.0)
+		var coureur := (0.22 if Game.is_night() else 0.12) * (0.5 if premier_jour else 1.0) + bonus
+		var gros := (0.22 if premier_jour else 0.3) + bonus * 1.6
+		if r < coureur:
 			kind = "coureur"
-		elif r < (0.22 if premier_jour else 0.3) and r >= 0.14:
+		elif r < gros and r >= maxf(0.14, coureur):
 			kind = "gros"
-		elif r < 0.38 and r >= 0.3:
+		elif r < gros + 0.08 and r >= gros:
 			kind = "rampant"
 		spawn_zombie(p, kind, false, 15.0)
 		return true

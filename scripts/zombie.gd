@@ -136,6 +136,8 @@ func setup(p_kind: String, p_persistent: bool, radius: float) -> void:
 			damage = 35.0
 			run_speed = 3.4
 			echelle = 1.8
+	health *= Game.mult_pv()        # réglage de difficulté (game.gd)
+	damage *= Game.mult_degats()
 	voix = randf_range(0.92, 1.08) * float({"coureur": 1.16, "gros": 0.8, "rampant": 1.05, "patient": 1.04, "boss": 0.68}.get(kind, 1.0))
 	if est_boss:
 		walk_speed = 1.0

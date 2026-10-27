@@ -430,6 +430,8 @@ func _tirer(delta: float) -> void:
 	var degats := float(w.get("damage", 20.0)) * (0.22 if plombs > 1 else 0.35) * plombs
 	# dégâts : +30 % à bout portant (< 6 m), -20 % au loin (> 22 m)
 	degats *= remap(clampf(dist, 6.0, 22.0), 6.0, 22.0, 1.3, 0.8)
+	if cible == Game.player:
+		degats *= Game.mult_degats()   # réglage de difficulté (game.gd)
 	if randf() < chance:
 		if cible == Game.player:
 			var v = _voiture_joueur()

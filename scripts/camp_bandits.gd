@@ -245,3 +245,19 @@ func garder(n: int) -> void:
 			else:
 				c.remove_from_group("bandits")
 				c.queue_free()
+
+
+## Camp réoccupé (main._maj_camps) ou rechargé avec plus de bandits que construits : n nouveaux bandits
+## autour du feu ; la prime suit le nouvel effectif.
+func repeupler(n: int, effectif_total := -1) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for k in n:
+		var b = Bandit.new()
+		var a := rng.randf() * TAU
+		var pos: Vector3 = to_global(_sol(Vector2(cos(a), sin(a)) * rng.randf_range(2.0, 8.0))) + Vector3.UP * 0.1
+		b.setup(numero, global_position, rng)
+		add_child(b)
+		b.global_position = pos
+		b.rotation.y = rng.randf() * TAU
+	effectif = effectif_total if effectif_total > 0 else n

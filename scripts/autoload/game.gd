@@ -76,6 +76,44 @@ var admin_besoins := true      # ni faim, ni soif, endurance infinie
 var day := 1
 var blood_mat: StandardMaterial3D
 
+# --- difficulté (choisie à la nouvelle partie : menu.gd ; sauvegardée) et pression qui monte chaque semaine (main.gd)
+const DIFFICULTES := ["Facile", "Normal", "Difficile", "Cauchemar"]
+const DIFF_NOMBRE := [0.7, 1.0, 1.25, 1.5]     # zombies errants et hordes
+const DIFF_DEGATS := [0.6, 1.0, 1.3, 1.7]      # coups des zombies et des bandits
+const DIFF_PV := [0.85, 1.0, 1.15, 1.3]        # santé des zombies
+const JOURS_NUIT_SANG := 7                     # une nuit de sang tous les 7 jours (jour 7, 14…)
+var difficulte := 1
+
+
+func semaine(jour := -1) -> int:
+	return (maxi(1, day if jour < 0 else jour) - 1) / 7
+
+
+## Pression de la semaine : +20 % par semaine écoulée, plafonnée à ×2,2 (7ᵉ semaine).
+func pression() -> float:
+	return 1.0 + 0.2 * mini(semaine(), 6)
+
+
+func nuit_de_sang(jour := -1) -> bool:
+	return (day if jour < 0 else jour) % JOURS_NUIT_SANG == 0
+
+
+## En pleine nuit de sang (de 20 h 30 le 7ᵉ jour jusqu'à 6 h le lendemain).
+func sang_actif() -> bool:
+	return (nuit_de_sang() and time_hours >= 20.5) or (nuit_de_sang(day - 1) and time_hours < 6.0)
+
+
+func mult_nombre() -> float:
+	return DIFF_NOMBRE[clampi(difficulte, 0, 3)]
+
+
+func mult_degats() -> float:
+	return DIFF_DEGATS[clampi(difficulte, 0, 3)]
+
+
+func mult_pv() -> float:
+	return DIFF_PV[clampi(difficulte, 0, 3)]
+
 # --- paramètres (sauvegardés dans user://parametres.cfg)
 var mouse_sens := 1.0
 var volume := 0.8

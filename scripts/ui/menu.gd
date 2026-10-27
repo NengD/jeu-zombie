@@ -225,6 +225,20 @@ func _build_depart() -> PanelContainer:
 	bas.alignment = BoxContainer.ALIGNMENT_END
 	bas.add_theme_constant_override("separation", 16)
 	vb.add_child(bas)
+	# difficulté de la partie (Game.difficulte : nombre de zombies, dégâts reçus, santé des zombies ; sauvegardée)
+	var lab := _small_label(bas, "Difficulté :")
+	lab.add_theme_font_size_override("font_size", 20)
+	var diff := OptionButton.new()
+	for k in Game.DIFFICULTES.size():
+		diff.add_item(Game.DIFFICULTES[k], k)
+	diff.selected = 1
+	diff.custom_minimum_size = Vector2(190, 46)
+	diff.add_theme_font_size_override("font_size", 20)
+	diff.tooltip_text = "Facile : moins de zombies, coups moins forts.\nNormal : le jeu tel qu'il est prévu.\nDifficile : plus de zombies, plus résistants, coups plus forts.\nCauchemar : bien plus de zombies, coups très forts."
+	bas.add_child(diff)
+	var espace := Control.new()
+	espace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bas.add_child(espace)
 	_back_button(bas, func(): _show(null))
 	var go := Button.new()
 	go.text = "Commencer"
@@ -232,6 +246,7 @@ func _build_depart() -> PanelContainer:
 	go.add_theme_font_size_override("font_size", 22)
 	go.pressed.connect(func():
 		LieuxDepart.choix = lieu_choisi
+		Game.difficulte = diff.selected
 		_play())
 	bas.add_child(go)
 	_choisir_lieu(lieu_choisi)
@@ -334,4 +349,5 @@ func _lancer_admin() -> void:
 	Game.admin_invisible = false
 	Game.partie_a_charger = {}
 	LieuxDepart.choix = "bellerive"
+	Game.difficulte = 1
 	_play()
