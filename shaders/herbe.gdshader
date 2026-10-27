@@ -10,6 +10,8 @@ uniform float force_vent = 0.18;
 uniform float vitesse_vent = 1.6;
 uniform vec2 direction_vent = vec2(1.0, 0.35);
 uniform float distance_max = 70.0;
+// neige au sol (meteo.gd) : brins à demi enfouis, pied blanc
+uniform float neige = 0.0;
 
 varying float hauteur;
 varying vec3 teinte;
@@ -28,14 +30,14 @@ void vertex() {
 	float d = distance(base, INV_VIEW_MATRIX[3].xyz);
 	float fond = 1.0 - smoothstep(distance_max * 0.7, distance_max, d);
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(monde + decal, 1.0)).xyz;
-	VERTEX.y *= fond;
+	VERTEX.y *= fond * (1.0 - 0.55 * neige);
 	VERTEX.xz *= mix(0.2, 1.0, fond);
 }
 
 void fragment() {
 	vec3 c = mix(couleur_pied, couleur_milieu, smoothstep(0.0, 0.5, hauteur));
 	c = mix(c, couleur_pointe, smoothstep(0.55, 1.0, hauteur));
-	ALBEDO = c * teinte;
+	ALBEDO = mix(c * teinte, vec3(0.86, 0.88, 0.93), neige * (1.0 - smoothstep(0.15, 0.75, hauteur)));
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.25;
 	// lumière qui traverse les brins

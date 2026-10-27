@@ -405,14 +405,21 @@ static func refus_pose(k: String, pt: Vector3) -> String:
 	if k != "canne_peche" or Game.relief == null:
 		return ""
 	var r = Game.relief
+	if Game.sur_glace(pt):
+		return "Le lac est gelé : impossible de pêcher avant le dégel."
 	if r.dans_eau(pt.x, pt.z) and r.hauteur(pt.x, pt.z) < r.NIVEAU_EAU - 0.5:
 		return "Trop profond : plante la ligne sur la rive."
+	var gele := false
 	for d in [1.5, 3.5, 6.0]:
 		for a in 12:
 			var ang := a * TAU / 12.0
-			if r.dans_eau(pt.x + cos(ang) * d, pt.z + sin(ang) * d):
-				return ""
-	return "Il faut de l'eau à moins de 6 m (rivière, lac, mare)."
+			var q := Vector3(pt.x + cos(ang) * d, 0.0, pt.z + sin(ang) * d)
+			if r.dans_eau(q.x, q.z):
+				if Game.sur_glace(q):
+					gele = true
+				else:
+					return ""
+	return "Le lac est gelé : impossible de pêcher avant le dégel." if gele else "Il faut de l'eau à moins de 6 m (rivière, lac, mare)."
 
 
 func _maj_visuel_stock() -> void:
@@ -468,6 +475,9 @@ func _maj_lent(delta: float, dort := false) -> void:
 		var p = Game.player
 		if not dort and p and global_position.distance_squared_to(p.global_position) < 400.0:
 			return
+		if Game.lacs_geles and Game.relief and Game.relief.dans_lac(global_position.x, global_position.z, 6.0):
+			return   # lac gelé : plus rien ne mord
+
 		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.6 if p and p.prog.a("pecheur") else 1.0) * (1.3 if Game.pluie > 0.3 else 1.0)
 		while minuteur >= PECHE_DUREE and stock < peche_max():
 			minuteur -= PECHE_DUREE + randf_range(-30.0, 60.0)

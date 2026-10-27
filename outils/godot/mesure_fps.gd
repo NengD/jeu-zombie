@@ -1,6 +1,7 @@
 extends SceneTree
 ## Relevé des FPS au départ, au centre de Bellerive et de Valmont (graine 12345, 11 h, caméra fixe vers le nord-est).
 ## JZ_TEST=1 godot --path . --screen <écran de Claude> --resolution 1600x900 -s res://outils/godot/mesure_fps.gd -- [dossier des captures]
+## NEIGE=1 : en hiver (jour 23), sous la neige, sol enneigé ; NEIGE=0 : même jour, sans neige.
 
 var g
 var main
@@ -31,6 +32,12 @@ func _go():
 	g.admin_invincible = true
 	g.time_hours = float(OS.get_environment("HEURE")) if OS.get_environment("HEURE") != "" else 11.0
 	var w = main.world
+	if OS.get_environment("NEIGE") != "":
+		# hiver (jour 23) ; NEIGE=1 : neige qui tombe et sol blanc (meteo.gd), NEIGE=0 : temps sec, sol nu
+		g.day = 23
+		if OS.get_environment("NEIGE") == "1":
+			call_group("meteo", "forcer_neige", true)
+			main.get_node("Meteo").enneige = 1.0
 	var vp := root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
 	var cam := Camera3D.new()

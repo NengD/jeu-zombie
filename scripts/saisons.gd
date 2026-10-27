@@ -53,6 +53,26 @@ static func neige() -> bool:
 	return saison() == "hiver"
 
 
+## Part des averses qui tombent en neige : presque toutes en hiver, quelques-unes à la fin de l'automne
+## et au tout début du printemps (redoux : il peut aussi pleuvoir en hiver).
+static func part_neige() -> float:
+	match saison():
+		"hiver":
+			return 0.8
+		"automne":
+			return 0.3 if jour_de_saison() >= JOURS_SAISON - 1 else 0.0
+		"printemps":
+			return 0.2 if jour_de_saison() == 1 else 0.0
+	return 0.0
+
+
+## Lacs gelés (grand froid) : à partir du 2ᵉ jour d'hiver, ou dès la 1ʳᵉ nuit d'hiver ; dégel au printemps.
+static func gel() -> bool:
+	if saison() != "hiver":
+		return false
+	return jour_de_saison() >= 2 or Game.time_hours >= 21.0 or Game.time_hours < 6.0
+
+
 ## Cueillette possible ? type : "pomme", "raisin", "mais".
 static func fruits(type: String) -> bool:
 	match saison():

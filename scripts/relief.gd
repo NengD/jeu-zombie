@@ -68,6 +68,16 @@ func dans_eau(x: float, z: float) -> bool:
 	return hauteur(x, z) < NIVEAU_EAU - 0.05
 
 
+## Point dans un lac (pas la rivière) : les lacs gèlent en hiver, la rivière coule toujours.
+func dans_lac(x: float, z: float, marge := 0.0) -> bool:
+	for l in lacs:
+		var c: Vector2 = l.c
+		var d := Vector2(x - c.x, z - c.y)
+		if d.length() < rayon_lac(l, d.angle()) * 1.15 + marge:
+			return true
+	return false
+
+
 ## Pente (0 = plat, 1 = vertical) au point donné.
 func pente(x: float, z: float) -> float:
 	var dx := hauteur(x + 2.0, z) - hauteur(x - 2.0, z)

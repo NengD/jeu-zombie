@@ -565,6 +565,9 @@ func _move(delta: float, can_act: bool) -> void:
 			else:
 				var vol := -7.0 if sprinting else (-19.0 if crouching else -13.0)
 				Game.play_ui("pas_%s%d" % [sol, randi_range(1, 3)], vol, 0.12)
+				# traces dans la neige (meteo.gd), dehors et pas sur un objet posé
+				if Game.enneige > 0.25 and in_zone.is_empty() and sol != "bois" and sol != "metal":
+					get_tree().call_group("meteo", "trace_pas", global_position, atan2(-velocity.x, -velocity.z))
 				if sprinting:
 					Game.make_noise(global_position, 16.0)
 				elif not crouching:
@@ -3632,6 +3635,10 @@ func bilan_temperature() -> float:
 	var c := 0.16 if Game.is_night() else 0.0
 	if dehors:
 		c += 0.2 * Game.pluie
+		# sous la neige et dans la neige : encore plus froid (meteo.gd)
+		if Game.neige:
+			c += 0.15 * Game.pluie
+		c += 0.05 * Game.enneige
 	else:
 		c *= 0.3
 	if Game.dans_eau(global_position):

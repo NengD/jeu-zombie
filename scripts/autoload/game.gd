@@ -57,7 +57,14 @@ func hauteur(x: float, z: float) -> float:
 
 
 func dans_eau(pos: Vector3) -> bool:
-	return relief != null and relief.dans_eau(pos.x, pos.z) and pos.y < -0.8
+	if relief == null or not relief.dans_eau(pos.x, pos.z) or pos.y >= -0.8:
+		return false
+	return not (lacs_geles and relief.dans_lac(pos.x, pos.z))
+
+
+## Glace d'un lac gelé sous ce point (on y marche, on n'y nage ni n'y pêche).
+func sur_glace(pos: Vector3) -> bool:
+	return lacs_geles and relief != null and relief.dans_eau(pos.x, pos.z) and relief.dans_lac(pos.x, pos.z)
 var map_half := 2500.0     # carte de 5 × 5 km
 var city_half := 161.0
 var villes: Array = []       # [{c: centre, demi: demi-côté}] : villes de la carte (world_gen)
@@ -118,6 +125,9 @@ func mult_pv() -> float:
 var mouse_sens := 1.0
 var volume := 0.8
 var pluie := 0.0                 # intensité de la pluie (0..1), gérée par meteo.gd
+var neige := false               # l'averse en cours tombe en neige (meteo.gd)
+var enneige := 0.0               # neige au sol 0..1 (meteo.gd)
+var lacs_geles := false          # lacs pris par la glace (meteo.gd, Saisons.gel)
 var qualite := 3                # qualité graphique : 0 Bas, 1 Moyen, 2 Élevé, 3 Ultra
 var ramassage_auto := true      # munitions et flèches ramassées en passant dessus
 var sens_visee := 1.0           # multiplicateur de sensibilité en visée

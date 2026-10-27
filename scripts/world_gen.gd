@@ -176,6 +176,7 @@ func ranger_par_morceaux(p: Vector3) -> void:
 func _chrono(nom: String, t: int) -> int:
 	var maintenant := Time.get_ticks_msec()
 	chrono[nom] = maintenant - t
+	preload("res://scripts/ui/ecran_chargement.gd").etape(nom, chrono[nom])   # barre de l'écran de chargement
 	return maintenant
 
 
@@ -2208,6 +2209,7 @@ func _grotte(c: Vector3, route_x: float, nom := "") -> void:
 # ================================================================ relief
 const TerrainShader = preload("res://shaders/terrain.gdshader")
 const EauShader = preload("res://shaders/eau.gdshader")
+var mat_lacs: ShaderMaterial = null   # eau des lacs (meteo.gd : uniforme « gel » en hiver)
 
 
 ## Collines, lacs, rivière, ponts, ponton, antenne, lignes électriques et rochers.
@@ -2279,6 +2281,7 @@ func _relief() -> void:
 	_eau_riviere(er)
 	for l in relief.lacs:
 		_eau_lac(l, em)
+	mat_lacs = em
 	if not relief.lacs.is_empty():
 		var l0: Vector2 = relief.lacs[0].c
 		_poi("Étang", Vector3(l0.x, 0, l0.y), Color(0.4, 0.65, 0.95))

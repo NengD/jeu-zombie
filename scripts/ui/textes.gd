@@ -87,8 +87,13 @@ const GUIDE := """[b]LES BASES[/b]
 [b]MÉTÉO ET AMBIANCE[/b]
 • Des averses passent de temps en temps : sols et murs mouillés qui brillent, flaques, ciel gris et brume.
   La pluie couvre les bruits : les zombies t'entendent moins loin.
-  Les averses sont plus fréquentes en automne et au printemps, rares en été. En hiver il neige : flocons, pas de flaques,
-  le sol blanchit peu à peu puis fond lentement.
+  Les averses sont plus fréquentes en automne et au printemps, rares en été. En hiver il neige (parfois dès la fin de l'automne,
+  et il peut encore pleuvoir les jours de redoux) : flocons, pas de flaques ; le sol, les routes, les toits et les pelouses
+  blanchissent peu à peu, puis fondent lentement (vite sous la pluie ou au printemps).
+• Sous la neige et sur un sol enneigé on se refroidit plus vite qu'à la pluie : habille-toi chaudement.
+• Tes pas laissent des traces dans la neige ; elles s'effacent au bout d'environ une minute.
+• Lacs gelés : par grand froid (dès la première nuit d'hiver), la glace prend sur les lacs. On marche dessus, mais on ne peut
+  plus y nager, y puiser de l'eau ni y pêcher (la rivière, elle, ne gèle pas). Ils dégèlent au printemps.
 
 [b]SAISONS[/b]
 • 4 saisons de 7 jours (la partie commence au printemps). La saison s'affiche sous l'heure et dans l'état ([J]).
@@ -332,6 +337,11 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Hordes[/b] : à partir du 2e jour, à la tombée de la nuit, une horde peut marcher sur ta base (au moins 4 pièces).
   Une alerte s'affiche 60 secondes avant son arrivée et dit de quel côté elle vient (on l'entend grogner de ce côté) : rentre et prépare-toi ! Si tu es loin,
   elle abîme tes murs ; les pièges autour de la base réduisent les dégâts.
+  Un triangle rouge « Horde en approche » sur la carte et la boussole montre d'où elle vient. Les zombies cherchent le point
+  le plus faible : porte d'abord, puis murs en bois, en tôle et enfin en parpaing (ceux du pourtour avant ceux de l'intérieur).
+  Une pièce détruite ouvre une brèche par laquelle les autres entrent : répare et renforce avec [G] (Maj+G : toute la base).
+  Pièges à mâchoires, piques, barbelés et clôture électrique les arrêtent ; parfois des bandits profitent de l'attaque.
+  L'attaque finit à l'aube ou quand la horde est tuée : XP de survie (plus si tu l'as repoussée), compteur dans le journal (O).
 • [b]Événements[/b] (environ un tous les 1 à 2 jours, annoncés à la radio, triangle de couleur sur la carte et la boussole) :
   [b]largage[/b] (un hélicoptère lâche une caisse en parachute : très bon butin, mais sa fumée rouge attire les zombies),
   [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]

@@ -234,7 +234,9 @@ func maj() -> void:
 	if Game.is_night():
 		causes_froid.append("nuit")
 	if Game.pluie > 0.1 and p.in_zone.is_empty():
-		causes_froid.append("pluie")
+		causes_froid.append("neige" if Game.neige else "pluie")
+	elif Game.enneige > 0.3 and p.in_zone.is_empty():
+		causes_froid.append("sol enneigé")
 	if Game.dans_eau(p.global_position):
 		causes_froid.append("dans l'eau")
 	if Saisons.froid() > 0.0:

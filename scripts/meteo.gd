@@ -22,10 +22,32 @@ var _neige_sol := -1.0
 var _style_neige := false
 var mat_goutte: StandardMaterial3D
 var quad_goutte: QuadMesh
+## Neige sur les routes, trottoirs, toits, pelouses : couche de détail (blanc) des matériaux partagés du monde,
+## dosée par une texture 1×1 (masque) mise à jour ; aucune ShaderMaterial, aucun nœud en plus.
+const MATS_NEIGE := ["asphalte", "trottoir", "toit", "tuiles", "herbe", "terre"]
+var _img_masque: Image
+var tex_masque: ImageTexture
+var tex_blanc: ImageTexture
+var _neige_mats := -1.0
+## Lacs gelés (Saisons.gel) : glace dans le shader de l'eau des lacs, sol solide (cylindres de collision).
+var mat_lacs: ShaderMaterial = null
+var gel := 0.0
+var _gel_mat := -1.0
+var glace: StaticBody3D = null
+var _debut := true
+## Traces de pas dans la neige : décalques recyclés (TRACES_MAX), effacés en TRACE_DUREE secondes.
+const TRACES_MAX := 40
+const TRACE_DUREE := 75.0
+var traces: Array = []          # Decal
+var _trace_i := 0
+var _pied_g := false
+var tex_trace: ImageTexture
 
 
 func installer(p_world: Node, graine: int) -> void:
 	world = p_world
+	add_to_group("meteo")
+	mat_lacs = world.get("mat_lacs")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine + 3131
 	prochain = rng.randf_range(240.0, 600.0)
@@ -205,19 +227,32 @@ func _process(delta: float) -> void:
 		else:
 			cible = randf_range(0.45, 1.0)
 			prochain = randf_range(120.0, 360.0)
-			neige = Saisons.neige()
+			neige = randf() < Saisons.part_neige()
 			Game.msg("Il commence à neiger." if neige else "Il commence à pleuvoir.")
 	Game.pluie = move_toward(Game.pluie, cible, delta / 25.0)
 	if Game.pluie <= 0.0 and neige and not Saisons.neige():
 		neige = false
+	Game.neige = neige and Game.pluie > 0.05
+	if _debut:
+		# partie chargée en plein hiver : déjà de la neige au sol et des lacs gelés (état non sauvegardé)
+		_debut = false
+		if Saisons.neige() and Saisons.jour_de_saison() >= 2:
+			enneige = 0.7
+		gel = 1.0 if Saisons.gel() else 0.0
 	var tombe := Game.pluie > 0.15
 	# la neige ne mouille pas (pas de flaques) : elle tient au sol, puis fond (vite hors de l'hiver)
 	mouille = move_toward(mouille, 1.0 if tombe and not neige else 0.0, delta / (20.0 if tombe and not neige else 120.0))
 	if tombe and neige:
 		enneige = move_toward(enneige, 1.0, delta * Game.pluie / 90.0)
+	elif tombe:
+		enneige = move_toward(enneige, 0.0, delta / 180.0)   # redoux : la pluie fait fondre la neige
 	else:
 		enneige = move_toward(enneige, 0.0, delta / (900.0 if Saisons.neige() else 120.0))
+	Game.enneige = enneige
 	_maj_sol_enneige()
+	_maj_mats_enneiges()
+	_maj_gel(delta)
+	_maj_traces(delta)
 	var p = Game.player
 	if p == null:
 		return
@@ -256,3 +291,147 @@ func _maj_sol_enneige() -> void:
 		return
 	_neige_sol = enneige
 	mat_sol.set_shader_parameter("neige", enneige)
+	var details := get_parent().get_node_or_null("DetailsMonde") if get_parent() else null
+	if details and details.get("herbe_mat"):
+		details.herbe_mat.set_shader_parameter("neige", enneige)
+
+
+## Neige sur les matériaux partagés du monde (routes, trottoirs, toits, pelouses) : couche de détail blanche
+## dosée par un masque 1×1. La couche n'est active que tant qu'il y a de la neige (rien à payer le reste de l'année).
+func _maj_mats_enneiges() -> void:
+	var v := snappedf(enneige * 0.8, 0.01)
+	if v == _neige_mats:
+		return
+	_neige_mats = v
+	if tex_masque == null:
+		_img_masque = Image.create(1, 1, false, Image.FORMAT_L8)
+		_img_masque.fill(Color.BLACK)
+		tex_masque = ImageTexture.create_from_image(_img_masque)
+		var blanc := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		blanc.fill(Color(0.86, 0.88, 0.93))
+		tex_blanc = ImageTexture.create_from_image(blanc)
+	_img_masque.fill(Color(v, v, v))
+	tex_masque.update(_img_masque)
+	var actif := v > 0.0
+	for nom in MATS_NEIGE:
+		var m = world.mats.get(nom) if world else null
+		if m is StandardMaterial3D and m.detail_enabled != actif:
+			m.detail_enabled = actif
+			m.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+			m.detail_albedo = tex_blanc
+			m.detail_mask = tex_masque
+
+
+## Lacs gelés : glace qui prend en une minute (shader « gel » des lacs), sol solide une fois prise ;
+## dégel au printemps (la glace cède : on retombe à l'eau).
+func _maj_gel(delta: float) -> void:
+	gel = move_toward(gel, 1.0 if Saisons.gel() else 0.0, delta / 60.0)
+	var pris := gel >= 0.9
+	if pris != Game.lacs_geles:
+		Game.lacs_geles = pris
+		_poser_glace(pris)
+		if Game.player and Game.relief and Game.relief.dans_lac(Game.player.global_position.x, Game.player.global_position.z):
+			Game.msg("Le lac est gelé : on peut marcher dessus." if pris else "La glace cède : le lac dégèle.")
+	if mat_lacs:
+		var g := snappedf(gel, 0.01) + snappedf(enneige if pris else 0.0, 0.01) * 10.0
+		if g != _gel_mat:
+			_gel_mat = g
+			mat_lacs.set_shader_parameter("gel", snappedf(gel, 0.01))
+			mat_lacs.set_shader_parameter("neige", snappedf(enneige, 0.01) if pris else 0.0)
+
+
+func _poser_glace(pris: bool) -> void:
+	if not pris:
+		if glace:
+			glace.queue_free()
+			glace = null
+		return
+	if glace or Game.relief == null:
+		return
+	glace = StaticBody3D.new()
+	glace.name = "Glace"
+	glace.collision_layer = Game.LAYER_WORLD
+	glace.collision_mask = 0
+	add_child(glace)
+	var niv: float = Game.relief.NIVEAU_EAU
+	for l in Game.relief.lacs:
+		var cy := CylinderShape3D.new()
+		cy.radius = float(l.r) * 1.35 * 1.15
+		cy.height = 0.4
+		var cs := CollisionShape3D.new()
+		cs.shape = cy
+		var c: Vector2 = l.c
+		cs.position = Vector3(c.x, niv - 0.2, c.y)
+		glace.add_child(cs)
+	# joueur en train de nager : remonté sur la glace (sinon pris dessous)
+	var p = Game.player
+	if p and Game.relief.dans_lac(p.global_position.x, p.global_position.z) and p.global_position.y < niv + 0.05:
+		p.global_position.y = niv + 0.1
+		p.velocity.y = 0.0
+
+
+## Trace de pas dans la neige (appelée par player.gd à chaque pas dehors) ; yaw = direction de la marche.
+func trace_pas(pos: Vector3, yaw: float) -> void:
+	if enneige < 0.25:
+		return
+	if traces.is_empty():
+		_creer_traces()
+	_pied_g = not _pied_g
+	var d: Decal = traces[_trace_i]
+	_trace_i = (_trace_i + 1) % TRACES_MAX
+	var droite := Vector3(cos(yaw), 0.0, -sin(yaw))
+	d.global_position = pos + droite * (-0.12 if _pied_g else 0.12)
+	d.rotation = Vector3(0.0, yaw, 0.0)
+	d.set_meta("t", 0.0)
+	d.visible = true
+
+
+func _creer_traces() -> void:
+	# empreinte de semelle (bout arrondi, talon séparé) : creux bleu-gris dans la neige
+	var img := Image.create(32, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 32:
+			var u := (x - 15.5) / 16.0
+			var a := 0.0
+			if y < 40:
+				var v := (y - 21.0) / 20.0
+				a = 1.0 - (u * u * 1.15 + v * v)
+			else:
+				var v2 := (y - 51.0) / 11.0
+				a = 1.0 - (u * u * 1.6 + v2 * v2)
+			img.set_pixel(x, y, Color(0.42, 0.47, 0.56, clampf(a * 3.0, 0.0, 0.85)))
+	img.generate_mipmaps()
+	tex_trace = ImageTexture.create_from_image(img)
+	for i in TRACES_MAX:
+		var d := Decal.new()
+		d.texture_albedo = tex_trace
+		d.size = Vector3(0.13, 0.5, 0.3)
+		d.upper_fade = 0.2
+		d.lower_fade = 0.2
+		d.distance_fade_enabled = true
+		d.distance_fade_begin = 30.0
+		d.distance_fade_length = 10.0
+		d.visible = false
+		add_child(d)
+		traces.append(d)
+
+
+func _maj_traces(delta: float) -> void:
+	for d in traces:
+		if not d.visible:
+			continue
+		var t: float = d.get_meta("t") + delta
+		d.set_meta("t", t)
+		d.albedo_mix = clampf(1.0 - t / TRACE_DUREE, 0.0, 1.0) * clampf(enneige * 2.0, 0.0, 1.0)
+		if t >= TRACE_DUREE or enneige < 0.1:
+			d.visible = false
+
+
+## Admin / tests : neige qui tombe tout de suite (et tient au sol si « au_sol »).
+func forcer_neige(au_sol := false) -> void:
+	neige = true
+	cible = 1.0
+	prochain = randf_range(240.0, 480.0)
+	if au_sol:
+		enneige = maxf(enneige, 0.8)
+	Game.msg("Il commence à neiger.")

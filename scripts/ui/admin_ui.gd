@@ -138,6 +138,9 @@ func _construire() -> void:
 		var v: float = hh[0]
 		_bouton(ht, hh[1], func(): Game.time_hours = v; Game.msg("Heure : %02d:00" % int(v)))
 	_bouton(ht, "Jour suivant", func(): Game.day += 1; Game.msg("Jour %d" % Game.day))
+	# hiver (2ᵉ jour : lacs gelés) et neige tout de suite, déjà au sol (meteo.gd)
+	_bouton(ht, "Hiver", func(): Game.day = 3 * 7 + 2; Game.msg("Jour %d : hiver" % Game.day))
+	_bouton(ht, "Neige", func(): get_tree().call_group("meteo", "forcer_neige", true))
 
 	# ------------------------------------------------ zombies
 	_titre("Zombies")
@@ -163,6 +166,10 @@ func _construire() -> void:
 			var ev = Game.player.get_parent().get_node_or_null("Evenements")
 			if ev:
 				ev.declencher(type_ev, true))
+	_bouton(he, "Attaque de la base", func():
+		var ab = Game.player.get_parent().get_node_or_null("AttaqueBase")
+		if ab:
+			ab.lancer_maintenant())
 	_bouton(he, "Prochain tirage dans 10 s", func():
 		var ev = Game.player.get_parent().get_node_or_null("Evenements")
 		if ev:

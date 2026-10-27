@@ -43,7 +43,7 @@ void fragment() {
 	col *= mix(1.0, 0.6, smoothstep(0.0, -0.6, wpos.y));
 	float nv = 0.0;
 	if (neige > 0.0) {
-		nv = neige * smoothstep(0.55, 0.85, wnorm.y) * (1.0 - 0.6 * wr) * smoothstep(-0.3, 0.2, wpos.y);
+		nv = neige * smoothstep(0.55, 0.85, wnorm.y) * (1.0 - 0.6 * wr) * smoothstep(-0.95, -0.7, wpos.y);
 		nv *= smoothstep(0.35, 0.7, tache + neige * 0.6);
 		col = mix(col, vec3(0.86, 0.88, 0.93), nv);
 	}
