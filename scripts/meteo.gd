@@ -12,6 +12,16 @@ var rugosites := {}             # matériau -> rugosité d'origine
 var cible := 0.0                # intensité visée (0 = sec, 1 = averse)
 var prochain := 0.0             # secondes avant le prochain changement de temps
 var mouille := 0.0              # sols mouillés (sèchent lentement après la pluie)
+## Saisons : averses plus ou moins fréquentes (Saisons.pluie), neige en hiver (Saisons.neige) ;
+## la neige tient au sol (enneige 0..1 → uniforme « neige » du sol, terrain.gdshader) et fond hors de l'hiver.
+const Saisons = preload("res://scripts/saisons.gd")
+var neige := false              # l'averse en cours tombe en neige
+var enneige := 0.0
+var mat_sol: ShaderMaterial = null
+var _neige_sol := -1.0
+var _style_neige := false
+var mat_goutte: StandardMaterial3D
+var quad_goutte: QuadMesh
 
 
 func installer(p_world: Node, graine: int) -> void:
@@ -59,7 +69,53 @@ func _creer_gouttes() -> void:
 	pm.particle_flag_align_y = true
 	gouttes.draw_pass_1 = q
 	gouttes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mat_goutte = m
+	quad_goutte = q
 	add_child(gouttes)
+
+
+## Gouttes ou flocons : mêmes particules, réglées autrement (flocons lents, blancs, qui dérivent).
+func _style(flocons: bool) -> void:
+	if flocons == _style_neige:
+		return
+	_style_neige = flocons
+	var pm: ParticleProcessMaterial = gouttes.process_material
+	if flocons:
+		gouttes.lifetime = 7.0
+		pm.direction = Vector3(0.2, -1, 0.1)
+		pm.spread = 25.0
+		pm.initial_velocity_min = 1.4
+		pm.initial_velocity_max = 2.4
+		pm.gravity = Vector3(0, -0.6, 0)
+		pm.turbulence_enabled = true
+		pm.turbulence_noise_strength = 0.6
+		pm.particle_flag_align_y = false
+		quad_goutte.size = Vector2(0.06, 0.06)
+		mat_goutte.albedo_color = Color(0.95, 0.96, 1.0, 0.85)
+	else:
+		gouttes.lifetime = 1.1
+		pm.direction = Vector3(0.15, -1, 0.05)
+		pm.spread = 3.0
+		pm.initial_velocity_min = 16.0
+		pm.initial_velocity_max = 20.0
+		pm.gravity = Vector3(0, -9.8, 0)
+		pm.turbulence_enabled = false
+		pm.particle_flag_align_y = true
+		quad_goutte.size = Vector2(0.012, 0.45)
+		mat_goutte.albedo_color = Color(0.75, 0.8, 0.85, 0.28)
+
+
+## Matériau du sol (partagé par toutes les tuiles du relief, construites à l'approche du joueur).
+func _materiau_sol() -> ShaderMaterial:
+	var sol: Node = world.get_node_or_null("Sol") if world else null
+	if sol == null:
+		return null
+	for t in sol.get_children():
+		if t is MeshInstance3D and t.mesh:
+			var m = t.material_override if t.material_override else t.mesh.surface_get_material(0)
+			if m is ShaderMaterial:
+				return m
+	return null
 
 
 ## Bruit de pluie généré (bruit rose filtré, en boucle).
@@ -145,23 +201,34 @@ func _process(delta: float) -> void:
 	if prochain <= 0.0:
 		if cible > 0.0:
 			cible = 0.0
-			prochain = randf_range(300.0, 900.0)
+			prochain = randf_range(300.0, 900.0) / Saisons.pluie()   # temps sec plus court en automne, plus long en été
 		else:
 			cible = randf_range(0.45, 1.0)
 			prochain = randf_range(120.0, 360.0)
-			Game.msg("Il commence à pleuvoir.")
+			neige = Saisons.neige()
+			Game.msg("Il commence à neiger." if neige else "Il commence à pleuvoir.")
 	Game.pluie = move_toward(Game.pluie, cible, delta / 25.0)
-	mouille = move_toward(mouille, 1.0 if Game.pluie > 0.15 else 0.0, delta / (20.0 if Game.pluie > 0.15 else 120.0))
+	if Game.pluie <= 0.0 and neige and not Saisons.neige():
+		neige = false
+	var tombe := Game.pluie > 0.15
+	# la neige ne mouille pas (pas de flaques) : elle tient au sol, puis fond (vite hors de l'hiver)
+	mouille = move_toward(mouille, 1.0 if tombe and not neige else 0.0, delta / (20.0 if tombe and not neige else 120.0))
+	if tombe and neige:
+		enneige = move_toward(enneige, 1.0, delta * Game.pluie / 90.0)
+	else:
+		enneige = move_toward(enneige, 0.0, delta / (900.0 if Saisons.neige() else 120.0))
+	_maj_sol_enneige()
 	var p = Game.player
 	if p == null:
 		return
 	var dedans: bool = not p.in_zone.is_empty()
 	# gouttes au-dessus du joueur (pas à l'intérieur)
-	gouttes.global_position = p.global_position + Vector3(0, 12, 0) + p.velocity * 0.6
+	_style(neige)
+	gouttes.global_position = p.global_position + Vector3(0, 12 if not neige else 9, 0) + p.velocity * (0.6 if not neige else 3.0)
 	gouttes.emitting = Game.pluie > 0.05 and not dedans and Game.qualite >= 1
-	gouttes.amount_ratio = clampf(Game.pluie, 0.1, 1.0)
-	# son : étouffé à l'intérieur
-	var vol := Game.pluie * (0.35 if dedans else 1.0)
+	gouttes.amount_ratio = clampf(Game.pluie * (0.5 if neige else 1.0), 0.1, 1.0)
+	# son : étouffé à l'intérieur ; la neige tombe presque sans bruit
+	var vol := Game.pluie * (0.35 if dedans else 1.0) * (0.12 if neige else 1.0)
 	if vol > 0.01:
 		if not son.playing:
 			son.play()
@@ -175,3 +242,17 @@ func _process(delta: float) -> void:
 	var montre := mouille > 0.02
 	for f in flaques:
 		f.visible = montre
+
+
+## Neige au sol : une seule valeur passée au matériau partagé du relief (aucun coût de rendu en plus).
+func _maj_sol_enneige() -> void:
+	if mat_sol == null:
+		if enneige <= 0.0:
+			return
+		mat_sol = _materiau_sol()
+		if mat_sol == null:
+			return
+	if absf(enneige - _neige_sol) < 0.01 and not (enneige == 0.0 and _neige_sol != 0.0):
+		return
+	_neige_sol = enneige
+	mat_sol.set_shader_parameter("neige", enneige)

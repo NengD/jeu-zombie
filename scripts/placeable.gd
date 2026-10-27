@@ -368,6 +368,7 @@ func get_prompt() -> String:
 
 
 const Decor = preload("res://scripts/decor.gd")
+const Saisons = preload("res://scripts/saisons.gd")
 
 
 ## Modèle de décor (modeles/props) posé dans l'objet.
@@ -788,14 +789,33 @@ func etape() -> int:
 	return 2 if t >= 1.0 else (1 if t >= 0.3 else 0)
 
 
+## Bac sous un toit (bâtiment) : pas de pluie, mais à l'abri du gros froid.
+var _abrite := -1
+
+
+func abrite() -> bool:
+	if _abrite < 0 and is_inside_tree():
+		_abrite = 0 if Game.find_zone(global_position + Vector3.UP * 0.5).is_empty() else 1
+	return _abrite == 1
+
+
+## Facteur de pousse de la saison (Saisons.pousse) ; à l'abri, jamais moins de ABRI_POUSSE.
+const ABRI_POUSSE := 0.6
+
+
+func pousse_saison() -> float:
+	var k: float = Saisons.pousse()
+	return maxf(k, ABRI_POUSSE) if abrite() else k
+
+
 func _maj_bac(delta: float) -> void:
 	var e := secs + eau_frac
-	if Game.pluie > 0.3:
+	if Game.pluie > 0.3 and not abrite():
 		e += delta * Game.pluie * EAU_PLUIE
 	var c := culture()
 	if c != "" and minuteur < POUSSE[c]:
 		var t := minf(delta, e / EAU_PAR_S)
-		minuteur = minf(minuteur + t * (1.4 if _talent("jardinier") else 1.0), POUSSE[c])
+		minuteur = minf(minuteur + t * pousse_saison() * (1.4 if _talent("jardinier") else 1.0), POUSSE[c])
 		e -= t * EAU_PAR_S
 	e = clampf(e, 0.0, 100.0)
 	var avant := secs
@@ -893,7 +913,9 @@ func _prompt_bac() -> String:
 	var p := int(100.0 * minuteur / POUSSE[c])
 	var eau := "eau %d %%" % secs if secs > 0 else "terre sèche : ne pousse plus"
 	var arroser := "[F] Arroser — " if secs < 100 - EAU_BOUTEILLE / 2 else ""
-	return "%s%s : %s, %d %% (%s%s)" % [arroser, nom, ["pousse", "plant"][etape()], p, eau, ", il pleut" if Game.pluie > 0.3 else ""]
+	var k := pousse_saison()
+	var saison := "" if is_equal_approx(k, 1.0) else ", %s : pousse ×%s" % [Saisons.nom().to_lower(), str(snappedf(k, 0.1)).replace(".", ",")]
+	return "%s%s : %s, %d %% (%s%s%s)" % [arroser, nom, ["pousse", "plant"][etape()], p, eau, ", il pleut" if Game.pluie > 0.3 and not abrite() else "", saison]
 
 
 func _interagir_bac(player: Node) -> void:
@@ -1203,7 +1225,7 @@ static func _alimenter(a: Node, ok: bool, reseau: Vector2) -> void:
 	a.set_meta("alimente", ok)
 	a.set_meta("reseau", reseau)
 	if a.is_in_group("frigo"):
-		a.label = "Frigo (alimenté : la nourriture se garde)" if ok else "Frigo (sans courant)"
+		a.label = "Frigo (alimenté : la nourriture se gâte 3 fois moins vite)" if ok else "Frigo (sans courant)"
 		var led: StandardMaterial3D = a.get_meta("led", null)
 		if led:
 			led.emission = Color(0.2, 1.0, 0.3) if ok else Color(0.0, 0.0, 0.0)

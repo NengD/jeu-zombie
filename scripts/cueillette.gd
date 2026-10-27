@@ -6,11 +6,14 @@ extends Node3D
 ## (`Recolte.etat()["c"]`). Fruits visibles : un MultiMesh par parcelle (instances écrasées une fois cueillies).
 
 const Recolte = preload("res://scripts/recolte.gd")
+const Saisons = preload("res://scripts/saisons.gd")
+## saison : type de Saisons.fruits ; quand : phrase affichée hors saison.
 const GENRES := {
-	"pomme": {"nom": "pommier", "q": [2, 4], "verbe": "Cueillir des pommes"},
-	"raisin": {"nom": "vigne", "q": [2, 3], "verbe": "Cueillir du raisin"},
-	"epi_mais": {"nom": "maïs", "q": [1, 3], "verbe": "Cueillir des épis de maïs"},
+	"pomme": {"nom": "pommier", "q": [2, 4], "verbe": "Cueillir des pommes", "saison": "pomme", "fruit": "pas de pommes", "quand": "à la fin de l'été et en automne"},
+	"raisin": {"nom": "vigne", "q": [2, 3], "verbe": "Cueillir du raisin", "saison": "raisin", "fruit": "pas de raisin", "quand": "en automne"},
+	"epi_mais": {"nom": "maïs", "q": [1, 3], "verbe": "Cueillir des épis de maïs", "saison": "mais", "fruit": "pas d'épis mûrs", "quand": "à la fin de l'été et en automne"},
 }
+var en_saison := {}         # id -> fruits montrés (vrai à l'installation : fruits posés)
 
 var plants: Array = []      # [{p: Vector3, id: String, arbre: n° dans world.arbres_ref (pommiers) ou -1, fruits: [mm, debut, nb]}]
 var cueilli := {}           # n° du plant -> jour de la dernière cueillette
@@ -163,12 +166,22 @@ func prompt(corps: Parcelle) -> String:
 	if pl.arbre >= 0 and Game.recolte and Game.recolte.faits.a.has(int(pl.arbre)):
 		return ""
 	var g: Dictionary = GENRES[pl.id]
+	if not _de_saison(pl.id):
+		return _hors_saison(g)
 	if _pret(n):
 		return "[F] " + g.verbe
 	return "%s : déjà cueilli aujourd'hui (revenir demain)" % String(g.nom).capitalize()
 
 
-## Un nouveau jour : tout repousse.
+func _de_saison(id: String) -> bool:
+	return Saisons.fruits(GENRES[id].saison)
+
+
+func _hors_saison(g: Dictionary) -> String:
+	return "%s : %s en cette saison (%s, jour %d) — ça se cueille %s" % [String(g.nom).capitalize(), g.fruit, Saisons.nom(), Saisons.jour_de_saison(), g.quand]
+
+
+## Un nouveau jour : tout repousse (s'il est de saison).
 var jour := -1
 
 
@@ -179,11 +192,23 @@ func _process(_delta: float) -> void:
 	for n in cueilli.keys():
 		if int(cueilli[n]) != jour:
 			cueilli.erase(n)
-			_fruits_visibles(n, true)
+			_fruits_visibles(n, _de_saison(plants[n].id))
+	# fruits montrés ou retirés quand la saison change (une fois par changement)
+	for id in GENRES:
+		var ok := _de_saison(id)
+		if ok == bool(en_saison.get(id, true)):
+			continue
+		en_saison[id] = ok
+		for n in plants.size():
+			if plants[n].id == id and _pret(n):
+				_fruits_visibles(n, ok)
 
 
 func cueillir(corps: Parcelle, joueur: Node) -> void:
 	var n := _plant_vise(corps)
+	if n >= 0 and not _de_saison(plants[n].id):
+		Game.msg(_hors_saison(GENRES[plants[n].id]))
+		return
 	if n < 0 or not _pret(n):
 		return
 	var pl: Dictionary = plants[n]

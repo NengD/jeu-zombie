@@ -8,6 +8,8 @@ uniform sampler2D terre : source_color, filter_linear_mipmap_anisotropic, repeat
 uniform sampler2D terre_n : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D roche : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D roche_n : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+// neige tombée en hiver (0..1, meteo.gd) : couvre d'abord le plat, par taches, jamais l'eau
+uniform float neige = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -39,11 +41,17 @@ void fragment() {
 	vec3 col = mix(mix(h, t, wt), r, wr);
 	// rive mouillée, plus sombre
 	col *= mix(1.0, 0.6, smoothstep(0.0, -0.6, wpos.y));
+	float nv = 0.0;
+	if (neige > 0.0) {
+		nv = neige * smoothstep(0.55, 0.85, wnorm.y) * (1.0 - 0.6 * wr) * smoothstep(-0.3, 0.2, wpos.y);
+		nv *= smoothstep(0.35, 0.7, tache + neige * 0.6);
+		col = mix(col, vec3(0.86, 0.88, 0.93), nv);
+	}
 	ALBEDO = col;
 	vec3 nh = texture(herbe_n, uv / 3.0).rgb;
 	vec3 nt = texture(terre_n, uv / 3.0).rgb;
 	vec3 nr = texture(roche_n, uv / 4.0).rgb;
-	NORMAL_MAP = mix(mix(nh, nt, wt), nr, wr);
+	NORMAL_MAP = mix(mix(mix(nh, nt, wt), nr, wr), vec3(0.5, 0.5, 1.0), nv * 0.7);
 	NORMAL_MAP_DEPTH = 1.0;
-	ROUGHNESS = mix(0.95, 0.55, smoothstep(-0.1, -0.5, wpos.y));
+	ROUGHNESS = mix(mix(0.95, 0.55, smoothstep(-0.1, -0.5, wpos.y)), 0.75, nv);
 }
