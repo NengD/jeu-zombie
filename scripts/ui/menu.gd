@@ -326,15 +326,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _play() -> void:
-	var l := Label.new()
-	l.text = "Chargement…"
-	l.add_theme_font_size_override("font_size", 32)
-	l.set_anchors_preset(Control.PRESET_CENTER)
 	main_box.visible = false
-	add_child(l)
-	await get_tree().process_frame
-	await get_tree().process_frame
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	depart_panel.visible = false
+	preload("res://scripts/ui/ecran_chargement.gd").lancer(get_tree())   # écran de chargement, puis main.tscn
 
 
 

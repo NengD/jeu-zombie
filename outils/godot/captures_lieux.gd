@@ -105,8 +105,14 @@ func _go():
 		var t0 := Time.get_ticks_usec()
 		await _attendre(120)
 		var fps_moy := 120.0 / ((Time.get_ticks_usec() - t0) / 1000000.0)
+		if OS.get_environment("SANS_HUD") != "":   # (SANS_HUD=1 : interface cachée)
+			for c in main.get_children():
+				if c is CanvasLayer:
+					c.visible = false
+			await _attendre(2)
 		var img := root.get_texture().get_image()
-		img.resize(960, 540)
+		if OS.get_environment("PLEINE_TAILLE") == "":   # (PLEINE_TAILLE=1 : taille de la fenêtre, ex. fonds de l'écran de chargement)
+			img.resize(960, 540)
 		var nom := args[ci].replace(":", "_").replace(" ", "_").validate_filename()
 		img.save_png(sortie.path_join(nom + ".png"))
 		print(args[ci], " ", cible, " : %.0f FPS (moyenne 120 images)" % fps_moy)
