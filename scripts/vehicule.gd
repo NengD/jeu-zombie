@@ -56,6 +56,21 @@ var renverse_t := 0.0
 var age := 0.0
 var km := 0.0                # mètres parcourus depuis la dernière XP
 var balle_t := false         # posé par bandit.gd juste avant le take_damage d'une balle (encaisser)
+var coffre: Node = null      # LootContainer de rangement à l'arrière (groupe « conteneurs »)
+var coffre_donnees = null    # grille sauvegardée, rendue au coffre dans _ready (vehicules.appliquer)
+
+## Dernière voiture conduite : marqueur « Ma voiture » de la carte (map_ui.gd) et de la boussole (hud.gd).
+static var derniere: Node = null
+## Taille du coffre par modèle (colonnes × lignes) ; les autres : 8 × 5.
+const COFFRES := {"voiture_pickup": Vector2i(10, 6), "voiture_camionnette": Vector2i(10, 7), "voiture_ambulance": Vector2i(9, 6),
+		"voiture_suv": Vector2i(8, 6), "voiture_sport": Vector2i(6, 4), "voiture_tracteur": Vector2i(5, 4)}
+
+
+## Position de la dernière voiture conduite, ou INF.
+static func position_derniere() -> Vector3:
+	if derniere == null or not is_instance_valid(derniere) or not derniere.is_inside_tree():
+		return Vector3.INF
+	return derniere.global_position
 
 
 func _ready() -> void:
@@ -147,6 +162,27 @@ func _ready() -> void:
 	lbl.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	hud.add_child(lbl)
 	add_child(hud)
+	_creer_coffre()
+
+
+## Coffre : conteneur de rangement à l'arrière (couche LAYER_INTERACT seule : ne heurte pas la carrosserie),
+## un peu plus long que la voiture pour que [F] le vise depuis l'arrière.
+func _creer_coffre() -> void:
+	var c = preload("res://scripts/loot_container.gd").new()
+	var gs: Vector2i = COFFRES.get(id, Vector2i(8, 5))
+	var sz := Vector3(taille.x * 0.8, 1.0, 1.1)
+	c.setup("Coffre", "", sz, Color(0.2, 0.2, 0.2), 0)
+	c.collision_layer = Game.LAYER_INTERACT
+	c.mesh_i.visible = false
+	c.make_storage(gs.x, gs.y)
+	c.position = Vector3(0, 0.35, -taille.z / 2.0 + sz.z / 2.0 - 0.15)
+	add_child(c)
+	if coffre_donnees != null:
+		var g = load("res://scripts/sauvegarde.gd").grille_depuis(coffre_donnees)
+		if g:
+			c.grille = g
+		coffre_donnees = null
+	coffre = c
 
 
 # ================================================================ interaction
@@ -254,6 +290,7 @@ func prompt_conduite() -> String:
 
 func monter(j: Node) -> void:
 	conducteur = j
+	derniere = self
 	j.vehicule = self
 	j.velocity = Vector3.ZERO
 	j.visible = false
@@ -553,4 +590,5 @@ func _remplir_son() -> void:
 func vers_dict() -> Dictionary:
 	var o := global_position
 	return {"id": id, "e": epave, "pos": [o.x, o.y, o.z], "rot": atan2(global_basis.z.x, global_basis.z.z),
-			"essence": essence, "pv": pv}
+			"essence": essence, "pv": pv, "derniere": derniere == self,
+			"coffre": load("res://scripts/sauvegarde.gd").grille_vers(coffre.grille) if coffre and coffre.grille else null}

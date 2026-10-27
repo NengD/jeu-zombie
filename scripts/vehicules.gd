@@ -33,6 +33,7 @@ class Panne extends StaticBody3D:
 
 func installer(w: Node) -> void:
 	world = w
+	Vehicule.derniere = null   # nouvelle partie : pas encore de voiture conduite
 	for i in w.epaves.size():
 		var n: Node3D = w.epaves[i].n
 		if not n.has_meta("garee") or n.has_meta("brulee"):
@@ -149,8 +150,9 @@ func reparer(i: int, joueur: Node) -> void:
 
 
 ## Crée le véhicule (modèle copié de l'épave, peinture comprise) et retire l'épave du décor.
-func creer(i: int, id: String, xf: Transform3D, essence: float, pv: float) -> Node:
+func creer(i: int, id: String, xf: Transform3D, essence: float, pv: float, coffre = null) -> Node:
 	var v = Vehicule.new()
+	v.coffre_donnees = coffre
 	v.id = id
 	v.epave = i
 	v.essence = essence
@@ -205,4 +207,7 @@ func appliquer(liste: Array, meme_monde: bool) -> void:
 		var pos: Array = d.get("pos", [0, 0, 0])
 		var o := Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 		o.y = maxf(o.y, Game.hauteur(o.x, o.z)) + 0.05
-		creer(i, id, Transform3D(Basis(Vector3.UP, float(d.get("rot", 0.0))), o), float(d.get("essence", 0.0)), float(d.get("pv", Vehicule.PV_MAX)))
+		var v := creer(i, id, Transform3D(Basis(Vector3.UP, float(d.get("rot", 0.0))), o), float(d.get("essence", 0.0)),
+				float(d.get("pv", Vehicule.PV_MAX)), d.get("coffre"))
+		if d.get("derniere", false):
+			Vehicule.derniere = v

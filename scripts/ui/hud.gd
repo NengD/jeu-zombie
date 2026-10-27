@@ -47,6 +47,9 @@ class Boussole extends Control:
 		var base := Game.position_base()
 		if base != Vector3.INF:
 			reperes.append([Vector2(base.x, base.z), "Ma base", Color(0.45, 0.7, 1.0)])
+		var voiture: Vector3 = preload("res://scripts/vehicule.gd").position_derniere()
+		if voiture != Vector3.INF and p.get("vehicule") == null:
+			reperes.append([Vector2(voiture.x, voiture.z), "Ma voiture", Color(0.95, 0.45, 0.9)])
 		for poi in Game.pois:
 			if poi.get("marchand", false):
 				continue
@@ -467,8 +470,8 @@ func _process(delta: float) -> void:
 	if p.maladie > 0.0:
 		zone_name += "\nMALADE (intoxication) : %d min" % ceili(p.maladie / 60.0)
 	zone_name += _etat_blessures(p)
-	lbl_info.text = "Jour %d — %02d:%02d%s\nArgent : %d €\n%s" % [
-		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", p.argent, zone_name]
+	lbl_info.text = "Jour %d — %02d:%02d%s\n%sArgent : %d €\n%s" % [
+		Game.day, hh, mm, "  (nuit)" if Game.is_night() else "", _ligne_saison(), p.argent, zone_name]
 	# réticule dynamique : écart = vraie dispersion du tir projetée à l'écran (+ recul en cours)
 	var cw: String = p.current_weapon()
 	var ws: Dictionary = p.arme_stats(cw)
@@ -499,6 +502,18 @@ func _process(delta: float) -> void:
 
 ## Le tir part de la tête du personnage, pas de la caméra (décalée sur l'épaule) : si un obstacle
 ## coupe la ligne de tir avant le point visé, renvoie sa position à l'écran (sinon (-1, -1)).
+var _saisons = null   # scripts/saisons.gd (chargé s'il existe)
+
+
+## « Printemps, jour 3 » sous l'heure (Saisons.nom() / jour_de_saison()), avec son retour à la ligne.
+func _ligne_saison() -> String:
+	if _saisons == null:
+		if not ResourceLoader.exists("res://scripts/saisons.gd"):
+			return ""
+		_saisons = load("res://scripts/saisons.gd")
+	return "%s, jour %d\n" % [_saisons.nom(), _saisons.jour_de_saison()]
+
+
 ## Blessures et température sous l'heure (une ligne par état, rien quand tout va bien).
 func _etat_blessures(p) -> String:
 	var t := ""

@@ -114,6 +114,14 @@ class Cadre extends Control:
 				draw_rect(Rect2(bp + Vector2(-7, -3), Vector2(14, 10)), Color.BLACK, false, 1.5)
 				draw_string_outline(font, bp + Vector2(13, 6), "Ma base", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, 4, Color.BLACK)
 				draw_string(font, bp + Vector2(13, 6), "Ma base", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.6, 0.8, 1.0))
+		# ma voiture (dernière conduite, vehicule.gd) : petite voiture rose
+		var vp3: Vector3 = preload("res://scripts/vehicule.gd").position_derniere()
+		if vp3 != Vector3.INF:
+			var vp := vers_ecran(Vector2(vp3.x, vp3.z))
+			if vue.grow(40.0).has_point(vp):
+				_voiture(vp, Color(0.95, 0.45, 0.9))
+				draw_string_outline(font, vp + Vector2(13, 6), "Ma voiture", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, 4, Color.BLACK)
+				draw_string(font, vp + Vector2(13, 6), "Ma voiture", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1.0, 0.7, 0.95))
 		var p = Game.player
 		if p:
 			var pp2 := vers_ecran(Vector2(p.global_position.x, p.global_position.z))
@@ -127,6 +135,14 @@ class Cadre extends Control:
 		draw_line(b0, b0 + Vector2(lg, 0), Color.WHITE, 3.0)
 		draw_string_outline(font, b0 + Vector2(0, -8), "500 m", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Color.BLACK)
 		draw_string(font, b0 + Vector2(0, -8), "500 m", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
+
+	## Petite voiture de profil (caisse, toit, deux roues) : « Ma voiture ».
+	func _voiture(c: Vector2, col: Color) -> void:
+		draw_rect(Rect2(c + Vector2(-9, -3), Vector2(18, 7)), col)
+		draw_rect(Rect2(c + Vector2(-5, -8), Vector2(10, 6)), col.darkened(0.15))
+		draw_rect(Rect2(c + Vector2(-9, -3), Vector2(18, 7)), Color.BLACK, false, 1.5)
+		draw_circle(c + Vector2(-5, 5), 2.6, Color.BLACK)
+		draw_circle(c + Vector2(5, 5), 2.6, Color.BLACK)
 
 
 class MapView extends Control:
@@ -145,6 +161,7 @@ class MapView extends Control:
 		["rond", Color(0.45, 0.45, 0.45), "Lieu déjà fouillé"],
 		["losange", Color(1.0, 0.55, 0.1), "Mon marqueur (clic droit)"],
 		["maison", Color(0.45, 0.7, 1.0), "Ma base"],
+		["voiture", Color(0.95, 0.45, 0.9), "Ma voiture"],
 		["fleche", Color(1, 0.95, 0.3), "Toi"],
 	]
 
@@ -171,7 +188,17 @@ class MapView extends Control:
 					draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -2), c + Vector2(0, -9), c + Vector2(8, -2)]), Color(0.3, 0.5, 0.9))
 				"fleche":
 					draw_colored_polygon(PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 6), c + Vector2(-6, 6)]), col)
+				"voiture":
+					_voiture(c, col)
 			draw_string(font, c + Vector2(16, 5), e[2], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color.WHITE)
+
+	## Même symbole que dans Cadre, pour la légende.
+	func _voiture(c: Vector2, col: Color) -> void:
+		draw_rect(Rect2(c + Vector2(-9, -3), Vector2(18, 7)), col)
+		draw_rect(Rect2(c + Vector2(-5, -8), Vector2(10, 6)), col.darkened(0.15))
+		draw_rect(Rect2(c + Vector2(-9, -3), Vector2(18, 7)), Color.BLACK, false, 1.5)
+		draw_circle(c + Vector2(-5, 5), 2.6, Color.BLACK)
+		draw_circle(c + Vector2(5, 5), 2.6, Color.BLACK)
 
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.8))
