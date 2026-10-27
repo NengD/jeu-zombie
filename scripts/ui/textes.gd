@@ -87,6 +87,27 @@ const GUIDE := """[b]LES BASES[/b]
 [b]MÉTÉO ET AMBIANCE[/b]
 • Des averses passent de temps en temps : sols et murs mouillés qui brillent, flaques, ciel gris et brume.
   La pluie couvre les bruits : les zombies t'entendent moins loin.
+  Les averses sont plus fréquentes en automne et au printemps, rares en été. En hiver il neige : flocons, pas de flaques,
+  le sol blanchit peu à peu puis fond lentement.
+
+[b]SAISONS[/b]
+• 4 saisons de 7 jours (la partie commence au printemps). La saison s'affiche sous l'heure et dans l'état ([J]).
+• Printemps : doux, averses. Été : il fait plus chaud, la nourriture se gâte 1,5 fois plus vite, pommes et maïs en fin d'été.
+• Automne : plus froid, pluie, fruits (pommes, raisin, maïs), les plantes poussent plus lentement.
+• Hiver : grand froid et neige ; dehors la nuit sans vêtements chauds on est transi en quelques minutes, il faut un feu.
+  L'intérieur refroidit lentement. La nourriture se gâte moins vite (×0,6), les plantes dehors ne poussent presque plus,
+  rien à cueillir.
+
+[b]DIFFICULTÉ ET NUITS DE SANG[/b]
+• Difficulté choisie au début d'une nouvelle partie (écran du lieu de départ), sauvegardée : Facile (moins de zombies,
+  coups -40 %), Normal, Difficile (+25 % de zombies, plus résistants, coups +30 %), Cauchemar (+50 %, +30 % de santé,
+  coups +70 %). Les bandits suivent la même règle.
+• Chaque semaine le monde devient plus dangereux : +20 % de zombies errants par semaine jusqu'à la 7ᵉ, plus de coureurs
+  et de gros zombies, hordes plus grandes (jusqu'à 40) et plus fréquentes.
+• [b]Nuit de sang[/b] tous les 7 jours (annoncée la veille, le matin et à 17 h) : une énorme horde attaque ta base ou te
+  traque jusqu'à l'aube, et il y a 50 % d'errants en plus.
+• Un camp de bandits nettoyé est réoccupé 5 à 7 jours plus tard (si tu n'es pas tout près), avec plus de bandits au fil
+  des semaines ; la prime peut être gagnée de nouveau et l'armurier le propose encore dans ses commandes.
 • La nuit, les lampadaires des rues s'allument (certains clignotent, d'autres sont en panne).
 • Herbe haute qui ondule au vent dans la campagne. Réglage « Qualité graphique » (Paramètres ou pause) :
   Bas, Moyen, Élevé, Ultra.
@@ -174,6 +195,8 @@ const GUIDE := """[b]LES BASES[/b]
   pomme de terre cuite, maïs grillé, soupe de légumes (tomate + carotte + pomme de terre + eau).
 • Talent [b]Jardinier[/b] (Survie) : les plantes poussent 40 % plus vite et chaque récolte donne un légume de plus.
   Semer et récolter rapportent de l'XP de Survie.
+• Pousse selon la saison : normale au printemps, ×1,2 en été, ×0,7 en automne, ×0,2 en hiver. Un bac dans un bâtiment
+  pousse au moins à ×0,6 même en hiver, mais la pluie ne l'arrose pas.
 
 [b]ÉLECTRICITÉ[/b]
 • Sources (établi) : le [b]groupe électrogène[/b] (1500 W) brûle un jerrican d'essence en 12 minutes ; [F] le démarre (en versant
@@ -202,6 +225,9 @@ const GUIDE := """[b]LES BASES[/b]
   Il faut [b]3 pièces auto, 1 batterie et 1 jerrican d'essence[/b] (épaves, garages, casse auto, mécanicien).
 • [F] monter / descendre. Avancer / reculer, gauche / droite pour conduire, [b]Espace[/b] = frein à main, [b]L[/b] = phares
   (allumés seuls la nuit), souris = regarder autour. Vitesse, essence et état en bas à droite.
+• [b]Coffre[/b] : vise l'arrière d'une voiture réparée et appuie sur [F] pour ranger du butin (8 × 5 cases ; pick-up 10 × 6,
+  camionnette 10 × 7, ambulance 9 × 6, SUV 8 × 6, sportive 6 × 4). Il est sauvegardé et la nourriture s'y gâte.
+• [b]Ma voiture[/b] : la dernière voiture conduite est marquée (petite voiture rose) sur la carte [M] et la boussole.
 • Le moteur s'entend de loin : les zombies accourent. Les écraser les blesse selon la vitesse, mais abîme la voiture ;
   les chocs contre les murs aussi. Au volant, la carrosserie prend l'essentiel des coups.
 • Réservoir de 60 L. Accroupi devant la voiture, [F] fait l'action indiquée : réparer si elle est abîmée
@@ -271,7 +297,8 @@ const GUIDE := """[b]LES BASES[/b]
   Le poisson cru se grille au feu.
 • [b]Cueillette[/b] : dans les vergers, les vignobles et les champs de maïs, vise un pommier, un rang de vigne ou un pied de maïs et
   appuie sur [F] (pommes, raisin, épis de maïs à griller au feu). Chaque plant se cueille une fois par jour ; les fruits encore
-  à cueillir se voient sur les arbres et les vignes.
+  à cueillir se voient sur les arbres et les vignes. Pommes et maïs en fin d'été et en automne, raisin en automne,
+  rien en hiver ni au printemps ; [F] te dit quand revenir.
 
 [b]CONSTRUIRE SA BASE[/b]
 1. Fabrique un établi (Tab) : 4 planches + 6 clous + 2 ferrailles.
@@ -339,7 +366,10 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Commandes du jour[/b] (section de la boutique ; leur nombre s'affiche à côté de [F] Commercer) : chaque marchand passe
   chaque matin 1 à 3 commandes liées à son métier (peaux, viande et poisson pour le boucher, soins pour le médecin, munitions
   ou un camp de bandits à nettoyer pour l'armurier, matériaux, fruits et plats, pièces de voiture…). Apporte les objets puis
-  « Rendre » : argent et expérience dans la compétence du métier.
+  « Rendre » : argent et expérience dans la compétence du métier. Un marchand ne demande jamais un objet qu'il vend
+  lui-même : il faut le trouver, le fabriquer ou l'acheter dans un autre camp. L'épicier demande aussi tomates, carottes,
+  pommes de terre et soupe de légumes (et les rachète ★) ; le médecin des bouillons, des soupes et du poisson cuit ;
+  le mécanicien du minerai, des kits de réparation, des radios et des lampes.
 
 [b]PARAMÈTRES[/b] (menu principal, ou Échap > Paramètres en pleine partie)
 • Sensibilité de la souris et sensibilité en visée, champ de vision, taille du texte et de l'interface,
