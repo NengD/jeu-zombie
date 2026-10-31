@@ -160,8 +160,8 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	# zombies vivants
 	var zs := []
 	for z in main.get_tree().get_nodes_in_group("zombies"):
-		if z.is_in_group("evenement"):
-			continue   # horde migrante : sauvegardée par evenements.gd
+		if z.is_in_group("evenement") or z.is_in_group("attaque"):
+			continue   # horde migrante : evenements.gd ; horde contre la base : attaque_base.gd
 		zs.append({"pos": _v(z.global_position), "type": z.kind, "garde": z.persistent, "rayon": z.home_radius,
 				"pv": z.health, "maison": _v(z.home)})
 	for v in main.zombies_virtuels:
@@ -178,6 +178,9 @@ static func sauver(main: Node, fichier := FICHIER) -> bool:
 	var ev = main.get_node_or_null("Evenements")
 	if ev:
 		d["evenements"] = ev.etat()   # événements aléatoires (evenements.gd)
+	var ab = main.get_node_or_null("AttaqueBase")
+	if ab:
+		d["attaque"] = ab.etat()   # alerte et attaque de la base en cours (attaque_base.gd)
 	d["journal"] = preload("res://scripts/journal.gd").etat()   # journal du survivant (journal.gd)
 	var f := FileAccess.open(fichier, FileAccess.WRITE)
 	if f == null:
@@ -235,6 +238,8 @@ static func appliquer_monde(main: Node, d: Dictionary) -> void:
 
 
 static func appliquer_zombies(main: Node, d: Dictionary) -> void:
+	# attaque de la base : reprise par le nœud AttaqueBase, créé plus tard par main._ready
+	load("res://scripts/attaque_base.gd").a_reprendre = d.get("attaque", {})
 	var ref := _vd(d.get("joueur", {}).get("pos", [0, 0, 0]))
 	for zd in d.get("zombies", []):
 		var pos := _vd(zd.pos)

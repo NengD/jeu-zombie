@@ -30,7 +30,11 @@ var _compte_avant := -1.0
 
 
 ## Horde lancée par main.declencher_horde (zombies réels près de la base).
-func debut(p_base: Node3D, p_centre: Vector3, p_angle: float, liste: Array) -> void:
+## Zombies dans le groupe « attaque » : sauvegardés par `etat()`, pas avec les zombies ordinaires de sauvegarde.gd.
+func debut(p_base: Node3D, p_centre: Vector3, p_angle: float, liste: Array, avec_bandits := true) -> void:
+	for z in liste:
+		z.add_to_group("attaque")
+		z.set_meta("ab_t", randf() * 2.0)
 	if active:
 		zombies.append_array(liste)   # deuxième vague pendant l'attaque
 		return
@@ -41,10 +45,105 @@ func debut(p_base: Node3D, p_centre: Vector3, p_angle: float, liste: Array) -> v
 	zombies = liste.duplicate()
 	breches = []
 	detruites = 0
+	tues_avant = 0
 	_suivre_pieces()
-	for z in zombies:
-		z.set_meta("ab_t", randf() * 2.0)
-	_bandits_opportunistes()
+	if avec_bandits:
+		_bandits_opportunistes()
+
+
+# ---------------------------------------------------------------- sauvegarde (clé « attaque » de sauvegarde.gd)
+static var a_reprendre: Dictionary = {}   # posé par Sauvegarde.appliquer_zombies, repris une image après _ready
+var tues_avant := 0                       # zombies tués avant le chargement
+
+
+func _ready() -> void:
+	if not a_reprendre.is_empty():
+		var d := a_reprendre
+		a_reprendre = {}
+		_reprendre.call_deferred(d)   # les bases sont recréées après ce nœud (Sauvegarde.appliquer_joueur)
+
+
+## Compte à rebours de l'alerte (main.horde_*) et attaque en cours : base, angle, brèches, zombies, bandits.
+func etat() -> Dictionary:
+	var d := {}
+	if main.horde_compte > 0.0 and main.horde_base and is_instance_valid(main.horde_base) and not is_nan(main.horde_angle):
+		d["compte"] = {"t": main.horde_compte, "a": main.horde_angle, "b": _v(main.horde_base.global_position)}
+	if active and is_instance_valid(base):
+		var zs := []
+		var tues := tues_avant
+		for z in zombies:
+			if _vivant(z):
+				zs.append({"pos": _v(z.global_position), "type": z.kind, "pv": z.health, "a": z.assaut, "in": z.get_meta("ab_dedans", false)})
+			else:
+				tues += 1
+		var bs := []
+		for b in bandits:
+			if is_instance_valid(b) and b.state != Bandit.MORT:
+				bs.append({"pos": _v(b.global_position), "pv": b.health})
+		var br := []
+		for p in breches:
+			br.append(_v(p))
+		d["attaque"] = {"b": _v(base.global_position), "c": _v(centre), "a": angle, "z": zs, "ba": bs, "br": br, "d": detruites, "t": tues}
+	return d
+
+
+func _reprendre(d: Dictionary) -> void:
+	var c = d.get("compte")
+	if c is Dictionary:
+		var hb := _base_en(_vd(c.get("b", [0, 0, 0])))
+		if hb:
+			main.horde_base = hb
+			main.horde_compte = float(c.get("t", 30.0))
+			main.horde_angle = float(c.get("a", 0.0))
+			main.horde_grogne_t = 3.0
+			_compte_avant = main.horde_compte   # pas de nouvelle annonce radio
+			Game.msg("!! La horde approche toujours de ta base par %s : %d secondes !" % [main._nom_direction(main.horde_angle), int(main.horde_compte)])
+	var a = d.get("attaque")
+	if not a is Dictionary:
+		return
+	var b := _base_en(_vd(a.get("b", [0, 0, 0])))
+	if b == null:
+		return
+	var c_att := _vd(a.get("c", [0, 0, 0]))
+	var liste := []
+	for zd in a.get("z", []):
+		var z = main.spawn_zombie(_vd(zd.pos), str(zd.get("type", "civil")), false, 15.0)
+		z.add_to_group("horde")
+		z.health = float(zd.get("pv", z.health))
+		z.assaut = bool(zd.get("a", true))
+		z.assaut_pos = c_att
+		if z.assaut:
+			z.state = z.State.CHASE
+			z.target = c_att
+		if bool(zd.get("in", false)):
+			z.set_meta("ab_dedans", true)
+		liste.append(z)
+	debut(b, c_att, float(a.get("a", 0.0)), liste, false)
+	for p in a.get("br", []):
+		breches.append(_vd(p))
+	detruites = int(a.get("d", 0))
+	tues_avant = int(a.get("t", 0))
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for bd in a.get("ba", []):
+		var bn := _poser_bandit(_vd(bd.pos), rng)
+		bn.health = float(bd.get("pv", bn.health))
+	Game.msg("!! L'attaque de ta base continue : %d zombie(s) encore debout." % liste.size())
+
+
+func _base_en(p: Vector3) -> Node3D:
+	for b in get_tree().get_nodes_in_group("base_construction"):
+		if is_instance_valid(b) and not b.is_queued_for_deletion() and b.global_position.distance_to(p) < 1.5:
+			return b
+	return null
+
+
+func _v(p: Vector3) -> Array:
+	return [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)]
+
+
+func _vd(a) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2])) if a is Array and a.size() >= 3 else Vector3.ZERO
 
 
 ## Point d'apparition d'où l'on voit la base (pas de maison entre les deux : les zombies n'ont pas de recherche de chemin).
@@ -91,16 +190,21 @@ func _bandits_opportunistes() -> void:
 		if (Game.relief and Game.relief.dans_eau(p.x, p.z)) or not Game.find_zone(p + Vector3.UP).is_empty():
 			continue
 		p.y = Game.hauteur(p.x, p.z) + 0.1
-		var b = Bandit.new()
-		b.setup(CAMP_BANDITS, centre, rng)
-		main.add_child(b)
-		b.global_position = p
-		b.state = Bandit.ALERTE
-		b.cible_pos = centre
-		bandits.append(b)
+		_poser_bandit(p, rng)
 		poses += 1
 	if poses > 0:
 		Game.msg("Des bandits profitent de l'attaque : %d s'approchent de ta base par %s !" % [poses, main._nom_direction(a)])
+
+
+func _poser_bandit(p: Vector3, rng: RandomNumberGenerator) -> Node:
+	var b = Bandit.new()
+	b.setup(CAMP_BANDITS, centre, rng)
+	main.add_child(b)
+	b.global_position = p
+	b.state = Bandit.ALERTE
+	b.cible_pos = centre
+	bandits.append(b)
+	return b
 
 
 func _process(delta: float) -> void:
@@ -284,12 +388,13 @@ func _plat(a: Vector3, b: Vector3) -> float:
 
 func _fin(raison: String) -> void:
 	active = false
-	var tues := 0
+	var tues := tues_avant
 	for z in zombies:
 		if not _vivant(z):
 			tues += 1
 		elif is_instance_valid(z):
 			z.assaut = false
+			z.remove_from_group("attaque")   # redevient un zombie ordinaire (sauvegardé normalement)
 			for m in ["ab_piece", "ab_t", "ab_dedans"]:
 				z.remove_meta(m)
 	var vivant: bool = Game.player and Game.player.alive
