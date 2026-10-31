@@ -94,9 +94,13 @@ const GUIDE := """[b]LES BASES[/b]
 • Tes pas laissent des traces dans la neige ; elles s'effacent au bout d'environ une minute.
 • Lacs gelés : par grand froid (dès la première nuit d'hiver), la glace prend sur les lacs. On marche dessus, mais on ne peut
   plus y nager, y puiser de l'eau ni y pêcher (la rivière, elle, ne gèle pas). Ils dégèlent au printemps.
+  Avec une hache, [F] sur la glace creuse un trou (un peu bruyant) : on y remplit ses bouteilles ou on y boit ; il regèle le lendemain.
 
 [b]SAISONS[/b]
 • 4 saisons de 7 jours (la partie commence au printemps). La saison s'affiche sous l'heure et dans l'état ([J]).
+• La durée du jour suit la saison : soleil de 6 h 45 à 19 h 45 au printemps, de 5 h 45 à 20 h 45 en été, de 7 h 45 à 18 h 45
+  en automne, de 8 h 45 à 17 h 45 seulement en hiver (longues nuits). Les lampadaires s'allument une demi-heure avant le
+  coucher du soleil, le panneau solaire produit moins en hiver et le sommeil finit au lever du soleil.
 • Printemps : doux, averses. Été : il fait plus chaud, la nourriture se gâte 1,5 fois plus vite, pommes et maïs en fin d'été.
 • Automne : plus froid, pluie, fruits (pommes, raisin, maïs), les plantes poussent plus lentement.
 • Hiver : grand froid et neige ; dehors la nuit sans vêtements chauds on est transi en quelques minutes, il faut un feu.
@@ -109,7 +113,7 @@ const GUIDE := """[b]LES BASES[/b]
   coups +70 %). Les bandits suivent la même règle.
 • Chaque semaine le monde devient plus dangereux : +20 % de zombies errants par semaine jusqu'à la 7ᵉ, plus de coureurs
   et de gros zombies, hordes plus grandes (jusqu'à 40) et plus fréquentes.
-• [b]Nuit de sang[/b] tous les 7 jours (annoncée la veille, le matin et à 17 h) : une énorme horde attaque ta base ou te
+• [b]Nuit de sang[/b] tous les 7 jours (annoncée la veille, le matin et 3 h 30 avant le coucher du soleil ; elle commence dès le coucher) : une énorme horde attaque ta base ou te
   traque jusqu'à l'aube, et il y a 50 % d'errants en plus.
 • Un camp de bandits nettoyé est réoccupé 5 à 7 jours plus tard (si tu n'es pas tout près), avec plus de bandits au fil
   des semaines ; la prime peut être gagnée de nouveau et l'armurier le propose encore dans ses commandes.
@@ -182,11 +186,13 @@ const GUIDE := """[b]LES BASES[/b]
 • Animaux : cerfs, biches et sangliers en forêt, faisans et lapins dans les champs. Ils entendent les bruits et te voient de loin :
   approche accroupi, caché dans les buissons. Le sanglier peut charger ! Les loups (forêts, surtout la nuit) et les chiens sauvages
   chassent en meute : ils attaquent dès qu'ils te voient. Les corbeaux s'envolent quand tu approches et attirent les zombies.
+  En hiver il y a moins d'animaux sauvages (sauf les loups), mais sur la neige ils laissent des traces (sabots ou pattes)
+  qui restent 4 minutes : suis-les pour les trouver.
   Vaches, chevaux et moutons errent près des fermes : de la viande, du cuir (et de la laine pour le tissu) faciles à prendre.
 • Animal mort : [F] pour le dépecer avec un couteau, une machette ou une hache (viande crue, peau, os, graisse, plumes).
 • Collets à lapins (1 ferraille + 1 planche → 2) : à poser dehors loin des villes ; un lapin s'y prend si personne ne rôde autour.
 • Récupérateur d'eau de pluie (établi) : le fût garde jusqu'à 6 bouteilles d'eau de pluie ; apporte des bouteilles vides
-  et [F] les remplit d'eau potable (il ne fabrique pas de bouteilles). Séchoir à viande (planches, clous) :
+  et [F] les remplit d'eau potable (il ne fabrique pas de bouteilles). Sous la neige, il se remplit 3 fois moins vite. Séchoir à viande (planches, clous) :
   [F] pour y suspendre la viande crue, elle devient de la viande séchée (légère, sans danger). Piège à mâchoires (établi) :
   immobilise et blesse le premier zombie qui marche dessus ; [F] pour le réarmer.
 
@@ -201,7 +207,8 @@ const GUIDE := """[b]LES BASES[/b]
 • Talent [b]Jardinier[/b] (Survie) : les plantes poussent 40 % plus vite et chaque récolte donne un légume de plus.
   Semer et récolter rapportent de l'XP de Survie.
 • Pousse selon la saison : normale au printemps, ×1,2 en été, ×0,7 en automne, ×0,2 en hiver. Un bac dans un bâtiment
-  pousse au moins à ×0,6 même en hiver, mais la pluie ne l'arrose pas.
+  pousse au moins à ×0,6 même en hiver, mais la pluie ne l'arrose pas. La neige n'arrose pas non plus les bacs : en hiver,
+  arrose-les à la main.
 
 [b]ÉLECTRICITÉ[/b]
 • Sources (établi) : le [b]groupe électrogène[/b] (1500 W) brûle un jerrican d'essence en 12 minutes ; [F] le démarre (en versant
@@ -233,6 +240,9 @@ const GUIDE := """[b]LES BASES[/b]
 • [b]Coffre[/b] : vise l'arrière d'une voiture réparée et appuie sur [F] pour ranger du butin (8 × 5 cases ; pick-up 10 × 6,
   camionnette 10 × 7, ambulance 9 × 6, SUV 8 × 6, sportive 6 × 4). Il est sauvegardé et la nourriture s'y gâte.
 • [b]Ma voiture[/b] : la dernière voiture conduite est marquée (petite voiture rose) sur la carte [M] et la boussole.
+• [b]Hiver[/b] : sur la neige la voiture glisse dans les virages, freine plus tard et patine au démarrage ; sur un lac gelé
+  c'est pire (« Route enneigée », « Verglas ! »). Par grand froid (la nuit ou avant 9 h), un moteur froid peut caler une ou
+  deux fois : accélère pour relancer le démarreur. Après un trajet, le moteur reste chaud 3 minutes.
 • Le moteur s'entend de loin : les zombies accourent. Les écraser les blesse selon la vitesse, mais abîme la voiture ;
   les chocs contre les murs aussi. Au volant, la carrosserie prend l'essentiel des coups.
 • Réservoir de 60 L. Accroupi devant la voiture, [F] fait l'action indiquée : réparer si elle est abîmée
@@ -274,6 +284,8 @@ const GUIDE := """[b]LES BASES[/b]
 [b]EAU ET FROID[/b]
 • Face à un lac ou à la rivière, [F] pour boire (l'eau n'est pas potable : risque de maladie) ou, avec une bouteille vide,
   pour la remplir d'eau non potable, à faire bouillir au feu de camp. Boire une bouteille (eau, soda) te rend la bouteille vide.
+• Dehors, sur un sol enneigé, [F] avec une bouteille vide la remplit de neige : elle fond en eau sale, à faire bouillir.
+• Dans la neige épaisse, on marche 10 % moins vite, la course fatigue 25 % plus et l'endurance revient moins vite (état [J]).
 • La nuit, la pluie et l'eau refroidissent ; le jour, un abri et surtout un feu de camp (à moins de 6 m) réchauffent.
   Les vêtements chauds (bonnet, vestes, gilets…) ralentissent le refroidissement. Avoir froid réduit l'endurance et empêche
   la santé de remonter ; transi de froid, ta santé baisse (indicateur ❄ sous l'heure).
@@ -298,7 +310,7 @@ const GUIDE := """[b]LES BASES[/b]
 [b]PÊCHE ET CUEILLETTE[/b]
 • [b]Ligne de pêche[/b] (planche + tissu + ferraille, à la main) : plante-la au bord d'une rivière, d'un lac ou d'une mare
   (refusée loin de l'eau ou en eau profonde) et éloigne-toi : un poisson mord toutes les 3 à 5 minutes quand personne ne rôde
-  à moins de 20 m (plus vite sous la pluie, deux fois plus vite avec le talent Piégeur). Le seau garde 3 poissons : [F] pour les prendre.
+  à moins de 20 m (plus vite sous la pluie mais pas sous la neige, deux fois plus vite avec le talent Piégeur). Le seau garde 3 poissons : [F] pour les prendre.
   Le poisson cru se grille au feu.
 • [b]Cueillette[/b] : dans les vergers, les vignobles et les champs de maïs, vise un pommier, un rang de vigne ou un pied de maïs et
   appuie sur [F] (pommes, raisin, épis de maïs à griller au feu). Chaque plant se cueille une fois par jour ; les fruits encore
@@ -321,7 +333,7 @@ const GUIDE := """[b]LES BASES[/b]
 • [G] sur une pièce : la réparer, ou la renforcer bois → tôle (ferraille) → parpaing (sacs de ciment).
 • [b]Maj + G[/b] : réparer toute la base d'un coup (pièces, pièges et barricades), ou si rien n'est abîmé, la renforcer
   entièrement d'un niveau. Le coût total s'affiche en visant une pièce.
-• [b]Lit de camp[/b] (établi : 4 planches, 4 clous, 4 tissus), à poser dans la base : [F] la nuit pour dormir jusqu'à 7 h.
+• [b]Lit de camp[/b] (établi : 4 planches, 4 clous, 4 tissus), à poser dans la base : [F] la nuit pour dormir jusqu'au lever du soleil (8 h 45 en hiver, 5 h 45 en été).
   Refusé si un zombie ou un bandit est à moins de 30 m ; faim et soif baissent pendant le sommeil (deux fois moins vite).
   Impossible aussi en saignant (arrête d'abord le saignement) ou avec une forte fièvre. Pendant le sommeil, le temps passe
   pour tout : une morsure finit de s'infecter ou de cicatriser, la fièvre monte, l'intoxication passe, le froid s'installe
@@ -342,6 +354,8 @@ const GUIDE := """[b]LES BASES[/b]
   Une pièce détruite ouvre une brèche par laquelle les autres entrent : répare et renforce avec [G] (Maj+G : toute la base).
   Pièges à mâchoires, piques, barbelés et clôture électrique les arrêtent ; parfois des bandits profitent de l'attaque.
   L'attaque finit à l'aube ou quand la horde est tuée : XP de survie (plus si tu l'as repoussée), compteur dans le journal (O).
+  Tu peux sauvegarder (F5 ou sauvegarde automatique) pendant l'alerte ou l'attaque : au chargement, la horde est toujours là
+  (mêmes zombies, brèches, bandits, compte à rebours) et l'attaque se termine normalement.
 • [b]Événements[/b] (environ un tous les 1 à 2 jours, annoncés à la radio, triangle de couleur sur la carte et la boussole) :
   [b]largage[/b] (un hélicoptère lâche une caisse en parachute : très bon butin, mais sa fumée rouge attire les zombies),
   [b]convoi militaire[/b] accidenté (caisses militaires gardées par des soldats zombies), [b]horde migrante[/b]
