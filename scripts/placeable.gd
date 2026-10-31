@@ -351,7 +351,7 @@ func get_prompt() -> String:
 		"torche":
 			return "Torche"
 		"recuperateur_eau":
-			return "[F] Récupérateur d'eau : remplir tes bouteilles vides (%d / %d d'eau de pluie%s)" % [stock, EAU_MAX, ", il pleut" if Game.pluie > 0.3 else ""]
+			return "[F] Récupérateur d'eau : remplir tes bouteilles vides (%d / %d d'eau de pluie%s)" % [stock, EAU_MAX, (", il neige : la neige fond lentement" if Game.neige else ", il pleut") if Game.pluie > 0.3 else ""]
 		"sechoir":
 			return "[F] Séchoir à viande : %d / %d sèche(s)" % [secs, stock] if stock > 0 else "[F] Séchoir à viande : mettre de la viande crue à sécher"
 		"canne_peche":
@@ -386,6 +386,7 @@ func _modele(id: String, pos: Vector3, k: Vector3, rot_y := 0.0) -> Node3D:
 # ---------------------------------------------------------------- récupérateur d'eau, séchoir, piège à mâchoires
 const EAU_MAX := 6                  # bouteilles d'eau de pluie en réserve au plus (puisées dans des bouteilles vides)
 const PLUIE_PAR_BOUTEILLE := 90.0   # secondes de pluie franche par bouteille
+const NEIGE_FONTE := 0.3            # sous la neige, le récupérateur ne recueille que la neige qui fond
 const SECHAGE := 240.0              # secondes pour sécher une lanière de viande
 const SECHOIR_MAX := 6
 var stock := 0                       # bouteilles (récupérateur) ou viandes mises à sécher (séchoir)
@@ -466,7 +467,7 @@ func _maj_lent(delta: float, dort := false) -> void:
 		return
 	var avant := stock + secs
 	if kind == "recuperateur_eau" and stock < EAU_MAX and Game.pluie > 0.3:
-		minuteur += delta * Game.pluie
+		minuteur += delta * Game.pluie * (NEIGE_FONTE if Game.neige else 1.0)   # neige qui fond : bien moins d'eau
 		while minuteur >= PLUIE_PAR_BOUTEILLE and stock < EAU_MAX:
 			minuteur -= PLUIE_PAR_BOUTEILLE
 			stock += 1
@@ -478,7 +479,7 @@ func _maj_lent(delta: float, dort := false) -> void:
 		if Game.lacs_geles and Game.relief and Game.relief.dans_lac(global_position.x, global_position.z, 6.0):
 			return   # lac gelé : plus rien ne mord
 
-		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.6 if p and p.prog.a("pecheur") else 1.0) * (1.3 if Game.pluie > 0.3 else 1.0)
+		minuteur += delta * (2.0 if p and p.prog.a("piegeur") else 1.0) * (1.6 if p and p.prog.a("pecheur") else 1.0) * (1.3 if Game.pluie > 0.3 and not Game.neige else 1.0)
 		while minuteur >= PECHE_DUREE and stock < peche_max():
 			minuteur -= PECHE_DUREE + randf_range(-30.0, 60.0)
 			stock += 1
@@ -820,7 +821,7 @@ func pousse_saison() -> float:
 
 func _maj_bac(delta: float) -> void:
 	var e := secs + eau_frac
-	if Game.pluie > 0.3 and not abrite():
+	if Game.pluie > 0.3 and not Game.neige and not abrite():   # la neige n'arrose pas
 		e += delta * Game.pluie * EAU_PLUIE
 	var c := culture()
 	if c != "" and minuteur < POUSSE[c]:
@@ -925,7 +926,7 @@ func _prompt_bac() -> String:
 	var arroser := "[F] Arroser — " if secs < 100 - EAU_BOUTEILLE / 2 else ""
 	var k := pousse_saison()
 	var saison := "" if is_equal_approx(k, 1.0) else ", %s : pousse ×%s" % [Saisons.nom().to_lower(), str(snappedf(k, 0.1)).replace(".", ",")]
-	return "%s%s : %s, %d %% (%s%s%s)" % [arroser, nom, ["pousse", "plant"][etape()], p, eau, ", il pleut" if Game.pluie > 0.3 and not abrite() else "", saison]
+	return "%s%s : %s, %d %% (%s%s%s)" % [arroser, nom, ["pousse", "plant"][etape()], p, eau, ("" if abrite() else (", il neige : pas d'arrosage" if Game.neige else ", il pleut")) if Game.pluie > 0.3 else "", saison]
 
 
 func _interagir_bac(player: Node) -> void:
