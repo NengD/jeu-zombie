@@ -111,7 +111,8 @@ func _process(delta: float) -> void:
 
 func _apply() -> void:
 	var h := Game.time_hours
-	var t := (h - 6.0) / 14.5            # 0 = lever (6 h), 1 = coucher (20 h 30)
+	var lev := Game.lever()
+	var t := (h - lev) / (Game.coucher() - lev)   # 0 = lever, 1 = coucher (selon la saison, Saisons.duree_jour)
 	var elev := sin(clampf(t, 0.0, 1.0) * PI) if (t >= 0.0 and t <= 1.0) else -0.3
 	var daylight := smoothstep(-0.02, 0.3, elev)
 	var dusk := clampf(1.0 - absf(elev) * 5.0, 0.0, 1.0) * (1.0 if t > -0.1 and t < 1.1 else 0.0)

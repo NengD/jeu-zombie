@@ -58,10 +58,10 @@ func installer(lampadaires: Array, graine: int) -> void:
 		lampes.append({"lumiere": lum, "mat": mat, "etat": etat, "t": rng.randf() * 10.0, "rang": 99})
 
 
-## Allumés de 20 h à 6 h 30.
+## Allumés d'une demi-heure avant le coucher du soleil à une demi-heure après le lever (selon la saison).
 func _process(delta: float) -> void:
 	var h: float = Game.time_hours
-	var cible := 1.0 if (h >= 20.0 or h < 6.5) else 0.0
+	var cible := 1.0 if (h >= Game.coucher() - 0.5 or h < Game.lever() + 0.5) else 0.0
 	allume = move_toward(maxf(allume, 0.0), cible, delta * 0.5) if allume >= 0.0 else cible
 	var p = Game.player
 	# seules les lampes les plus proches éclairent vraiment (les autres : lanterne lumineuse seule)

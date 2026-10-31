@@ -662,9 +662,10 @@ func _maj_difficulte() -> void:
 				Game.msg("Les zombies s'agitent… Demain soir : nuit de sang. Prépare ta base.")
 			if Game.day % 7 == 1:
 				Game.msg("Semaine %d : les zombies sont plus nombreux et plus dangereux." % (Game.semaine() + 1))
-	if Game.nuit_de_sang() and not rappel_sang and Game.time_hours >= 17.0 and not Game.is_night():
+	# rappel 3 h 30 avant le coucher du soleil (été 17 h 15, printemps 16 h 15, automne 15 h 15, hiver 14 h 15)
+	if Game.nuit_de_sang() and not rappel_sang and Game.time_hours >= Game.coucher() - 3.5 and not Game.is_night():
 		rappel_sang = true
-		Game.msg("!! La nuit de sang approche : rentre à ta base !")
+		Game.msg("!! La nuit de sang approche (coucher du soleil à %s) : rentre à ta base !" % Game.texte_heure(Game.coucher()))
 	# la horde de la nuit de sang suit le joueur (sans base à assiéger)
 	for z in get_tree().get_nodes_in_group("traque"):
 		if is_instance_valid(z) and z.state != z.State.CHASE and z.state != z.State.DEAD:
@@ -776,7 +777,7 @@ func texte_alerte() -> String:
 	if Game.sang_actif():
 		return "!! NUIT DE SANG — tiens jusqu'au lever du jour"
 	if Game.nuit_de_sang() and Game.time_hours >= 12.0:
-		return "Nuit de sang ce soir"
+		return "Nuit de sang ce soir (%s)" % Game.texte_heure(Game.coucher())
 	return ""
 
 

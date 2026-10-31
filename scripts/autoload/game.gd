@@ -105,9 +105,9 @@ func nuit_de_sang(jour := -1) -> bool:
 	return (day if jour < 0 else jour) % JOURS_NUIT_SANG == 0
 
 
-## En pleine nuit de sang (de 20 h 30 le 7ᵉ jour jusqu'à 6 h le lendemain).
+## En pleine nuit de sang (du coucher du soleil le 7ᵉ jour jusqu'au lever le lendemain).
 func sang_actif() -> bool:
-	return (nuit_de_sang() and time_hours >= 20.5) or (nuit_de_sang(day - 1) and time_hours < 6.0)
+	return (nuit_de_sang() and time_hours >= coucher()) or (nuit_de_sang(day - 1) and time_hours < lever())
 
 
 func mult_nombre() -> float:
@@ -554,7 +554,28 @@ func dans_buisson(pos: Vector3) -> bool:
 
 
 func is_night() -> bool:
-	return time_hours < 6.0 or time_hours >= 20.5
+	return time_hours < lever() or time_hours >= coucher()
+
+
+## Lever et coucher du soleil (heures) : journée de Saisons.duree_jour() heures centrée sur 13 h 15
+## (printemps 6 h 45 – 19 h 45, été 5 h 45 – 20 h 45, automne 7 h 45 – 18 h 45, hiver 8 h 45 – 17 h 45).
+## La saison est celle du jour en cours : l'heure du lever ne change qu'à minuit.
+const MIDI_SOLAIRE := 13.25
+const Saisons = preload("res://scripts/saisons.gd")
+
+
+func lever() -> float:
+	return MIDI_SOLAIRE - Saisons.duree_jour() * 0.5
+
+
+func coucher() -> float:
+	return MIDI_SOLAIRE + Saisons.duree_jour() * 0.5
+
+
+## Heure lisible (« 17 h 45 »).
+static func texte_heure(h: float) -> String:
+	var mn := int(round(fposmod(h, 24.0) * 60.0))
+	return "%d h %02d" % [mn / 60, mn % 60] if mn % 60 != 0 else "%d h" % (mn / 60)
 
 
 ## Prochain passage (porte ou escalier) pour aller de la zone « de » à la zone « vers »
