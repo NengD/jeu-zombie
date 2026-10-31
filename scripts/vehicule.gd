@@ -27,6 +27,10 @@ const FREIN := 28.0
 const RAYON_ROUE := 0.36
 const DIST_GEL := 150.0
 const MASSE := 1200.0
+const ADH_NEIGE := 0.55     # adhérence sur neige épaisse (Game.enneige = 1)
+const ADH_GLACE := 0.3      # adhérence sur un lac gelé
+const CHAUD_MS := 180000    # moteur encore chaud 3 min après l'arrêt : pas de raté
+const Saisons = preload("res://scripts/saisons.gd")
 
 var id := "voiture1"
 var epave := -1              # n° dans world.epaves (-1 : modèle recréé)
@@ -57,7 +61,13 @@ var age := 0.0
 var km := 0.0                # mètres parcourus depuis la dernière XP
 var balle_t := false         # posé par bandit.gd juste avant le take_damage d'une balle (encaisser)
 var coffre: Node = null      # LootContainer de rangement à l'arrière (groupe « conteneurs »)
-var coffre_donnees = null    # grille sauvegardée, rendue au coffre dans _ready (vehicules.appliquer)
+var coffre_donnees = null
+var roues: Array = []
+var adh := 1.0               # adhérence du sol (neige, glace)
+var demarre := true          # moteur lancé (par grand froid, il peut caler au démarreur)
+var rates := 0               # ratés restants avant que le moteur prenne
+var demarreur_t := 0.0       # démarreur en train de tourner
+var chaud_jusqua := 0        # Time.get_ticks_msec() jusqu'auquel le moteur reste chaud    # grille sauvegardée, rendue au coffre dans _ready (vehicules.appliquer)
 
 ## Dernière voiture conduite : marqueur « Ma voiture » de la carte (map_ui.gd) et de la boussole (hud.gd).
 static var derniere: Node = null
@@ -119,6 +129,7 @@ func _ready() -> void:
 			w.use_as_steering = sz > 0.0
 			w.use_as_traction = sz < 0.0
 			add_child(w)
+			roues.append(w)
 	# phares (vers +Z ; une SpotLight éclaire vers -Z)
 	for sx in [-1.0, 1.0]:
 		var l := SpotLight3D.new()
@@ -285,6 +296,8 @@ func prompt_conduite() -> String:
 		return "Moteur en panne — [F] descendre"
 	if essence <= 0.0:
 		return "Panne d'essence — [F] descendre"
+	if not demarre:
+		return "Moteur froid : accélérez pour lancer le démarreur" if demarreur_t <= 0.0 else "Démarreur…"
 	return ""
 
 
@@ -298,6 +311,11 @@ func monter(j: Node) -> void:
 	freeze = false
 	sleeping = false
 	cam_yaw = 0.0
+	rates = _rates_froid()
+	demarre = rates == 0
+	demarreur_t = 0.0
+	if not demarre:
+		Game.msg("Il gèle : le moteur risque de mal démarrer.")
 	camera.global_position = global_position - global_basis.z * 7.0 + Vector3.UP * 3.0
 	camera.make_current()
 	hud.visible = true
@@ -327,6 +345,8 @@ func descendre() -> void:
 	_phares(false)
 	son.stop()
 	lecture = null
+	if demarre and pv > 0.0 and essence > 0.0:
+		chaud_jusqua = Time.get_ticks_msec() + CHAUD_MS
 	engine_force = 0.0
 	brake = FREIN
 
@@ -380,6 +400,31 @@ func encaisser(montant: float) -> float:
 	abimer(montant * 0.5)
 	Game.play_3d("impact_metal", global_position + Vector3.UP, -2.0, 0.15, 40.0)
 	return montant * 0.25
+
+
+## Par grand froid en hiver (nuit ou petit matin, neige au sol), le moteur froid peut caler une ou deux fois.
+func _rates_froid() -> int:
+	if Saisons.saison() != "hiver" or Time.get_ticks_msec() < chaud_jusqua or pv <= 0.0 or essence <= 0.0:
+		return 0
+	var p := 0.25
+	if Game.is_night() or Game.time_hours < 9.0:
+		p = 0.55
+	p += 0.1 * clampf(Game.enneige, 0.0, 1.0)
+	if pv < 50.0:
+		p += 0.1
+	var n := 0
+	if randf() < p:
+		n = 1
+		if randf() < p * 0.5:
+			n = 2
+	return n
+
+
+## Adhérence sous la voiture : neige au sol (Game.enneige), glace d'un lac gelé.
+func _adherence() -> float:
+	if Game.sur_glace(global_position):
+		return ADH_GLACE
+	return lerpf(1.0, ADH_NEIGE, clampf(Game.enneige, 0.0, 1.0))
 
 
 func _pilote() -> bool:
@@ -446,15 +491,37 @@ func _physics_process(delta: float) -> void:
 		dir = Input.get_action_strength("gauche") - Input.get_action_strength("droite")
 		frein_main = Input.is_action_pressed("sauter")
 	var marche := pv > 0.0 and essence > 0.0
+	# démarreur par grand froid : accélérer le lance ; chaque raté cale, le dernier essai prend
+	if marche and not demarre:
+		if demarreur_t > 0.0:
+			demarreur_t -= delta
+			if demarreur_t <= 0.0:
+				if rates > 0:
+					rates -= 1
+					Game.msg("Le moteur tousse et cale (froid). Réessayez.")
+					Game.play_3d("impact_metal", global_position, -14.0, 0.05, 20.0, 0.5)
+				else:
+					demarre = true
+					Game.msg("Le moteur démarre.")
+					Game.make_noise(global_position, 30.0)
+		elif acc != 0.0:
+			demarreur_t = 1.2
+		marche = demarre
 	if not marche:
 		acc = 0.0
+	# neige et glace : moins d'adhérence (glisse, freinage plus long, patinage)
+	var a := _adherence()
+	if absf(a - adh) > 0.01:
+		adh = a
+		for w in roues:
+			w.wheel_friction_slip = 2.6 * adh
 	brake = 0.0
 	engine_force = 0.0
 	if acc > 0.0:
 		if avant < -1.0:
 			brake = FREIN
 		else:
-			engine_force = FORCE * acc * clampf(1.0 - avant / VMAX, 0.0, 1.0)
+			engine_force = FORCE * acc * clampf(1.0 - avant / VMAX, 0.0, 1.0) * (0.4 + 0.6 * adh)
 	elif acc < 0.0:
 		if avant > 1.0:
 			brake = FREIN
@@ -465,6 +532,7 @@ func _physics_process(delta: float) -> void:
 	if frein_main:
 		brake = FREIN * 1.4
 		engine_force = 0.0
+	brake *= adh
 	var braq := lerpf(0.55, 0.16, clampf(absf(avant) / 28.0, 0.0, 1.0))
 	steering = move_toward(steering, dir * braq, delta * 2.2)
 	gaz = move_toward(gaz, absf(acc), delta * 3.0)
@@ -568,6 +636,10 @@ func _process(delta: float) -> void:
 	# tableau de bord
 	var kmh := int(round(linear_velocity.length() * 3.6))
 	lbl.text = "%d km/h\nEssence %d / %d L\nÉtat %d %%" % [kmh, int(ceil(essence)), int(ESSENCE_MAX), int(ceil(pv))]
+	if adh < 0.5:
+		lbl.text += "\nVerglas !"
+	elif adh < 0.85:
+		lbl.text += "\nRoute enneigée"
 	lbl.modulate = Color(1, 0.5, 0.4) if essence < 6.0 or pv < 25.0 else Color.WHITE
 	_remplir_son()
 
@@ -576,9 +648,12 @@ func _process(delta: float) -> void:
 func _remplir_son() -> void:
 	if lecture == null:
 		return
-	var marche := pv > 0.0 and essence > 0.0
+	var marche := pv > 0.0 and essence > 0.0 and demarre
 	var f := 32.0 + regime * 95.0
 	var amp := (0.16 + 0.14 * gaz) if marche else 0.0
+	if demarreur_t > 0.0:   # démarreur : ronflement saccadé
+		f = 14.0
+		amp = 0.22 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.03))
 	var pas := f / 22050.0
 	for i in lecture.get_frames_available():
 		phase = fmod(phase + pas, 1.0)
