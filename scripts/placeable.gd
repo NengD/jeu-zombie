@@ -359,7 +359,7 @@ func get_prompt() -> String:
 		"piege_machoires":
 			return "Piège à mâchoires (armé)" if armee else "[F] Réarmer le piège à mâchoires"
 		"lit":
-			return "[F] Dormir jusqu'au matin" if Game.is_night() else "Lit de camp (on n'y dort que la nuit, après 20 h 30)"
+			return "[F] Dormir jusqu'au matin" if Game.is_night() else "Lit de camp (on n'y dort que la nuit, après %s)" % Game.texte_heure(Game.coucher())
 		"bac_culture":
 			return _prompt_bac()
 		"groupe_electrogene", "panneau_solaire", "lampe", "cloture_electrique":
@@ -1158,7 +1158,7 @@ func produit() -> float:
 		"panneau_solaire":
 			if Game.is_night():
 				return 0.0
-			var soleil := clampf(sin(PI * (Game.time_hours - 6.0) / 14.5), 0.25, 1.0)
+			var soleil := clampf(sin(PI * (Game.time_hours - Game.lever()) / maxf(1.0, Game.coucher() - Game.lever())), 0.25, 1.0)
 			return roundf(PRODUCTION[kind] * soleil * (1.0 - 0.6 * Game.pluie))
 	return 0.0
 
