@@ -257,6 +257,12 @@ func maj() -> void:
 	# --- effets actifs
 	var actifs: Array = []
 	actifs.append(_c(COUL_FROID if Saisons.saison() == "hiver" else Color(0.92, 0.9, 0.8), "%s, jour %d / %d : " % [Saisons.nom(), Saisons.jour_de_saison(), Saisons.JOURS_SAISON]) + Saisons.effets())
+	if p.dans_neige():
+		actifs.append(_c(COUL_FROID, "Neige épaisse : marche ×0,9, endurance qui s'épuise plus vite"))
+	if Game.enneige > 0.3 and p.in_zone.is_empty():
+		actifs.append("Neige au sol : [F] avec une bouteille vide pour la remplir de neige (eau sale à faire bouillir)")
+	if Game.lacs_geles:
+		actifs.append("Lacs gelés : creuse un trou à la hache pour puiser de l'eau")
 	var vet: Array = []
 	for sl in p.equipped:
 		var e: Dictionary = p.equipped[sl]

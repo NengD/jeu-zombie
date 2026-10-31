@@ -428,10 +428,10 @@ func _update_stats(delta: float) -> void:
 	# endurance : après un effort, courte pause (0,7 s) puis récupération rapide (à l'arrêt surtout)
 	pause_endurance = maxf(0.0, pause_endurance - delta)
 	if sprinting:
-		stamina = maxf(0.0, stamina - delta * 16.0 * (0.65 if prog.a("marathonien") else 1.0))
+		stamina = maxf(0.0, stamina - delta * 16.0 * (0.65 if prog.a("marathonien") else 1.0) * (1.25 if dans_neige() else 1.0))
 		pause_endurance = maxf(pause_endurance, 0.5)
 	elif pause_endurance <= 0.0:
-		stamina = minf(prog.endurance_max(), stamina + delta * (24.0 if velocity.length() < 0.5 else 14.0) * prog.recup_endurance())
+		stamina = minf(prog.endurance_max(), stamina + delta * (24.0 if velocity.length() < 0.5 else 14.0 * (0.7 if dans_neige() else 1.0)) * prog.recup_endurance())
 	if hunger <= 0.0 or thirst <= 0.0:
 		_hurt(0.6 * delta)
 	elif hunger > 50.0 and thirst > 50.0 and health < prog.sante_max() and saignement <= 0.0 and infection < 30.0 and froid <= 50.0:
@@ -524,6 +524,8 @@ func _move(delta: float, can_act: bool) -> void:
 		if float(sang_armes.get(current_weapon(), 0.0)) > 0.0:
 			sang_armes[current_weapon()] = maxf(0.0, float(sang_armes[current_weapon()]) - delta * 0.25)
 			_appliquer_sang()
+	if dans_neige() and not nage:
+		speed *= 0.9   # neige épaisse : on avance plus lentement
 	if _adrenaline():
 		speed *= 1.2
 	if roulade_t > 0.0:
@@ -2239,7 +2241,7 @@ const SOMMEIL_RAYON := 30.0
 
 func dormir(lit: Node3D = null) -> void:
 	if not Game.is_night():
-		Game.msg("Tu n'as pas sommeil : on ne dort que la nuit (après 20 h 30).")
+		Game.msg("Tu n'as pas sommeil : on ne dort que la nuit (après %s)." % Game.texte_heure(Game.coucher()))
 		return
 	for g in ["zombies", "bandits"]:
 		for z in get_tree().get_nodes_in_group(g):
@@ -2253,7 +2255,8 @@ func dormir(lit: Node3D = null) -> void:
 	if infection >= 60.0:
 		Game.msg("Trop de fièvre pour dormir : prends des antibiotiques.")
 		return
-	var heures := fposmod(7.0 - Game.time_hours, 24.0)
+	var reveil := Game.lever()   # réveil au lever du soleil (hiver 8 h 45, été 5 h 45)
+	var heures := fposmod(reveil - Game.time_hours, 24.0)
 	var faim_h := 0.045 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.faim_mult()
 	var soif_h := 0.07 * Game.DAY_SECONDS / 24.0 * 0.5 * prog.soif_mult()
 	if hunger - faim_h * heures < 5.0 or thirst - soif_h * heures < 5.0:
@@ -2275,13 +2278,13 @@ func dormir(lit: Node3D = null) -> void:
 	stamina = prog.endurance_max()
 	if Game.time_hours >= 12.0:
 		Game.day += 1      # couché avant minuit
-	Game.time_hours = 7.0
+	Game.time_hours = reveil
 	Peremption.avancer_tout(self)   # la nourriture se gâte aussi pendant la nuit
 	if fab_n > 0:
 		arreter_fabrication()
 	hurt_flash = 0.0
 	Game.play_ui("fouille", -10.0, 0.05, 0.7)
-	Game.msg("Tu as dormi %d h. Jour %d, 07:00." % [roundi(heures), Game.day])
+	Game.msg("Tu as dormi %d h. Jour %d, %s." % [roundi(heures), Game.day, Game.texte_heure(reveil)])
 	if lit:
 		geste("lit", lit)   # allongé un instant sur le lit, puis on se relève
 	# pièges, lignes de pêche, séchoirs… avancent du temps dormi ; puis sauvegarde automatique
@@ -3499,16 +3502,43 @@ func _soin_conseille() -> String:
 	return ""
 
 
-# --- eau des lacs et de la rivière : [F] pour boire, ou remplir une bouteille vide
+# --- eau des lacs et de la rivière : [F] pour boire, ou remplir une bouteille vide.
+# En hiver : neige ramassée dans une bouteille (sol enneigé, dehors), trou creusé à la hache dans un lac gelé.
 var face_eau := false
+var source_eau := ""   # "eau" (lac, rivière, trou dans la glace), "neige", "glace" (trou à creuser)
+var trous_glace: Array = []   # [position, jour] : un trou regèle le lendemain (non sauvegardé)
+const TROU_RAYON := 2.0
+
+
+## Neige épaisse sous les pieds, dehors : marche ×0,9, endurance un peu plus vite épuisée.
+func dans_neige() -> bool:
+	return Game.enneige > 0.5 and in_zone.is_empty() and vehicule == null
+
+
+func _pres_trou() -> bool:
+	for t in trous_glace:
+		if t[1] == Game.day and (t[0] as Vector3).distance_to(global_position) < TROU_RAYON:
+			return true
+	return false
 
 
 func _maj_face_eau() -> void:
 	face_eau = false
-	if prompt != "" or placing != "" or Game.ui_open or not _devant_eau():
+	source_eau = ""
+	if prompt != "" or placing != "" or Game.ui_open:
 		return
-	face_eau = true
-	prompt = "[F] Remplir une bouteille (eau sale)" if count("bouteille_vide") > 0 and Items.DB.has("eau_sale") else "[F] Boire l'eau (pas potable)"
+	var bouteille := count("bouteille_vide") > 0 and Items.DB.has("eau_sale")
+	if _devant_eau() or (Game.sur_glace(global_position) and _pres_trou()):
+		source_eau = "eau"
+		prompt = "[F] Remplir une bouteille (eau sale)" if bouteille else "[F] Boire l'eau (pas potable)"
+	elif Game.sur_glace(global_position):
+		if count("hache") > 0:
+			source_eau = "glace"
+			prompt = "[F] Creuser un trou dans la glace (hache)"
+	elif bouteille and Game.enneige > 0.3 and in_zone.is_empty() and vehicule == null and is_on_floor():
+		source_eau = "neige"
+		prompt = "[F] Remplir de neige (eau sale à faire bouillir)"
+	face_eau = source_eau != ""
 
 
 func _devant_eau() -> bool:
@@ -3521,6 +3551,22 @@ func _devant_eau() -> bool:
 
 
 func _puiser_eau() -> void:
+	if source_eau == "glace":
+		trous_glace = trous_glace.filter(func(t): return t[1] == Game.day)
+		trous_glace.append([global_position, Game.day])
+		user("hache", 3)
+		geste("genou")
+		Game.play_ui("impact_mur", -4.0, 0.1, 0.8)
+		Game.make_noise(global_position, 12.0)
+		Game.msg("Trou creusé dans la glace : tu peux y puiser de l'eau (il regèlera demain).")
+		return
+	if source_eau == "neige":
+		remove_item("bouteille_vide")
+		if add_item("eau_sale") > 0:
+			drop_entry(nouvelle_entree("eau_sale"))
+		Game.msg("Bouteille remplie de neige : elle fond en eau sale, à faire bouillir au feu.")
+		geste("genou")
+		return
 	if count("bouteille_vide") > 0 and Items.DB.has("eau_sale"):
 		remove_item("bouteille_vide")
 		if add_item("eau_sale") > 0:
